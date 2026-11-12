@@ -26,6 +26,10 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #board b{font-size:26px;font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
 #timer{background:var(--panel-solid);padding:6px 16px;font-size:24px;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-width:72px;justify-content:center}
 #timer.snitch{color:var(--gold)}
+#timer.final{color:#ff7a7a;animation:tpulse .5s ease-in-out infinite alternate}
+@keyframes tpulse{from{transform:scale(1)}to{transform:scale(1.12)}}
+#endMvp{margin-top:6px;font-size:15px;color:var(--gold)}
+#endMvp b{font-size:17px}
 
 #roster{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:8px;font-size:12.5px}
 .rteam{background:var(--panel);border-radius:10px;padding:6px 10px 6px 8px;border-left:4px solid var(--blue)}
@@ -375,6 +379,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <p class="result" id="endTitle">試合終了</p>
     <div class="finalscore" id="endScore"></div>
     <div id="endReason" class="sub"></div>
+    <div id="endMvp"></div>
     <div class="stats" id="endStats" style="justify-content:center"></div>
     <div class="btns" style="justify-content:center">
       <button class="btn" id="againBtn">もう一度</button>
@@ -427,7 +432,7 @@ const BROOMS = {
   swift: {name:'ニンバス2000',   tag:'バランス', desc:'高性能な競技用モデル。速さと持久力を両立。', boost:39.5, drain:0.33, fast:25, wood:0xa8784a, metal:0xc8ccd6, straw:'#e2c88a', trail:[0x9fd0ff,0xffffff,0x58a6ff]},
   blaze: {name:'ファイアボルト',     tag:'最速',   desc:'世界最速の国際試合用モデル。最高速だがスタミナ消費が激しい。', boost:43,   drain:0.45, fast:26, wood:0x2a1a12, metal:0xe8b53a, straw:'#8a5a2a', trail:[0xff7a2a,0xffd54a,0xff4b3a]},
 };
-const settings = {sens:1, invY:false, vol:0.7, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
+const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
 try { Object.assign(settings, JSON.parse(localStorage.getItem('skyball-settings')||'{}')); } catch(e){}
 if (!BROOMS[settings.broom]) settings.broom = 'swift';
 const saveSettings = () => { try { localStorage.setItem('skyball-settings', JSON.stringify(settings)); } catch(e){} };
@@ -907,23 +912,49 @@ const birds = Array.from({length:26}, ()=>{
 // ===== 観客席タワー =====
 const towerCount = 24, CROWD_PER = 30;
 const crowdUniforms = { time:{value:0}, cheer:{value:0} };
-function crowdMaterial(){
+function crowdMaterial(arms){
   const m = mat(0xffffff, {roughness:0.85});
   m.onBeforeCompile = sh => {
     sh.uniforms.time = crowdUniforms.time; sh.uniforms.cheer = crowdUniforms.cheer;
-    sh.vertexShader = 'uniform float time;\nuniform float cheer;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    const armCode = arms ? `
+      if (abs(arm) > 0.5){
+        float r2 = fract(ph*7.13);
+        float up = clamp(min(cheer, 1.0)*1.5 - r2*0.7, 0.0, 1.0);
+        float wave = step(0.94, r2)*(0.5 + 0.5*sin(time*1.7 + ph));
+        float a = arm*max(up*(2.55 + 0.25*sin(time*9.0 + ph)), wave*1.2);
+        vec2 pv = vec2(arm*0.36, 0.34);
+        vec2 q = transformed.xy - pv;
+        float ca = cos(a), sa = sin(a);
+        transformed.xy = pv + vec2(ca*q.x - sa*q.y, sa*q.x + ca*q.y);
+      }` : '';
+    sh.vertexShader = 'uniform float time;\nuniform float cheer;\n' + (arms ? 'attribute float arm;\n' : '') + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
     #ifdef USE_INSTANCING
       float ph = fract(sin(dot(vec2(instanceMatrix[3][0], instanceMatrix[3][2]), vec2(12.9898,78.233)))*43758.5453)*6.2831;
       float sp = cheer > 0.01 ? 9.0 : 2.0;
-      transformed.y += abs(sin(time*sp + ph))*(0.04 + min(cheer, 1.0)*0.55);
+      ${armCode}
+      transformed.y += abs(sin(time*sp + ph))*(0.04 + min(cheer, 1.0)*0.45);
     #endif`);
   };
   return m;
 }
-const crowdBodyMat = crowdMaterial(), crowdHeadMat = crowdMaterial();
+const crowdBodyMat = crowdMaterial(true), crowdHeadMat = crowdMaterial(false);
+// 観客の体：肩幅のある胴 + 腕（盛り上がると腕を上げる）
+function spectatorGeo(){
+  const torso = new THREE.LatheGeometry([[0.001,-0.5],[0.3,-0.5],[0.33,-0.1],[0.36,0.22],[0.4,0.33],[0.3,0.43],[0.13,0.47],[0.11,0.56],[0.001,0.56]].map(([x,y])=>new THREE.Vector2(x,y)), 7);
+  torso.computeVertexNormals(); const parts = [[torso.toNonIndexed(), 0]];
+  for (const sd of [-1, 1]){
+    const g = new THREE.CylinderGeometry(0.075, 0.085, 0.62, 5).toNonIndexed(); g.translate(sd*0.43, 0.05, 0); parts.push([g, sd]);
+  }
+  const pos = [], nor = [], arm = [];
+  for (const [g, sd] of parts){ const P = g.attributes.position.array, N = g.attributes.normal.array; for (let i=0;i<P.length;i++){ pos.push(P[i]); nor.push(N[i]); } for (let i=0;i<P.length/3;i++) arm.push(sd); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('arm', new THREE.Float32BufferAttribute(arm, 1));
+  return geo;
+}
+const SPECTATOR_GEO = spectatorGeo(), SPECTATOR_HEAD = new THREE.SphereGeometry(0.25, 9, 7);
 const CROWD_MAX = towerCount*CROWD_PER + 1400;
-const crowd = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.3, 0.4, 1.0, 6), crowdBodyMat, CROWD_MAX);
-const crowdHeads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.26, 8, 6), crowdHeadMat, CROWD_MAX);
+const crowd = new THREE.InstancedMesh(SPECTATOR_GEO, crowdBodyMat, CROWD_MAX);
+const crowdHeads = new THREE.InstancedMesh(SPECTATOR_HEAD, crowdHeadMat, CROWD_MAX);
 const SHIRTS = [0xf2f2f2,0xffd34a,0x7a5cff,0x37c6a0,0xff8a3c,0xe8e8e8];
 const SKIN_HEX = [0xf1c9a0,0xe0a97c,0xc68a5a,0x8d5a3b,0xf6d6b8];
 const crowdSets = [];
@@ -933,8 +964,8 @@ function addSpectator(set, x, y, z, side, teamChance){
   const i = set.meta.length;
   const m = {side, team: side >= 0 && Math.random() < teamChance, shirt: SHIRTS[Math.floor(Math.random()*SHIRTS.length)]};
   set.meta.push(m);
-  _o.position.set(x, y, z); _o.rotation.set(0,0,0); _o.scale.set(1,1,1); _o.updateMatrix(); set.body.setMatrixAt(i, _o.matrix);
-  _o.position.y += 0.78; _o.updateMatrix(); set.head.setMatrixAt(i, _o.matrix);
+  _o.position.set(x, y, z); _o.rotation.set(0, Math.atan2(-x, -z), 0); const sc = 0.92 + Math.random()*0.16; _o.scale.set(sc, sc, sc); _o.updateMatrix(); set.body.setMatrixAt(i, _o.matrix);
+  _o.position.y += 0.8*sc; _o.updateMatrix(); set.head.setMatrixAt(i, _o.matrix);
   _c.setHex(m.team ? sideHex(side) : m.shirt); set.body.setColorAt(i, _c);
   _c.setHex(SKIN_HEX[Math.floor(Math.random()*SKIN_HEX.length)]); set.head.setColorAt(i, _c);
 }
@@ -1103,7 +1134,7 @@ function buildWorldCup(){
   for (let r=0;r<rows;r++){ d += 1.7; prof.push([d, y]); y += 1.25; prof.push([d, y]); }
   const outerD = d, topY = y;
   prof.push([outerD + 1.5, topY]); prof.push([outerD + 1.5, topY + 9]);
-  const cGold = new THREE.Color(0xc9a24a), cA = new THREE.Color(0x232b44), cB = new THREE.Color(0x34405f), cWall = new THREE.Color(0x2b2f3d);
+  const cGold = new THREE.Color(0xc9a24a), cA = new THREE.Color(0x161b2a), cB = new THREE.Color(0x222a3e), cWall = new THREE.Color(0x2b2f3d);
   const bowl = new THREE.Mesh(ellipseBandGeo(ax, bz, prof, 192, (th, k)=>{
     if (k <= 2) return cGold;
     if (k >= prof.length - 2) return cWall;
@@ -1137,8 +1168,8 @@ function buildWorldCup(){
   }
   // 観客（約1万人）
   const est = 20000;
-  const body = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.3, 0.4, 1.0, 6), crowdBodyMat, est);
-  const headM = new THREE.InstancedMesh(new THREE.SphereGeometry(0.26, 8, 6), crowdHeadMat, est);
+  const body = new THREE.InstancedMesh(SPECTATOR_GEO, crowdBodyMat, est);
+  const headM = new THREE.InstancedMesh(SPECTATOR_HEAD, crowdHeadMat, est);
   const set = {body, head:headM, meta:[]};
   for (let r=0;r<rows;r+=2){
     const dd = r*1.7 + 0.85, yy = 3 + r*1.25 + 0.5;
@@ -1164,7 +1195,7 @@ function buildWorldCup(){
 let stage = 'hog';
 const STAGE_LIGHT = {
   hog: {bg:HORIZON, fogNear:280, fogFar:1600, sunDir:new V3(0.5,0.34,-0.8).normalize(), sunCol:0xffd29c, sunI:1.3, hemiSky:0xc4d6ff, hemiGround:0x6b5636, hemiI:0.68, top:0x2353b4, hor:HORIZON, night:0, bloom:0.5},
-  wc:  {bg:0x0b1024, fogNear:600, fogFar:2400, sunDir:new V3(0.25,1,0.35).normalize(), sunCol:0xf2f4ff, sunI:1.2, hemiSky:0x8fa2d8, hemiGround:0x2a2f3a, hemiI:0.85, top:0x02040c, hor:0x18233f, night:1, bloom:0.6},
+  wc:  {bg:0x0b1024, fogNear:600, fogFar:2400, sunDir:new V3(0.25,1,0.35).normalize(), sunCol:0xf2f4ff, sunI:0.95, hemiSky:0x7d8fc4, hemiGround:0x22262f, hemiI:0.6, top:0x02040c, hor:0x18233f, night:1, bloom:0.42},
 };
 function setStage(name){
   if (name==='wc' && !stageWC) buildWorldCup();
@@ -1544,12 +1575,236 @@ function noise(d, vol, freq, q=0.8){
 }
 function sfx(k, bc=true){
   if (bc) netFx({t:'sfx', k});
+  if (k==='goal' || k==='snitch' || k==='catch') musicStinger(k);
   if (k==='goal'){ [523,659,784,1046].forEach((f,i)=>beep(f, 0.2, 'triangle', 0.12, i*0.09)); noise(1.6, 0.35, 700, 0.4); }
   else if (k==='snitch'){ [880,1175,1568].forEach((f,i)=>beep(f, 0.25, 'sine', 0.1, i*0.12)); }
   else if (k==='catch'){ [1568,1318,1568,2093].forEach((f,i)=>beep(f, 0.22, 'sine', 0.1, i*0.1)); noise(2, 0.35, 700, 0.4); }
   else if (k==='start'){ beep(880, 0.25); noise(1.2, 0.25, 700, 0.4); }
   else if (k==='count'){ beep(440, 0.12); }
 }
+// =====================================================================
+//  音楽（オリジナル曲を WebAudio でその場で合成。外部音源なし）
+// =====================================================================
+const NOTE_I = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function nf(n){ const m = /^([A-G])([#b]?)(-?\d)$/.exec(n); const k = NOTE_I[m[1]] + (m[2]==='#'?1:m[2]==='b'?-1:0) + (+m[3]+1)*12; return 440*Math.pow(2,(k-69)/12); }
+function chordF(name, oct){
+  const m = /^([A-G][b#]?)(.*)$/.exec(name), r = nf(m[1]+oct), q = m[2];
+  const iv = q==='m' ? [0,3,7] : q==='7' ? [0,4,7,10] : q==='m7b5' ? [0,3,6,10] : q==='sus' ? [0,5,7] : [0,4,7];
+  return iv.map(i=>r*Math.pow(2,i/12));
+}
+function melody(str){ // "D5:2 F5:2 | ..." → 小節ごとの [{s,f,l}]
+  return str.split('|').map(b=>{ let s = 0; return b.trim().split(/\s+/).filter(Boolean).map(tok=>{ const [n,l] = tok.split(':'); const ev = n==='-' ? null : {s, f:nf(n), l:+l}; s += +l; return ev; }).filter(Boolean); });
+}
+const MU = {a:null, bus:null, lp:null, dry:null, wet:null, song:null, want:null, next:0, step:0, bar:0, I:0, endT:0, crowdG:null};
+
+// --- 曲データ（すべてオリジナル） ---
+const SONGS = {
+  // メニュー：夜空のワルツ（3/4・Dマイナー）
+  menu: { spb:6, bpm:150, div:2,
+    chords:['Dm','Dm','Bb','Bb','Gm','A7','Dm','A','Dm','F','Bb','Gm','Em7b5','A','A7','Dm'],
+    mel: melody(`D5:2 F5:2 A5:2 | G5:3 F5:1 E5:2 | F5:2 D5:2 Bb4:2 | C5:4 D5:2 | Bb4:2 D5:2 G5:2 | A5:3 G5:1 C#5:2 | D5:6 | E5:2 C#5:2 A4:2 |
+                 D5:2 F5:2 A5:2 | C6:3 A5:1 F5:2 | D6:2 Bb5:2 F5:2 | G5:3 A5:1 Bb5:2 | A5:2 G5:2 E5:2 | C#5:3 E5:1 A5:2 | G5:2 E5:2 C#5:2 | D5:6`) },
+  // 試合：勇ましい行進（4/4・Dマイナー）
+  match: { spb:16, bpm:132, div:4,
+    chords:['Dm','Bb','F','C','Dm','Bb','Gm','A','Gm','Bb','F','C','Gm','Bb','A7','A'],
+    mel: melody(`D4:6 A4:2 A4:8 | Bb4:4 A4:4 F4:8 | C5:6 A4:2 F4:4 A4:4 | G4:12 E4:4 | D4:6 A4:2 D5:8 | F5:4 E5:4 D5:4 Bb4:4 | G4:4 Bb4:4 D5:4 G5:4 | E5:8 C#5:8 |
+                 G5:8 D5:8 | F5:8 D5:8 | C5:4 F5:4 A5:8 | G5:16 | Bb5:8 A5:4 G5:4 | F5:8 D5:8 | E5:8 G5:8 | C#5:8 E5:4 A5:4`) },
+};
+
+function irBuf(a, sec){
+  const n = Math.floor(a.sampleRate*sec), b = a.createBuffer(2, n, a.sampleRate);
+  for (let c=0;c<2;c++){ const d = b.getChannelData(c); for (let i=0;i<n;i++){ const x = i/n; d[i] = (Math.random()*2-1)*Math.pow(1-x, 3.2)*(i < a.sampleRate*0.012 ? 0.3 : 1); } }
+  return b;
+}
+function muInit(){
+  if (MU.a) return true;
+  const a = audio(); if (!a) return false;
+  try {
+    MU.a = a;
+    MU.bus = a.createGain(); MU.bus.gain.value = 0;
+    MU.lp = a.createBiquadFilter(); MU.lp.type = 'lowpass'; MU.lp.frequency.value = 18000;
+    const comp = a.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
+    MU.bus.connect(MU.lp); MU.lp.connect(comp); comp.connect(a.destination);
+    MU.dry = a.createGain(); MU.dry.connect(MU.bus);
+    const conv = a.createConvolver(); conv.buffer = irBuf(a, 2.8);
+    MU.wet = a.createGain(); MU.wet.gain.value = 0.55; MU.wet.connect(conv); conv.connect(MU.bus);
+    // 観客のざわめき（ループするノイズ）
+    if (!noiseBuf){ noiseBuf = a.createBuffer(1, a.sampleRate*2, a.sampleRate); const ch = noiseBuf.getChannelData(0); for (let i=0;i<ch.length;i++) ch[i] = Math.random()*2-1; }
+    const cb = a.createBuffer(1, a.sampleRate*4, a.sampleRate), cd = cb.getChannelData(0);
+    let v = 0; for (let i=0;i<cd.length;i++){ v = v*0.97 + (Math.random()*2-1)*0.03; cd[i] = (Math.random()*2-1)*0.5 + v*6; }
+    const src = a.createBufferSource(); src.buffer = cb; src.loop = true;
+    const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 650; bp.Q.value = 0.45;
+    MU.crowdG = a.createGain(); MU.crowdG.gain.value = 0;
+    src.connect(bp); bp.connect(MU.crowdG); MU.crowdG.connect(a.destination); src.start();
+  } catch(e){ MU.a = null; return false; }
+  return true;
+}
+// --- 楽器 ---
+function mVoice(wet){ const g = MU.a.createGain(); g.connect(MU.dry); if (wet){ const s = MU.a.createGain(); s.gain.value = wet; g.connect(s); s.connect(MU.wet); } return g; }
+function mOsc(type, f, t, end, dest, det=0, gain=1){
+  const o = MU.a.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (det) o.detune.value = det;
+  if (gain !== 1){ const g = MU.a.createGain(); g.gain.value = gain; o.connect(g); g.connect(dest); } else o.connect(dest);
+  o.start(t); o.stop(end); return o;
+}
+const INS = {
+  celesta(t, f, v){
+    const g = mVoice(0.7); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.004); g.gain.exponentialRampToValueAtTime(0.0008, t+1.5);
+    mOsc('sine', f, t, t+1.55, g); mOsc('sine', f*2, t, t+1.55, g, 0, 0.12);
+    const h = MU.a.createGain(); h.connect(g); h.gain.setValueAtTime(0.35, t); h.gain.exponentialRampToValueAtTime(0.001, t+0.22); mOsc('sine', f*4, t, t+0.25, h);
+  },
+  harp(t, f, v){
+    const g = mVoice(0.45); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.003); g.gain.exponentialRampToValueAtTime(0.0008, t+1.8);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(Math.min(9000, f*8), t); lp.frequency.exponentialRampToValueAtTime(Math.max(300, f*1.5), t+0.6); lp.connect(g);
+    mOsc('triangle', f, t, t+1.85, lp); mOsc('sine', f*2, t, t+1.85, lp, 0, 0.3);
+  },
+  pad(t, f, d, v){
+    const g = mVoice(0.6); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+Math.min(0.5, d*0.4)); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.6);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 0.3; lp.connect(g);
+    mOsc('sawtooth', f, t, t+d+0.65, lp, -7); mOsc('sawtooth', f, t, t+d+0.65, lp, 7);
+  },
+  stac(t, f, v){
+    const g = mVoice(0.22); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.008); g.gain.exponentialRampToValueAtTime(0.0008, t+0.17);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2300; lp.connect(g);
+    mOsc('sawtooth', f, t, t+0.19, lp, -5); mOsc('sawtooth', f, t, t+0.19, lp, 6);
+  },
+  bass(t, f, d, v){
+    const g = mVoice(0.1); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.012); g.gain.setTargetAtTime(v*0.55, t+0.05, 0.12); g.gain.setTargetAtTime(0, t+d, 0.05);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.connect(g);
+    mOsc('sawtooth', f, t, t+d+0.3, lp); mOsc('sine', f, t, t+d+0.3, g, 0, 0.6);
+  },
+  brass(t, f, d, v){
+    const g = mVoice(0.4); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.035); g.gain.setTargetAtTime(v*0.75, t+0.08, 0.2); g.gain.setTargetAtTime(0, t+d, 0.07);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.2;
+    lp.frequency.setValueAtTime(450, t); lp.frequency.exponentialRampToValueAtTime(2800, t+0.06); lp.frequency.exponentialRampToValueAtTime(1600, t+0.3); lp.connect(g);
+    // ゆるいビブラート
+    const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 5.2; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f*0.006, t+Math.min(0.5, d)); lfo.connect(lg);
+    const o1 = mOsc('sawtooth', f, t, t+d+0.4, lp, -4), o2 = mOsc('sawtooth', f, t, t+d+0.4, lp, 5); mOsc('square', f/2, t, t+d+0.4, lp, 0, 0.18);
+    lg.connect(o1.frequency); lg.connect(o2.frequency); lfo.start(t); lfo.stop(t+d+0.4);
+  },
+  strings(t, f, d, v){
+    const g = mVoice(0.55); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.07); g.gain.setValueAtTime(v, t+d); g.gain.setTargetAtTime(0, t+d, 0.1);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; lp.connect(g);
+    const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 5.6; lg.gain.value = f*0.005; lfo.connect(lg);
+    const os = [-9, 0, 8].map(dt=>mOsc('sawtooth', f, t, t+d+0.5, lp, dt, 0.6)); os.forEach(o=>lg.connect(o.frequency)); lfo.start(t); lfo.stop(t+d+0.5);
+  },
+  timp(t, f, v){
+    const g = mVoice(0.35); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.006); g.gain.exponentialRampToValueAtTime(0.001, t+1.1);
+    const o = MU.a.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f*1.5, t); o.frequency.exponentialRampToValueAtTime(f, t+0.06); o.connect(g); o.start(t); o.stop(t+1.15);
+    mOsc('sine', f*1.51, t, t+0.5, g, 0, 0.25);
+    const s = MU.a.createBufferSource(), lp = MU.a.createBiquadFilter(), ng = MU.a.createGain(); s.buffer = noiseBuf; lp.type = 'lowpass'; lp.frequency.value = 260;
+    ng.gain.setValueAtTime(v*1.4, t); ng.gain.exponentialRampToValueAtTime(0.001, t+0.18); s.connect(lp); lp.connect(ng); ng.connect(g); s.start(t); s.stop(t+0.2);
+  },
+  tick(t, v, hp=7000, d=0.06){
+    const g = mVoice(0.15), s = MU.a.createBufferSource(), f = MU.a.createBiquadFilter(); s.buffer = noiseBuf; f.type = 'highpass'; f.frequency.value = hp;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t+d); s.connect(f); f.connect(g); s.start(t, Math.random()); s.stop(t+d+0.02);
+  },
+  swell(t, d, v){
+    const g = mVoice(0.5), s = MU.a.createBufferSource(), f = MU.a.createBiquadFilter(); s.buffer = noiseBuf; s.loop = true; f.type = 'highpass'; f.frequency.value = 4500;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t+d); g.gain.exponentialRampToValueAtTime(0.0005, t+d+1.2); s.connect(f); f.connect(g); s.start(t); s.stop(t+d+1.3);
+  },
+};
+
+// --- 1ステップ分を鳴らす ---
+function playStep(name, bar, s, t, sl){
+  const S = SONGS[name], b = bar % S.chords.length, ch = S.chords[b], pass = Math.floor(bar / S.chords.length);
+  if (name==='menu'){
+    if (s===0){
+      INS.harp(t, chordF(ch,2)[0], 0.16);
+      chordF(ch,4).slice(0,3).forEach(f=>INS.pad(t, f, sl*6, 0.012));
+    }
+    if (s===2 || s===4) chordF(ch,4).slice(0,3).forEach((f,i)=>INS.harp(t+i*0.018, f, 0.055));
+    for (const ev of S.mel[b]) if (ev.s===s) INS.celesta(t, ev.f, 0.11);
+    if (pass % 2 === 1 && (s % 2 === 1)){ const cf = chordF(ch,6); INS.celesta(t, cf[(s>>1) % cf.length], 0.025); }
+    if (b===15 && s===0) for (let i=0;i<8;i++) INS.harp(t + sl*3 + i*0.05, chordF('Dm', 4 + (i>>2))[i%3], 0.05);
+    return;
+  }
+  // match
+  const intro = game.state==='countdown', I = MU.I, tri = chordF(ch,3);
+  const pat = [0,0,2,0][s%4], oct = (s%8===6) ? 2 : 1;
+  INS.stac(t, tri[pat]*oct, s%4===0 ? 0.05 : 0.032);
+  if (s%4===0) INS.bass(t, chordF(ch,2)[0], sl*3, 0.12);
+  if (s===0) chordF(ch,4).slice(0,3).forEach(f=>INS.pad(t, f, sl*16, 0.011));
+  if (s===0) INS.timp(t, chordF(ch,2)[0], 0.42);
+  if (s===8) INS.timp(t, chordF(ch,2)[2] || chordF(ch,2)[0], 0.28);
+  if (I && (s===4 || s===12)) INS.timp(t, chordF(ch,2)[0], 0.22);
+  if ((b===7 || b===15) && s>=12) INS.timp(t, chordF(ch,2)[0]*(s===15?1.5:1), 0.18 + (s-12)*0.04);
+  if (I && s%2===0) INS.tick(t, s%4===0 ? 0.05 : 0.025);
+  if (I && s%2===1){ const cf = chordF(ch,5), k = [0,1,2,1][(s>>1)%4]; INS.celesta(t, cf[k]*(s%8===7?2:1), 0.03); }
+  if (!intro) for (const ev of S.mel[b]) if (ev.s===s){
+    if (b < 8) INS.brass(t, ev.f, ev.l*sl*0.95, 0.075);
+    else INS.strings(t, ev.f, ev.l*sl*0.95, 0.05);
+    if (b >= 8 && I) INS.brass(t, ev.f/2, ev.l*sl*0.95, 0.04);
+  }
+}
+
+// --- 効果的な短いフレーズ ---
+function musicStinger(kind){
+  if (!MU.a || settings.bgm <= 0) return;
+  const t = MU.a.currentTime + 0.03;
+  if (kind==='goal'){
+    INS.timp(t, nf('D2'), 0.5); INS.tick(t, 0.12, 5000, 0.6);
+    ['D4','F#4','A4','D5'].forEach(n=>INS.brass(t, nf(n), 0.14, 0.07));
+    ['E4','G#4','B4','E5'].forEach(n=>INS.brass(t+0.18, nf(n), 0.6, 0.07));
+  } else if (kind==='snitch'){
+    INS.swell(t, 1.4, 0.12);
+    ['A5','C#6','E6','A6','C#7'].forEach((n,i)=>INS.celesta(t+1.2+i*0.07, nf(n), 0.08));
+  } else if (kind==='catch'){
+    INS.timp(t, nf('D2'), 0.5); INS.tick(t, 0.15, 4000, 1.2);
+    ['D5','F#5','A5','D6','F#6','A6'].forEach((n,i)=>INS.celesta(t+i*0.06, nf(n), 0.09));
+    ['D4','F#4','A4'].forEach(n=>INS.brass(t+0.1, nf(n), 1.2, 0.06));
+  } else if (kind==='win'){
+    const seq = [['D4',0,0.16],['F#4',0.18,0.16],['A4',0.36,0.16],['D5',0.54,1.6]];
+    seq.forEach(([n,dt,d])=>{ INS.brass(t+dt, nf(n), d, 0.09); INS.brass(t+dt, nf(n)/2, d, 0.05); });
+    ['D4','F#4','A4','D5'].forEach(n=>INS.strings(t+0.54, nf(n), 2.2, 0.03));
+    for (let i=0;i<10;i++) INS.timp(t+0.54+i*0.07, nf('D2'), 0.08+i*0.025);
+    INS.tick(t+1.25, 0.18, 3500, 2.2);
+    ['D6','F#6','A6','D7'].forEach((n,i)=>INS.celesta(t+0.7+i*0.1, nf(n), 0.07));
+  } else if (kind==='lose'){
+    ['A5','F5','D5','A4'].forEach((n,i)=>INS.celesta(t+i*0.32, nf(n), 0.09));
+    ['D4','F4','A4'].forEach(n=>INS.pad(t, nf(n), 2.4, 0.02));
+    INS.bass(t, nf('D2'), 2.4, 0.1);
+  } else if (kind==='draw'){
+    ['D5','E5','A4','D5'].forEach((n,i)=>INS.celesta(t+i*0.28, nf(n), 0.09));
+    ['D4','G4','A4'].forEach(n=>INS.pad(t, nf(n), 2.0, 0.02));
+  }
+}
+
+// --- 毎フレーム：状態に応じて曲を切り替え・先読みで予約 ---
+function musicTick(dt){
+  if (!MU.a) return;
+  const a = MU.a, now = a.currentTime, st = game.state;
+  let want;
+  if (quiet()) want = 'menu';
+  else if (st==='end'){ MU.endT += dt; want = MU.endT > 4.5 ? 'menu' : null; }
+  else want = 'match';
+  if (st !== 'end') MU.endT = 0;
+  if (want !== MU.song){ MU.song = want; MU.bar = 0; MU.step = 0; MU.next = now + 0.08; }
+  const paused = st==='paused';
+  const vol = settings.bgm * (want==='menu' && st==='end' ? 0.6 : 1) * (paused ? 0.45 : 1);
+  MU.bus.gain.setTargetAtTime(vol*0.9, now, 0.25);
+  MU.lp.frequency.setTargetAtTime(paused ? 900 : 18000, now, 0.2);
+  const crowd = (st==='play' || st==='countdown' || st==='paused') ? (0.05 + Math.min(3, game.cheer)*0.07) * (paused ? 0.4 : 1) * (stage==='wc' ? 1.4 : 1)
+              : st==='end' ? 0.04 : 0;
+  MU.crowdG.gain.setTargetAtTime(crowd*settings.vol, now, 0.3);
+  if (!MU.song) return;
+  if (MU.next < now - 0.15) MU.next = now + 0.05; // タブ非表示から戻ったとき
+  const S = SONGS[MU.song];
+  while (MU.next < now + 0.22){
+    if (MU.step === 0) MU.I = (MU.song==='match' && (game.snitchSpawned || game.time <= CFG.snitchAt + 2)) ? 1 : 0;
+    const sl = 60 / (S.bpm * (MU.I ? 1.09 : 1)) / S.div;
+    try { playStep(MU.song, MU.bar, MU.step, MU.next, sl); } catch(e){}
+    MU.next += sl;
+    if (++MU.step >= S.spb){ MU.step = 0; MU.bar++; }
+  }
+}
+function audioUnlock(){
+  const a = audio(); if (!a) return;
+  if (a.state === 'suspended') a.resume();
+  muInit();
+}
+addEventListener('pointerdown', audioUnlock, true);
+addEventListener('keydown', audioUnlock, true);
+
 const uiClick = () => { const q = game.state; game.state = 'x'; beep(660, 0.05, 'triangle', 0.06); game.state = q; };
 
 // =====================================================================
@@ -1573,7 +1828,8 @@ const CONTROLS_HTML = `<table class="ctl">
 const SETTINGS_HTML = `<div class="set">
   <span>マウス感度</span><input type="range" data-set="sens" min="0.3" max="2.5" step="0.1" aria-label="マウス感度">
   <span>上下反転</span><input type="checkbox" data-set="invY" aria-label="上下反転">
-  <span>音量</span><input type="range" data-set="vol" min="0" max="1" step="0.05" aria-label="音量">
+  <span>効果音</span><input type="range" data-set="vol" min="0" max="1" step="0.05" aria-label="効果音の音量">
+  <span>BGM</span><input type="range" data-set="bgm" min="0" max="1" step="0.05" aria-label="BGMの音量">
   <span>難易度</span><select data-set="diff" aria-label="難易度"><option value="easy">かんたん</option><option value="normal">ふつう</option><option value="hard">むずかしい</option><option value="world">世界級（W杯会場）</option></select>
   <span>画質</span><select data-set="quality" aria-label="画質"><option value="ultra">最高（くっきり）</option><option value="high">高（きれい）</option><option value="medium">中</option><option value="low">低（軽い）</option></select>
 </div>`;
@@ -1795,7 +2051,18 @@ function startRoll(e, sign){
 // =====================================================================
 const keys = {};
 let mouseNX = 0, mouseNY = 0, mouseIn = false, lockFailed = false;
-function stat(e, k){ if (e && e.human) e.stats[k] = (e.stats[k]||0) + 1; }
+function stat(e, k){ if (e && e.stats) e.stats[k] = (e.stats[k]||0) + 1; }
+const escHtml = t => String(t).replace(/[<>&"']/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+// 試合のMVP（全員の記録から計算。ホスト／1人用で計算し、オンラインでは結果と一緒に配る）
+const STAT_W = {goals:3, snitch:6, steals:2, cuts:2, bhits:2, tackles:1};
+const STAT_LABEL = {goals:'ゴール', snitch:'スニッチ捕獲', steals:'奪取', cuts:'パスカット', bhits:'ブラッジャー命中', tackles:'タックル'};
+function computeMVP(){
+  let best = null, bs = 0;
+  for (const e of ents){ const s = e.stats || {}; let v = 0; for (const k in STAT_W) v += (s[k]||0)*STAT_W[k]; if (v > bs){ bs = v; best = e; } }
+  if (!best) return null;
+  const s = best.stats, who = best.human ? (net.active ? (best.name || 'ホスト') : 'あなた') : `${TEAM_NAME[best.team]}の${ROLE_NAME[best.role]}`;
+  return {who, team:best.team, line:Object.keys(STAT_W).filter(k=>s[k]).map(k=>`${STAT_LABEL[k]}${s[k]}`).join('・')};
+}
 // 通知: 自分ならその場で表示、オンラインの他の人間なら本人に送る
 function notify(e, text, dur=1.1, color='#fff', ex){
   if (!e) return;
@@ -2321,7 +2588,7 @@ function updateSnitch(dt){
 function catchSnitch(e){
   game.score[e.team] += CFG.snitchPoints;
   emit(snitch.pos, 160, {colors:[0xffd54a,0xffffff,0xffb300], speed:18, life:1.8, size:0.5, gravity:4, drag:1.2});
-  snitch.active = false; snitch.mesh.visible = false;
+  snitch.active = false; snitch.mesh.visible = false; stat(e, 'snitch');
   const who = (e.isPlayer && !net.active) ? 'あなた' : e.human ? `${TEAM_NAME[e.team]}の${e.name}` : `${TEAM_NAME[e.team]}の${ROLE_NAME[e.role]}`;
   sfx('catch'); game.cheer = 3;
   endGame(`${who}が金のスニッチを捕獲！（+${CFG.snitchPoints}）`);
@@ -2507,7 +2774,7 @@ function updateCamera(dt){
   if (game.shake > 0 || e.stun > 0){ const s = Math.max(game.shake, e.stun>0 ? 0.12 : 0)*0.6; camera.position.add(new V3(rand(-s,s), rand(-s,s), rand(-s,s))); }
   camera.lookAt(e.pos.clone().addScaledVector(fwd, 14).add(new V3(0, 1, 0)));
   camera.rotateZ(-e.bank*0.12);
-  const fov = 70 + clamp((e.speed - CFG.playerCruise)*0.6, -4, 20);
+  const fov = 70 + clamp((e.speed - CFG.playerCruise)*0.6, -4, 20) + Math.min(game.shake, 0.4)*16;
   if (Math.abs(camera.fov - fov) > 0.1){ camera.fov += (fov - camera.fov)*Math.min(1, 4*dt); camera.updateProjectionMatrix(); }
   sky.position.copy(camera.position);
 }
@@ -2599,11 +2866,16 @@ function placeLock(tgt, label, dim, id='lock'){
   lock.style.opacity = dim ? 0.35 : 1;
   lock.querySelector('span').textContent = label;
 }
+let hudLastSec = -1;
 function updateHUD(dt){
   setText('s0', String(game.score[0])); setText('s1', String(game.score[1]));
   const t = Math.max(0, Math.ceil(game.time));
   setText('timer', `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`);
   $('timer').classList.toggle('snitch', game.time <= CFG.snitchAt);
+  const fin = game.state==='play' && t <= 10 && t > 0;
+  $('timer').classList.toggle('final', fin);
+  if (fin && t !== hudLastSec) beep(t <= 3 ? 990 : 740, 0.07, 'square', 0.045);
+  hudLastSec = t;
   $('stamFill').style.width = (player.stamina*100) + '%';
   { const ch = $('charge'); ch.style.display = player.charging ? 'block' : 'none'; $('chargeFill').style.width = ((player.charge||0)*100) + '%'; ch.classList.toggle('full', (player.charge||0) > 0.95); }
   $('stamFill').style.background = player.exhausted ? '#e5484d' : '';
@@ -2961,7 +3233,7 @@ function guestUpdate(dt){
   }
 }
 function guestEnd(d){
-  game.state = 'end'; game.score = d.sc;
+  game.state = 'end'; game.score = d.sc; game.mvp = d.mvp || null;
   const st = (d.stats || {})[net.myId] || {};
   player.stats = st;
   showResult(d.reason);
@@ -3042,10 +3314,11 @@ function resume(){
 function endGame(reason){
   if (game.state!=='play') return;
   game.state = 'end';
+  game.mvp = computeMVP();
   if (net.host){
     const stats = {}; for (const e of ents) if (e.human && e.peer) stats[e.peer] = e.stats;
     netBroadcast(Object.assign(buildSnap(), {st:'end'}));
-    netBroadcast({t:'end', reason, sc:game.score, stats});
+    netBroadcast({t:'end', reason, sc:game.score, stats, mvp:game.mvp});
   }
   showResult(reason);
 }
@@ -3054,6 +3327,8 @@ function showResult(reason){
   $('endTitle').textContent = a>b ? '勝利！' : a<b ? '敗北…' : '引き分け';
   $('endTitle').style.color = a>b ? 'var(--good)' : a<b ? 'var(--bad)' : '#fff';
   $('endReason').textContent = reason;
+  musicStinger(a>b ? 'win' : a<b ? 'lose' : 'draw');
+  { const m = game.mvp; $('endMvp').innerHTML = m ? `MVP <b style="color:${TEAM_CSS[m.team]}">${escHtml(m.who)}</b>　${m.line}` : ''; }
   $('endScore').innerHTML = `<span class="blue">${TEAM_NAME[0]} ${game.score[0]}</span> − <span class="red">${game.score[1]} ${TEAM_NAME[1]}</span>`;
   const s = player.stats || {}, v = k => s[k] || 0;
   const items = player.role==='B'
@@ -3194,6 +3469,7 @@ function loop(ts){
   syncVisuals(game.state==='paused' ? 0 : dt, t);
   if (!demo) updateHUD(dt);
   else { drawSpeedLines(0); $('holdGlow').classList.remove('on'); }
+  musicTick(dt);
   if (composer && settings.quality !== 'low') composer.render(); else renderer.render(scene, camera);
 }
 requestAnimationFrame(loop);
