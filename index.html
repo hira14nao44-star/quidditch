@@ -151,6 +151,29 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
 .stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--muted)}
 .blue{color:var(--blue)}.red{color:var(--red)}.gold{color:var(--gold)}
+.codein{font-family:var(--font);font-size:20px;letter-spacing:.3em;text-transform:uppercase;width:160px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--chip);color:var(--ink)}
+.textin{font-family:var(--font);font-size:15px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink);min-width:0}
+.lobbyHead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.codebox{background:var(--chip);border:2px solid var(--gold);border-radius:14px;padding:6px 18px;text-align:center}
+.codebox span{display:block;font-size:12px;color:var(--muted)}
+.codebox b{font-size:38px;letter-spacing:.25em;color:var(--gold);font-variant-numeric:tabular-nums}
+.invite{display:flex;gap:8px;margin-top:12px}
+.invite input{flex:1;min-width:0;font-family:var(--font);font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#0b1526;color:var(--muted)}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.tcol{background:var(--chip);border-radius:12px;padding:10px 12px;border-top:4px solid var(--tc);min-width:0}
+.tcol h3{margin:0 0 6px;font-size:16px;color:var(--tc)}
+.slot{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px}
+.slot:last-child{border-bottom:0}
+.slot .ico{width:18px;height:18px;flex:none}
+.slot .rl{width:76px;flex:none;color:var(--muted);font-size:12.5px}
+.slot .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot .bot{color:var(--muted)}
+.slot .me{color:#fff;font-weight:800}
+.tagh{font-size:11px;background:var(--gold);color:#2a1c00;border-radius:8px;padding:0 6px;margin-left:4px;font-weight:800}
+.slot button{font-family:var(--font);font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid var(--line);background:#1d3150;color:#fff;cursor:pointer;flex:none}
+.slot button:hover{background:#2a4570}
+.steps{margin:6px 0 0;padding-left:20px;font-size:13.5px;color:#d3ddef}
+@media (max-width:640px){.teams{grid-template-columns:1fr}}
 @media (max-width:640px){.roles,.cols,.pick,.pick.brooms{grid-template-columns:1fr}.pick.houses{grid-template-columns:1fr 1fr}.logo{font-size:34px}#roster{display:none}.menuBox{margin-left:0}}
 @media (prefers-reduced-motion:reduce){#holdGlow.on{animation:none}#banner,#toast,.act,.mbtn,.pcard{transition:none}}
 </style>
@@ -199,7 +222,8 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <h1 class="logo big">クィディッチ</h1>
     <p class="sub">箒で空を翔ける 4対4 のクィディッチ</p>
     <div class="menuBtns">
-      <button class="mbtn primary" id="mPlay">プレイ</button>
+      <button class="mbtn primary" id="mPlay">ひとりで遊ぶ</button>
+      <button class="mbtn primary" id="mOnline">みんなで遊ぶ（オンライン）</button>
       <button class="mbtn" id="mHow">遊び方</button>
       <button class="mbtn" id="mSet">設定</button>
     </div>
@@ -295,6 +319,56 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   </div>
 </div>
 
+<!-- オンライン: 入口 -->
+<div class="overlay" id="online" hidden>
+  <div class="panel" style="max-width:580px">
+    <p class="ptitle">みんなで遊ぶ</p>
+    <p class="sub">1〜6人で遊べます。空いている枠とキーパーはボットが担当します。</p>
+    <ol class="steps">
+      <li>誰か1人が「部屋を作る」→ 出てきた<b>部屋コード</b>か<b>招待リンク</b>を友達に送る</li>
+      <li>友達はコードを入れて「入る」（リンクならコードが自動で入ります）</li>
+      <li>ロビーで入りたい枠を選んで、部屋を作った人が「試合開始」</li>
+    </ol>
+    <h2>あなたの名前</h2>
+    <input id="nameIn" class="textin" maxlength="10" placeholder="例：なおき" style="width:220px">
+    <h2>部屋を作る</h2>
+    <div class="btns" style="margin-top:4px"><button class="btn" id="hostBtn">部屋を作る</button></div>
+    <h2>友達の部屋に入る</h2>
+    <div class="btns" style="margin-top:4px"><input id="codeIn" class="codein" maxlength="4" placeholder="コード" autocomplete="off"><button class="btn" id="joinBtn">入る</button></div>
+    <p id="onlineMsg" class="sub" style="color:var(--bad);min-height:1.5em;margin-top:10px"></p>
+    <div class="btns" style="margin-top:6px"><button class="btn ghost" data-back>戻る</button></div>
+  </div>
+</div>
+
+<!-- オンライン: ロビー -->
+<div class="overlay" id="lobby" hidden>
+  <div class="panel">
+    <div class="lobbyHead">
+      <div><p class="ptitle">ロビー</p><p class="sub" id="lobbyStatus"></p></div>
+      <div class="codebox"><span>部屋コード</span><b id="lobbyCode">----</b></div>
+    </div>
+    <div class="invite"><input id="lobbyLink" readonly aria-label="招待リンク"><button class="btn ghost" id="copyBtn" style="margin:0;font-size:14px;padding:8px 14px">招待リンクをコピー</button></div>
+    <p class="sub" style="font-size:13px">入りたい枠の「ここに入る」を押すと、チームと役職が決まります。空いた枠とキーパーはボットです。</p>
+    <div class="teams" id="lobbyTeams"></div>
+    <div class="cols" style="margin-top:4px">
+      <div><h2>あなたの箒</h2><select id="lobbyBroom" aria-label="あなたの箒"></select></div>
+      <div id="hostCfg"><h2>試合の設定（部屋を作った人だけ）</h2>
+        <div class="set">
+          <span>チームA</span><select id="cfgH0" aria-label="チームA"></select>
+          <span>チームB</span><select id="cfgH1" aria-label="チームB"></select>
+          <span>ステージ</span><select id="cfgStage" aria-label="ステージ"><option value="hog">ホグワーツ（昼）</option><option value="wc">ワールドカップ会場（夜）</option></select>
+          <span>ボットの強さ</span><select id="cfgDiff" aria-label="ボットの強さ"><option value="easy">かんたん</option><option value="normal">ふつう</option><option value="hard">むずかしい</option><option value="world">世界級</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="lobbyStart">試合開始</button>
+      <span id="lobbyWait" class="sub"></span>
+      <button class="btn ghost" id="lobbyLeave" style="margin-left:auto">退出する</button>
+    </div>
+  </div>
+</div>
+
 <!-- 試合結果 -->
 <div class="overlay" id="end" hidden>
   <div class="panel" style="max-width:560px;text-align:center">
@@ -318,6 +392,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Lensflare.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <script>
 // =====================================================================
 //  設定（バランス調整はここ）
@@ -352,7 +427,7 @@ const BROOMS = {
   swift: {name:'ニンバス2000',   tag:'バランス', desc:'高性能な競技用モデル。速さと持久力を両立。', boost:39.5, drain:0.33, fast:25, wood:0xa8784a, metal:0xc8ccd6, straw:'#e2c88a', trail:[0x9fd0ff,0xffffff,0x58a6ff]},
   blaze: {name:'ファイアボルト',     tag:'最速',   desc:'世界最速の国際試合用モデル。最高速だがスタミナ消費が激しい。', boost:43,   drain:0.45, fast:26, wood:0x2a1a12, metal:0xe8b53a, straw:'#8a5a2a', trail:[0xff7a2a,0xffd54a,0xff4b3a]},
 };
-const settings = {sens:1, invY:false, vol:0.7, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor'};
+const settings = {sens:1, invY:false, vol:0.7, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
 try { Object.assign(settings, JSON.parse(localStorage.getItem('skyball-settings')||'{}')); } catch(e){}
 if (!BROOMS[settings.broom]) settings.broom = 'swift';
 const saveSettings = () => { try { localStorage.setItem('skyball-settings', JSON.stringify(settings)); } catch(e){} };
@@ -1133,6 +1208,7 @@ const pPoints = new THREE.Points(pGeo, pMat); pPoints.frustumCulled = false; sce
 const PARTS = Array.from({length:PMAX}, ()=>({life:0, max:1, p:new V3(), v:new V3(), g:0, drag:1, size:1, c:new THREE.Color()}));
 let pNext = 0;
 function emit(pos, n, o){
+  if (net.host && n >= 20 && !o.local) netFx({t:'emit', p:va(pos), n, o:{colors:o.colors, speed:o.speed, life:o.life, size:o.size, gravity:o.gravity, drag:o.drag, up:o.up}});
   for (let k=0;k<n;k++){
     const q = PARTS[pNext]; pNext = (pNext+1)%PMAX;
     q.p.copy(pos);
@@ -1346,10 +1422,15 @@ function makeRider(team, role, isPlayer, broomType='swift'){
 // =====================================================================
 let ents = [], player = null;
 const ROLES = ['C','C','B','K'];
-function makeEnt(team, role, isPlayer, i){
-  const broom = isPlayer ? settings.broom : Object.keys(BROOMS)[Math.floor(Math.random()*3)];
-  return {broom,
+function nameSprite(text, color){
+  const t = canvasTex(256, 64, (g,w,h)=>{ g.font = 'bold 34px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 7; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(text, w/2, h/2, w-10); g.fillStyle = color; g.fillText(text, w/2, h/2, w-10); });
+  return new THREE.Sprite(new THREE.SpriteMaterial({map:t, transparent:true, depthWrite:false}));
+}
+function makeEnt(team, role, isPlayer, i, opt={}){
+  const broom = opt.broom || (isPlayer ? settings.broom : Object.keys(BROOMS)[Math.floor(Math.random()*3)]);
+  const e = {broom,
     id: team*4+i, team, role, isPlayer, side: i===0 ? -1 : 1,
+    human: isPlayer || !!opt.human, remote: !!opt.remote, peer: opt.peer || null, name: opt.name || '', stats:{}, dashId:0, lastDashId:-1, net:null, netT:null,
     pos:new V3(), prevPos:new V3(), dir:new V3(), prevDir:new V3(), speed:0,
     stun:0, stunKind:'', spin:0, immune:0, tackleImmune:0, catchCD:0, hitCD:0, holdTime:0, targetHoop:null,
     dash:0, dashCD:0, dashDir:new V3(), dashTarget:null, dashSpeed:0, dashHoming:0, dashHit:false, wasDashing:false, windup:0, recover:0,
@@ -1358,18 +1439,34 @@ function makeEnt(team, role, isPlayer, i){
     mesh: makeRider(team, role, isPlayer, broom),
     trail: new Trail(22, isPlayer?0.35:0.28, TEAM_COL[team], isPlayer?0.55:0.4),
   };
+  if (opt.human && !isPlayer && opt.name){ e.mesh.nameTag = nameSprite(opt.name, TEAM_CSS[team]); scene.add(e.mesh.nameTag); }
+  return e;
 }
-function buildTeams(playerRole){
+function clearEnts(){
   for (const e of ents){
     const m = e.mesh;
-    scene.remove(m.g, m.badge, m.ring, m.warn, m.call, e.trail.mesh);
+    scene.remove(m.g, m.badge, m.ring, m.warn, m.call, e.trail.mesh); if (m.nameTag) scene.remove(m.nameTag);
     m.g.traverse(o=>{ if (o.geometry) o.geometry.dispose(); });
     e.trail.geo.dispose();
   }
   ents = [];
+}
+function buildTeams(playerRole){
+  clearEnts();
   for (const team of [0,1]) ROLES.forEach((r,i)=>{
     const isPlayer = team===0 && r===playerRole && !ents.some(x=>x.isPlayer);
     ents.push(makeEnt(team, r, isPlayer, i));
+  });
+  player = ents.find(e=>e.isPlayer) || ents[0];
+  buildRoster();
+}
+// オンライン: ロビーの枠（slot 0,1=チェイサー / 2=ビーター）から全員同じ順番で作る
+function buildTeamsOnline(slots){
+  clearEnts();
+  for (const team of [0,1]) ROLES.forEach((r,i)=>{
+    const sl = i < 3 ? slots.find(x=>x.team===team && x.slot===i) : null;
+    const isPlayer = !!sl && sl.id===net.myId;
+    ents.push(makeEnt(team, r, isPlayer, i, sl ? {human:true, remote: net.host && !isPlayer, peer:sl.id, name:sl.name, broom:sl.broom} : {}));
   });
   player = ents.find(e=>e.isPlayer) || ents[0];
   buildRoster();
@@ -1417,7 +1514,7 @@ snitch.trail = new Trail(20, 0.18, 0xffd54a, 0.9);
 
 const game = {fw:[], state:'menu', time:CFG.matchTime, score:[0,0], cd:0, snitchSpawned:false, prevState:null, shake:0, cheer:0, playerRole:settings.role||'C',
   stats:{goals:0, tackles:0, steals:0, cuts:0, bhits:0}};
-const quiet = () => game.state==='menu' || game.state==='select' || game.state==='howto' || game.state==='settings';
+const quiet = () => ['menu','select','howto','settings','online','lobby'].includes(game.state);
 
 // =====================================================================
 //  効果音
@@ -1445,13 +1542,21 @@ function noise(d, vol, freq, q=0.8){
     s.connect(f); f.connect(g); g.connect(a.destination); s.start(t0); s.stop(t0+d+0.05);
   }catch(e){}
 }
+function sfx(k, bc=true){
+  if (bc) netFx({t:'sfx', k});
+  if (k==='goal'){ [523,659,784,1046].forEach((f,i)=>beep(f, 0.2, 'triangle', 0.12, i*0.09)); noise(1.6, 0.35, 700, 0.4); }
+  else if (k==='snitch'){ [880,1175,1568].forEach((f,i)=>beep(f, 0.25, 'sine', 0.1, i*0.12)); }
+  else if (k==='catch'){ [1568,1318,1568,2093].forEach((f,i)=>beep(f, 0.22, 'sine', 0.1, i*0.1)); noise(2, 0.35, 700, 0.4); }
+  else if (k==='start'){ beep(880, 0.25); noise(1.2, 0.25, 700, 0.4); }
+  else if (k==='count'){ beep(440, 0.12); }
+}
 const uiClick = () => { const q = game.state; game.state = 'x'; beep(660, 0.05, 'triangle', 0.06); game.state = q; };
 
 // =====================================================================
 //  UI ヘルパ
 // =====================================================================
 let bannerT = 0, toastT = 0;
-function banner(text, dur=1.6, color='#fff'){ if (quiet()) return; const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.add('on'); bannerT = dur; }
+function banner(text, dur=1.6, color='#fff'){ if (quiet()) return; if (net.host) netFx({t:'banner', x:text, d:dur, c:color}); const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.add('on'); bannerT = dur; }
 function toast(text, dur=1.1, color='#fff'){ if (quiet()) return; const b = $('toast'); b.textContent = text; b.style.color = color; b.style.opacity = 1; toastT = dur; }
 
 const CONTROLS_HTML = `<table class="ctl">
@@ -1502,7 +1607,7 @@ const rosterState = {};
 function buildRoster(){
   for (const k in rosterState) delete rosterState[k];
   $('roster').innerHTML = [0,1].map(t=>`<div class="rteam t${t}"><div class="rt" style="color:${TEAM_CSS[t]}">${TEAM_NAME[t]}</div>${
-    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${ROLE_NAME[e.role]}${e.isPlayer?'（あなた）':''}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
+    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${ROLE_NAME[e.role]}${e.isPlayer?'（あなた）':(e.human?'（'+e.name+'）':'')}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
   }</div>`).join('');
 }
 
@@ -1519,7 +1624,7 @@ function resetPositions(){
     e.dir.set(-s,0,0); e.prevDir.copy(e.dir); e.speed = 0;
     for (const k of ['stun','spin','immune','tackleImmune','catchCD','hitCD','holdTime','dash','dashCD','windup','recover','roll','rollCD','rollSpin','bank','swing','callT','summonCD']) e[k] = 0;
     e.knock.set(0,0,0); e.vel.set(0,0,0); e.exhausted = false; e.lastBoost = false; e.dashTarget = null; e.targetHoop = null; e.stamina = 1;
-    if (e.isPlayer){ e.yaw = Math.atan2(e.dir.x, e.dir.z); e.pitch = 0; }
+    e.yaw = Math.atan2(e.dir.x, e.dir.z); e.pitch = 0;
     e.trail.clear();
   }
   ball.holder = null; ball.pos.set(0,26,0); ball.vel.set(0,0,0); ball.lastThrower = null; ball.intended = null; ball.trail.clear();
@@ -1568,15 +1673,15 @@ function takeBall(e){
   ball.holder = e; ball.intended = null; ball.homing = 0;
   e.holdTime = 0; e.targetHoop = null; e.tackleImmune = Math.max(e.tackleImmune, 0.6);
   if (prev && prev!==e) prev.catchCD = 0.8;
-  if (e.isPlayer){ beep(660, 0.1, 'triangle'); beep(990, 0.12, 'triangle', 0.1, 0.07); toast('クアッフルを確保！', 0.8, 'var(--ball)'); }
+  notify(e, 'クアッフルを確保！', 0.8, 'var(--ball)', {snd:'get'});
 }
 function pass(from, to){
   const spd = 38, t = from.pos.distanceTo(to.pos)/spd;
   const tp = to.pos.clone().addScaledVector(to.dir, to.speed*t);
   release(from, aimVel(from.pos.clone().addScaledVector(from.dir,1.4), tp, spd));
   ball.intended = to;
-  if (from.isPlayer || to.isPlayer) ball.homing = 2.5;   // プレイヤーが絡むパスは受け手を追いかける
-  if (to.isPlayer && !from.isPlayer){ from.callT = 1.3; toast('パスが来る！', 0.9, 'var(--blue)'); }
+  if (from.human || to.human) ball.homing = 2.5;   // 人間が絡むパスは受け手を追いかける
+  if (to.human && !from.human){ from.callT = 1.3; notify(to, 'パスが来る！', 0.9, 'var(--blue)'); }
 }
 function shootAt(e, hp){
   const j = D.jitter, t = hp.clone().add(new V3(0, rand(-j,j), rand(-j,j)));
@@ -1600,9 +1705,9 @@ function stunByBludger(e, bl){
   e.dash = 0; e.windup = 0; e.dashTarget = null;
   if (ball.holder===e) dropBall(e, e.dir.clone().multiplyScalar(e.speed*0.3).add(new V3(rand(-3,3), 3, rand(-3,3))));
   emit(e.pos, 26, {colors:[0xffe066,0xffffff,0x9aa3b5], speed:9, life:0.7, size:0.45, drag:2});
-  if (e.isPlayer){ $('flash').style.opacity = 1; setTimeout(()=>$('flash').style.opacity = 0, 350); toast('ブラッジャーに直撃！スタン！', 1.3, 'var(--bad)'); game.shake = 0.6; }
-  else if (bl && bl.hitter===player && player.isPlayer && e.team!==player.team){
-    game.stats.bhits++; toast(`ブラッジャー命中！ ${ROLE_NAME[e.role]}をスタン`, 1.2, 'var(--good)'); game.shake = Math.max(game.shake, 0.15);
+  notify(e, 'ブラッジャーに直撃！スタン！', 1.3, 'var(--bad)', {flash:true, shake:0.6});
+  if (bl && bl.hitter && bl.hitter.human && e.team !== bl.hitter.team){
+    stat(bl.hitter, 'bhits'); notify(bl.hitter, `ブラッジャー命中！ ${ROLE_NAME[e.role]}をスタン`, 1.2, 'var(--good)', {shake:0.15});
   }
   beep(110, 0.3, 'square', 0.09, 0, 0.5); noise(0.25, 0.25, 600);
 }
@@ -1622,7 +1727,7 @@ function findTackleTarget(e){
 }
 function startDash(e, dir, target, speed, homing){
   e.dash = CFG.dashTime; e.dashDir.copy(dir).normalize(); e.dashTarget = target; e.dashSpeed = speed; e.dashHoming = homing; e.dashHit = false;
-  e.dashCD = e.isPlayer ? CFG.tackleCD : CFG.botTackleCD;
+  e.dashCD = e.human ? CFG.tackleCD : CFG.botTackleCD; e.dashId = (e.dashId||0) + 1;
   if (e.isPlayer || e.pos.distanceTo(player.pos) < 30) noise(0.3, e.isPlayer?0.35:0.15, 900, 0.6);
 }
 function updateDash(e, dt){
@@ -1669,16 +1774,12 @@ function resolveTackle(a, b){
   const mid = a.pos.clone().add(b.pos).multiplyScalar(0.5);
   emit(mid, 34, {colors:[0xffffff,0xffe7a3, TEAM_COL[a.team]], speed:14, life:0.5, size:0.42, drag:3});
   if (a.isPlayer || b.isPlayer || mid.distanceTo(player.pos) < 35){ noise(0.22, 0.45, 220, 1.2); beep(90, 0.18, 'sine', 0.2, 0, 0.6); }
-  if (a.isPlayer){
-    game.stats.tackles++; game.shake = 0.35;
-    if (took){ game.stats.steals++; toast('タックル成功！クアッフル奪取！', 1.2, 'var(--good)'); }
-    else if (hadBall) toast('クアッフルが弾けた！', 1.1, '#ffe08a');
-    else toast('タックル！', 0.8, '#fff');
+  if (a.remote) netFx({t:'hit', to:a.peer});
+  if (a.human){
+    stat(a, 'tackles'); if (took) stat(a, 'steals');
+    notify(a, took ? 'タックル成功！クアッフル奪取！' : hadBall ? 'クアッフルが弾けた！' : 'タックル！', 1.1, took ? 'var(--good)' : hadBall ? '#ffe08a' : '#fff', {shake:0.35, snd:'hit'});
   }
-  if (b.isPlayer){
-    game.shake = 0.5;
-    toast(hadBall ? (took ? 'タックルでクアッフルを奪われた！' : 'タックルでクアッフルを落とした！') : 'タックルされた！', 1.2, 'var(--bad)');
-  }
+  if (b.human) notify(b, hadBall ? (took ? 'タックルでクアッフルを奪われた！' : 'タックルでクアッフルを落とした！') : 'タックルされた！', 1.2, 'var(--bad)', {shake:0.5, snd:'hit'});
 }
 function startRoll(e, sign){
   const right = new V3().crossVectors(e.dir, UP); right.y = 0;
@@ -1694,7 +1795,20 @@ function startRoll(e, sign){
 // =====================================================================
 const keys = {};
 let mouseNX = 0, mouseNY = 0, mouseIn = false, lockFailed = false;
-function canAct(){ return game.state==='play' && player.isPlayer && player.stun<=0; }
+function stat(e, k){ if (e && e.human) e.stats[k] = (e.stats[k]||0) + 1; }
+// 通知: 自分ならその場で表示、オンラインの他の人間なら本人に送る
+function notify(e, text, dur=1.1, color='#fff', ex){
+  if (!e) return;
+  if (e.isPlayer){ toast(text, dur, color); if (ex) localFx(ex); }
+  else if (net.host && e.remote) netFx({t:'toast', to:e.peer, x:text, d:dur, c:color, ex:ex||null});
+}
+function localFx(ex){
+  if (ex.flash){ $('flash').style.opacity = 1; setTimeout(()=>$('flash').style.opacity = 0, 350); }
+  if (ex.shake) game.shake = Math.max(game.shake, ex.shake);
+  if (ex.snd==='get'){ beep(660, 0.1, 'triangle'); beep(990, 0.12, 'triangle', 0.1, 0.07); }
+  if (ex.snd==='hit'){ noise(0.22, 0.45, 220, 1.2); beep(90, 0.18, 'sine', 0.2, 0, 0.6); }
+}
+function canAct(e=player){ const st = game.state==='paused' ? game.prevState : game.state; return st==='play' && e && e.human && e.stun<=0; }
 function updatePlayer(e, dt){
   if (e.charging){ e.charge = Math.min(1, (e.charge||0) + dt/CFG.chargeTime); if (!heldBludger(e)) e.charging = false; }
   if (keys['ArrowLeft']) e.yaw += 1.9*dt;
@@ -1707,7 +1821,6 @@ function updatePlayer(e, dt){
   }
   e.pitch = clamp(e.pitch, -1.15, 1.15);
   e.dir.set(Math.sin(e.yaw)*Math.cos(e.pitch), Math.sin(e.pitch), Math.cos(e.yaw)*Math.cos(e.pitch));
-  // WASD + 上下: 押している間だけ動く
   const right = new V3(-Math.cos(e.yaw), 0, Math.sin(e.yaw));
   const f = (keys['KeyW']?1:0) - (keys['KeyS']?1:0), r = (keys['KeyD']?1:0) - (keys['KeyA']?1:0);
   if (r) e.turnSign = r;
@@ -1732,39 +1845,54 @@ function updatePlayer(e, dt){
   e.vel.lerp(want, Math.min(1, (boosting ? 5.5 : moving ? 3.2 : 4.5)*dt));
   e.speed = e.vel.length();
 }
-function playerAim(){
-  const e = player, hx = attackX(0);
+function playerAim(e=player){
+  const hx = attackX(e.team);
   if (Math.abs(hx - e.pos.x) > 45) return -1;
   let best = -1, ba = 0.24;
   for (let i=0;i<3;i++){ const a = e.dir.angleTo(hoopPos(hx,i).sub(e.pos)); if (a < ba){ ba = a; best = i; } }
   return best;
 }
-function playerPrimary(){
-  if (!canAct()) return;
-  if (player.role==='B') playerTackle();
-  else if (ball.holder===player) playerShoot(); else playerTackle();
+function playerPrimary(e=player){
+  if (!canAct(e)) return;
+  if (net.guest){ if (e.role==='C' && ball.holder===e) netSend({t:'act', a:'shoot', d:va(e.dir)}); else playerTackle(e); return; }
+  if (e.role==='B') playerTackle(e);
+  else if (ball.holder===e) playerShoot(e); else playerTackle(e);
 }
-function playerSecondary(){
-  if (!canAct()) return;
-  if (player.role==='B') playerBludger();
-  else if (ball.holder===player) playerPass(); else callPass();
+function playerSecondary(e=player){
+  if (!canAct(e)) return;
+  if (net.guest){
+    if (e.role==='B' && heldBludger(e)){ if (!e.charging && e.hitCD <= 0){ e.charging = true; e.charge = 0; beep(200, 0.2, 'sine', 0.06, 0, 1.6); } }
+    else netSend({t:'act', a:'secondary'});
+    return;
+  }
+  if (e.role==='B') playerBludger(e);
+  else if (ball.holder===e) playerPass(e); else callPass(e);
 }
-function playerShoot(){
-  const e = player;
+// ホスト: ゲストから届いた操作を実行
+function hostAct(e, m){
+  if (!e || !canAct(e)) return;
+  if (m.d){ e.dir.fromArray(m.d).normalize(); }
+  if (m.a==='shoot'){ if (ball.holder===e) playerShoot(e); }
+  else if (m.a==='secondary'){
+    if (e.role==='B'){ if (!heldBludger(e)) playerBludger(e); }
+    else if (ball.holder===e) playerPass(e); else callPass(e);
+  }
+  else if (m.a==='throw'){ e.charge = clamp(+m.p || 0, 0, 1); throwHeld(e); }
+}
+function playerShoot(e=player){
   const pt = findPassTarget(e);
   if (pt){ pass(e, pt); beep(440, 0.1, 'triangle'); return; }
   const v = e.dir.clone().multiplyScalar(48 + e.speed*0.3); v.y += 2;
-  const hi = playerAim();
-  if (hi >= 0) v.lerp(aimVel(e.pos.clone().addScaledVector(e.dir,1.4), hoopPos(attackX(0),hi), 50), 0.75);
+  const hi = playerAim(e);
+  if (hi >= 0) v.lerp(aimVel(e.pos.clone().addScaledVector(e.dir,1.4), hoopPos(attackX(e.team),hi), 50), 0.75);
   release(e, v); beep(520, 0.12, 'triangle'); noise(0.2, 0.2, 1200);
 }
-function playerPass(){
-  const mate = mateChaser(player);
-  if (mate.stun>0){ toast('味方はスタン中…'); return; }
-  pass(player, mate); beep(440, 0.1, 'triangle');
+function playerPass(e=player){
+  const mate = mateChaser(e);
+  if (mate.stun>0){ notify(e, '味方はスタン中…'); return; }
+  pass(e, mate); beep(440, 0.1, 'triangle');
 }
-function playerTackle(){
-  const e = player;
+function playerTackle(e=player){
   if (ball.holder===e || e.dash>0 || e.recover>0) return;
   if (e.dashCD > 0){ toast('タックル準備中…', 0.5, '#c9d6ea'); return; }
   const t = findTackleTarget(e);
@@ -1773,22 +1901,23 @@ function playerTackle(){
   e.stamina = Math.max(0, e.stamina - 0.08);
   startDash(e, d, t, CFG.playerDash, t ? 5 : 0);
 }
-function playerRoll(){
-  if (!canAct() || player.roll>0 || player.rollCD>0 || player.dash>0) return;
-  player.stamina = Math.max(0, player.stamina - 0.12);
-  startRoll(player, player.turnSign || 1);
+function playerRoll(e=player){
+  if (!canAct(e) || e.roll>0 || e.rollCD>0 || e.dash>0) return;
+  e.stamina = Math.max(0, e.stamina - 0.12);
+  startRoll(e, e.turnSign || 1);
 }
-function callPass(){
+function callPass(e=player){
   const h = ball.holder;
-  if (h===player) return;
-  if (h && h.team===0){
-    if (h.stun > 0){ toast('味方はスタン中でパスできない…', 0.9, '#c9d6ea'); return; }
+  if (h===e) return;
+  if (h && h.team===e.team){
+    if (h.stun > 0){ notify(e, '味方はスタン中でパスできない…', 0.9, '#c9d6ea'); return; }
     if (h.windup > 0) return;
-    pass(h, player);
-    toast(`パス要求 → ${ROLE_NAME[h.role]}がパス！`, 1.0, 'var(--blue)');
+    if (h.human){ notify(e, `${h.name || '味方'}がクアッフルを持っている`, 0.9, '#c9d6ea'); notify(h, `${e.name || '味方'}がパスを欲しがっている！`, 1.0, 'var(--blue)'); h.callT = 1.2; return; }
+    pass(h, e);
+    notify(e, `パス要求 → ${ROLE_NAME[h.role]}がパス！`, 1.0, 'var(--blue)');
     beep(700, 0.08, 'triangle', 0.08);
-  } else if (h) toast('クアッフルは相手が持っている', 0.8, '#c9d6ea');
-  else toast('クアッフルは誰も持っていない', 0.8, '#c9d6ea');
+  } else if (h) notify(e, 'クアッフルは相手が持っている', 0.8, '#c9d6ea');
+  else notify(e, 'クアッフルは誰も持っていない', 0.8, '#c9d6ea');
 }
 function findPassTarget(e){
   let best = null, ba = 1e9;
@@ -1818,42 +1947,43 @@ function bludgerInReach(e){
   return best;
 }
 const heldBludger = e => bludgers.find(b=>b.heldBy===e);
-function throwHeld(){
-  const e = player, held = heldBludger(e), power = e.charge || 0;
+function throwHeld(e=player){
+  if (net.guest && e.isPlayer){ netSend({t:'act', a:'throw', p:r2(e.charge||0), d:va(e.dir)}); e.charging = false; e.charge = 0; e.hitCD = CFG.swingCD; e.swing = 0.28; return; }
+  const held = heldBludger(e), power = e.charge || 0;
   e.charging = false; e.charge = 0;
   if (!held || game.state!=='play' || e.stun > 0) return;
   const spd = CFG.bludgerMin + (CFG.bludgerMax - CFG.bludgerMin)*power;
   const rt = new V3().crossVectors(e.dir, UP); if (rt.lengthSq() < 1e-4) rt.set(1,0,0); rt.normalize();
   held.heldBy = null; held.pos.copy(e.pos).addScaledVector(e.dir, 1.8).addScaledVector(rt, 0.4);
   const tgt = findAimTarget(e);
-  if (tgt){ hitBludger(e, held, tgt, 0, CFG.trackTime, true, spd); toast(`${power > 0.95 ? 'フルパワー！ ' : ''}${ROLE_NAME[tgt.role]}を追尾中！`, 0.8, power > 0.95 ? '#ff7a5a' : '#ffb37a'); }
+  if (tgt){ hitBludger(e, held, tgt, 0, CFG.trackTime, true, spd); notify(e, `${power > 0.95 ? 'フルパワー！ ' : ''}${tgt.human ? tgt.name : ROLE_NAME[tgt.role]}を追尾中！`, 0.8, power > 0.95 ? '#ff7a5a' : '#ffb37a'); }
   else {
     held.vel.copy(e.dir).multiplyScalar(spd); held.homing = 0.6; held.target = null; held.hitByTeam = e.team; held.hitter = e; held.strong = false; held.trackSpeed = spd;
     e.hitCD = CFG.swingCD; e.swing = 0.28;
-    if (power > 0.95) toast('フルパワー！', 0.6, '#ff7a5a');
+    if (power > 0.95) notify(e, 'フルパワー！', 0.6, '#ff7a5a');
   }
   emit(held.pos, Math.floor(10 + power*30), {colors:[0xffffff,0xffd27a,0xff7a3a], speed:8 + power*10, life:0.35, size:0.35, drag:3});
-  game.shake = Math.max(game.shake, 0.12 + power*0.25);
+  if (e.isPlayer) game.shake = Math.max(game.shake, 0.12 + power*0.25);
   beep(260 - power*80, 0.12, 'square', 0.12); noise(0.15 + power*0.2, 0.35 + power*0.2, 1800 - power*900, 1.5);
 }
-function playerBludger(){
-  const e = player, held = heldBludger(e);
+function playerBludger(e=player){
+  const held = heldBludger(e);
   if (held){
-    if (e.hitCD > 0 || e.charging) return;
+    if (e.hitCD > 0 || e.charging || e.remote) return;
     e.charging = true; e.charge = 0; beep(200, 0.2, 'sine', 0.06, 0, 1.6);
     return;
   }
-  if (bludgers.some(b=>b.summonTo===e)){ toast('ブラッジャーが向かっている…', 0.6, '#c9d6ea'); return; }
+  if (bludgers.some(b=>b.summonTo===e)){ notify(e, 'ブラッジャーが向かっている…', 0.6, '#c9d6ea'); return; }
   if (e.summonCD > 0) return;
   let best = null, bd = 1e9;
   for (const bl of bludgers){
     if (bl.heldBy || bl.summonTo || bl.homing > 0) continue;
     const d = bl.pos.distanceTo(e.pos); if (d < bd){ bd = d; best = bl; }
   }
-  if (!best){ toast('今は呼べるブラッジャーがない（飛行中）', 0.8, '#c9d6ea'); return; }
+  if (!best){ notify(e, '今は呼べるブラッジャーがない（飛行中）', 0.8, '#c9d6ea'); return; }
   best.summonTo = e; best.target = null; best.homing = 0; best.hitter = null;
   e.summonCD = SUMMON_CD;
-  toast('ブラッジャーを呼んだ！', 0.7, '#ffb37a'); beep(330, 0.15, 'sine', 0.1, 0, 1.8);
+  notify(e, 'ブラッジャーを呼んだ！', 0.7, '#ffb37a'); if (e.isPlayer) beep(330, 0.15, 'sine', 0.1, 0, 1.8);
 }
 
 // =====================================================================
@@ -1900,7 +2030,7 @@ function chaserAI(e, dt){
     const mateAhead = mate && (mate.pos.x - e.pos.x)*sign > 6;
     const threatened = ents.some(o=>o.dashTarget===e && (o.windup>0||o.dash>0));
     if (e.pos.distanceTo(hp) < 27 && e.holdTime > 0.4) shootAt(e, hp);
-    else if (e.holdTime > 0.5 && mateOpen && (threatened || nearestEnemyDist(e.pos, e.team) < 6 || mateAhead) && Math.random() < dt*(threatened?6:(mate.isPlayer?1.2:2))) pass(e, mate);
+    else if (e.holdTime > 0.5 && mateOpen && (threatened || nearestEnemyDist(e.pos, e.team) < 6 || mateAhead) && Math.random() < dt*(threatened?6:(mate.human?1.2:2))) pass(e, mate);
     else if (e.holdTime > 9 && mate && mate.stun<=0) pass(e, mate);
   } else if (h && h.team===e.team){
     const t = new V3(clamp(h.pos.x + sign*14, -W.HOOPX+4, W.HOOPX-4), clamp(h.pos.y+3, 10, 40), e.side*12);
@@ -1931,7 +2061,7 @@ function keeperAI(e, dt){
       const mates = ents.filter(o=>o.team===e.team && o.role==='C' && o.stun<=0);
       if (mates.length){
         let best = mates[0], bd = -1;
-        for (const m of mates){ const d = nearestEnemyDist(m.pos, e.team) + (m.isPlayer?3:0); if (d>bd){ bd = d; best = m; } }
+        for (const m of mates){ const d = nearestEnemyDist(m.pos, e.team) + (m.human?3:0); if (d>bd){ bd = d; best = m; } }
         pass(e, best);
       }
     }
@@ -1968,10 +2098,10 @@ function hitBludger(e, bl, tgt, jitter=1.5, homing=0.8, strong=false, speed=CFG.
   const tp = tgt.pos.clone().addScaledVector(tgt.dir, tgt.speed*t*0.8).add(new V3(rand(-jitter,jitter),rand(-jitter,jitter),rand(-jitter,jitter)));
   bl.vel.copy(tp.sub(bl.pos).normalize().multiplyScalar(spd));
   bl.homing = homing; bl.target = tgt; bl.hitByTeam = e.team; bl.hitter = e; bl.heldBy = null; bl.summonTo = null; bl.strong = strong; bl.dodgeChecked = false; bl.trackSpeed = spd;
-  e.hitCD = e.isPlayer ? CFG.swingCD : CFG.beaterCooldown; e.swing = 0.28;
+  e.hitCD = e.human ? CFG.swingCD : CFG.beaterCooldown; e.swing = 0.28;
   emit(bl.pos, 12, {colors:[0xffffff,0xffd27a], speed:8, life:0.3, size:0.3, drag:3});
   if (!e.isPlayer && e.pos.distanceTo(player.pos) < 40) beep(320, 0.08, 'square', 0.08);
-  if (tgt.isPlayer) toast('ブラッジャーが飛んでくる！', 0.8, '#ffb37a');
+  if (tgt.human) notify(tgt, 'ブラッジャーが飛んでくる！', 0.8, '#ffb37a');
 }
 function beaterAI(e, dt){
   const sign = e.team===0 ? 1 : -1;
@@ -2029,15 +2159,15 @@ function updateBall(dt){
   let best = null, bd = 1e9;
   for (const e of ents){
     if (e.role==='B' || e.stun>0 || e.catchCD>0) continue;
-    let r = e.role==='K' ? 3.0 : e.isPlayer ? 3.2 : 2.3;
+    let r = e.role==='K' ? 3.0 : e.human ? 3.2 : 2.3;
     if (ball.intended===e) r += 1;
-    else if (ball.homing > 0 && !e.isPlayer) r = 1.8;   // 追尾パスは横取りされにくい
+    else if (ball.homing > 0 && !e.human) r = 1.8;   // 追尾パスは横取りされにくい
     const d = e.pos.distanceTo(ball.pos); if (d > r) continue;
     const hostile = ball.lastThrower && ball.lastThrower.team!==e.team && spd > 15 && now - ball.throwTime < 3;
     if (hostile){
       if (ball.rolled.has(e)) continue;
       ball.rolled.add(e);
-      const p = e.role==='K' ? D.save : e.isPlayer ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1);
+      const p = e.role==='K' ? D.save : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1);
       if (Math.random() > p) continue;
     }
     if (d < bd){ bd = d; best = e; }
@@ -2045,18 +2175,17 @@ function updateBall(dt){
   if (best){
     const thrower = ball.lastThrower, wasShot = thrower && thrower.team!==best.team && spd>15 && now-ball.throwTime<3;
     takeBall(best);
-    if (wasShot && best.role==='K') toast(best.team===0 ? '味方キーパー、ナイスセーブ！' : 'キーパーに止められた！', 1.1, best.team===0 ? 'var(--blue)' : 'var(--bad)');
-    else if (wasShot && best.isPlayer){ game.stats.cuts++; toast('パスカット！', 1, 'var(--good)'); }
+    if (wasShot && best.role==='K') teamToast(best.team, '味方キーパー、ナイスセーブ！', 'キーパーに止められた！');
+    else if (wasShot && best.human){ stat(best, 'cuts'); notify(best, 'パスカット！', 1, 'var(--good)'); }
   }
 }
 function scoreGoal(team, hoopIdx, p){
   game.score[team] += CFG.goalPoints;
-  if (ball.lastThrower===player && player.isPlayer) game.stats.goals++;
+  stat(ball.lastThrower, 'goals');
   banner(`${TEAM_NAME[team]} ゴール！ +${CFG.goalPoints}`, 1.8, TEAM_CSS[team]);
-  [523,659,784,1046].forEach((f,i)=>beep(f, 0.2, 'triangle', 0.12, i*0.09));
-  noise(1.6, 0.35, 700, 0.4);
+  sfx('goal');
   emit(p, 140, {colors:[TEAM_COL[team], 0xffd54a, 0xffffff], speed:16, life:1.8, size:0.5, gravity:6, drag:1.2});
-  const ring = hoopRings[attackX(team)>0 ? 1 : -1][hoopIdx]; ring.userData.flash = 1;
+  const ring = hoopRings[attackX(team)>0 ? 1 : -1][hoopIdx]; ring.userData.flash = 1; netFx({t:'ring', s:attackX(team)>0 ? 1 : -1, i:hoopIdx});
   game.cheer = 2.5; game.shake = Math.max(game.shake, 0.25);
   for (let k=0;k<5;k++) game.fw.push({t:0.15 + k*0.3, pos:new V3(attackX(team)*rand(0.5,1.05), rand(55,85), rand(-45,45)), col:TEAM_COL[team]});
   const k = keeperOf(1-team); k.stun = 0;
@@ -2070,7 +2199,7 @@ function bludgerCollide(bl, exempt){
     if (sweptHit(bl.prev, bl.pos, e.prevPos, e.pos, 1.4)){
       const friendly = bl.hitter && bl.hitter.team===e.team && bl.hitter!==e;
       stunByBludger(e, bl);
-      if (friendly && bl.hitter.isPlayer) toast(`味方の${ROLE_NAME[e.role]}に当ててしまった！`, 1.1, '#ffb37a');
+      if (friendly) notify(bl.hitter, `味方の${e.human ? e.name : ROLE_NAME[e.role]}に当ててしまった！`, 1.1, '#ffb37a');
       bl.vel.copy(bl.pos).sub(e.pos).normalize().multiplyScalar(12);
       bl.homing = 0; bl.target = null; bl.retarget = 0; bl.hitter = null; bl.summonTo = null; bl.strong = false;
       return true;
@@ -2098,13 +2227,13 @@ function updateBludgers(dt){
         const to = t.pos.clone().sub(bl.pos), d = to.length();
         if (d < 2.4){
           bl.summonTo = null; bl.heldBy = t; bl.homing = 0;
-          if (t.isPlayer){ toast('ブラッジャーをキャッチ！右クリック長押しでためて打て', 1.0, '#ffb37a'); beep(520, 0.08, 'square', 0.1); beep(780, 0.1, 'square', 0.08, 0.06); }
+          notify(t, 'ブラッジャーをキャッチ！右クリック長押しでためて打て', 1.0, '#ffb37a', {snd:'get'});
           continue;
         }
         bl.vel.lerp(to.multiplyScalar(Math.max(36, Math.min(60, d*1.5))/d), Math.min(1, 7*dt));
         bl.pos.addScaledVector(bl.vel, dt);
         boundReflect(bl.pos, bl.vel);
-        if (bludgerCollide(bl, t) && t.isPlayer) toast('呼んだブラッジャーが途中で誰かに当たった！', 1.0, '#ffb37a');
+        if (bludgerCollide(bl, t)) notify(t, '呼んだブラッジャーが途中で誰かに当たった！', 1.0, '#ffb37a');
         continue;
       }
     }
@@ -2155,8 +2284,8 @@ function spawnSnitch(){
   snitch.t = 0; snitch.rest = 0; snitch.nextRest = rand(5,8); snitch.fleeing = false;
   emit(snitch.pos, 60, {colors:[0xffd54a,0xffffff], speed:10, life:1.2, size:0.4, drag:2});
   banner('金のスニッチが出現！', 2.4, 'var(--gold)');
-  toast(`捕まえると +${CFG.snitchPoints}点 & 試合終了`, 2.4, '#ffe08a');
-  [880,1175,1568].forEach((f,i)=>beep(f, 0.25, 'sine', 0.1, i*0.12));
+  toastAll(`捕まえると +${CFG.snitchPoints}点 & 試合終了`, 2.4, '#ffe08a');
+  sfx('snitch');
 }
 function updateSnitch(dt){
   if (!snitch.active) return;
@@ -2186,23 +2315,35 @@ function updateSnitch(dt){
   if (Math.random() < 0.5) emit(snitch.pos, 1, {colors:[0xffe680], speed:1, life:0.6, size:0.25, drag:1});
   for (const e of ents){
     if (e.role==='K' || e.stun>0) continue;
-    if (e.pos.distanceTo(snitch.pos) < (e.isPlayer ? 2.3 : 1.3)){ catchSnitch(e); return; }
+    if (e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : 1.3)){ catchSnitch(e); return; }
   }
 }
 function catchSnitch(e){
   game.score[e.team] += CFG.snitchPoints;
   emit(snitch.pos, 160, {colors:[0xffd54a,0xffffff,0xffb300], speed:18, life:1.8, size:0.5, gravity:4, drag:1.2});
   snitch.active = false; snitch.mesh.visible = false;
-  const who = e.isPlayer ? 'あなた' : `${TEAM_NAME[e.team]}の${ROLE_NAME[e.role]}`;
-  [1568,1318,1568,2093].forEach((f,i)=>beep(f, 0.22, 'sine', 0.1, i*0.1));
-  noise(2, 0.35, 700, 0.4); game.cheer = 3;
+  const who = (e.isPlayer && !net.active) ? 'あなた' : e.human ? `${TEAM_NAME[e.team]}の${e.name}` : `${TEAM_NAME[e.team]}の${ROLE_NAME[e.role]}`;
+  sfx('catch'); game.cheer = 3;
   endGame(`${who}が金のスニッチを捕獲！（+${CFG.snitchPoints}）`);
 }
 
 // =====================================================================
 //  メインステップ
 // =====================================================================
+function updateRemote(e, dt){
+  if (e.stun > 0){ e.stun -= dt; e.spin += (e.stunKind==='bludger' ? 12 : 9)*dt; if (e.stun <= 0){ e.stun = 0; e.spin = 0; } }
+  const r = e.net; if (!r) return;
+  const age = Math.min(0.2, (performance.now() - r.t)/1000);
+  _nv.fromArray(r.p).addScaledVector(_nv2.fromArray(r.v), age);
+  if (e.pos.distanceTo(_nv) > 8) e.pos.copy(_nv); else e.pos.lerp(_nv, Math.min(1, 16*dt));
+  e.dir.fromArray(r.d); if (e.dir.lengthSq() < 1e-4) e.dir.set(1,0,0); e.dir.normalize();
+  e.speed = r.sp; e.vel.fromArray(r.v);
+  if (r.di !== e.lastDashId){ e.lastDashId = r.di; e.dashHit = false; }
+  e.dash = (r.da && !e.dashHit) ? 0.1 : 0; e.dashDir.fromArray(r.dd);
+  e.roll = r.ro; e.rollSpin = r.rs; e.boosting = !!r.bo; e.charging = !!r.ch; e.charge = r.cg;
+}
 function updateEntity(e, dt){
+  if (e.remote){ updateRemote(e, dt); return; }
   if (e.stun > 0){
     e.stun -= dt;
     e.speed += (2 - e.speed)*Math.min(1, 3*dt);
@@ -2291,6 +2432,7 @@ function syncVisuals(dt, t){
     const dist = camera.position.distanceTo(e.pos), sc = clamp(dist*0.045, 0.9, 3.2);
     m.badge.position.copy(head); m.badge.scale.set(sc, sc, 1);
     m.badge.material.opacity = e.stun > 0 ? 0.45 : 1;
+    if (m.nameTag){ m.nameTag.position.copy(head); m.nameTag.position.y += sc*0.85; m.nameTag.scale.set(sc*2.4, sc*0.6, 1); }
     m.ring.visible = ball.holder===e && !e.isPlayer; m.ring.position.copy(head); m.ring.scale.set(sc*1.35, sc*1.35, 1);
     m.warn.visible = e.windup > 0 || (e.dash > 0 && !e.isPlayer);
     m.call.visible = e.callT > 0;
@@ -2327,7 +2469,7 @@ function syncVisuals(dt, t){
     if (r.userData.flash > 0){ r.userData.flash = Math.max(0, r.userData.flash - dt*0.7); r.material.emissive.setScalar(0).lerp(_flashCol, r.userData.flash); }
   }
   const aimI = (game.state==='play' && player.isPlayer && ball.holder===player && !findPassTarget(player)) ? playerAim() : -1;
-  hoopDiscs[1].forEach((d,i)=>{ const tgt = i===aimI ? 0.45 : 0.12; d.material.opacity += (tgt - d.material.opacity)*Math.min(1, 10*dt); });
+  for (const sd of [-1,1]) hoopDiscs[sd].forEach((d,i)=>{ const tgt = (sd===(attackX(player.team)>0?1:-1) && i===aimI) ? 0.45 : 0.12; d.material.opacity += (tgt - d.material.opacity)*Math.min(1, 10*dt); });
   for (const f of flags){
     const a = f.geo.attributes.position.array;
     for (let i=0;i<a.length;i+=3){ const x = f.base[i]; a[i+2] = Math.sin(t*5 + x*1.6/(f.amp>0.5?3:1) + f.ph)*f.amp*x; }
@@ -2337,7 +2479,7 @@ function syncVisuals(dt, t){
   crowdUniforms.time.value = t; crowdUniforms.cheer.value = game.cheer;
   if (stage==='wc' && (game.state==='play' || game.state==='countdown' || game.state==='end')){
     wcFwT -= dt;
-    if (wcFwT <= 0){ wcFwT = rand(1.2, 3.5); const a = rand(0, Math.PI*2); emit(new V3(Math.cos(a)*175, rand(95,150), Math.sin(a)*130), 100, {colors:[TEAM_COL[Math.random()<0.5?0:1], 0xffffff, 0xffd54a], speed:28, life:1.9, size:3.2, gravity:5, drag:1.3}); }
+    if (wcFwT <= 0){ wcFwT = rand(1.2, 3.5); const a = rand(0, Math.PI*2); emit(new V3(Math.cos(a)*175, rand(95,150), Math.sin(a)*130), 100, {colors:[TEAM_COL[Math.random()<0.5?0:1], 0xffffff, 0xffd54a], speed:28, life:1.9, size:3.2, gravity:5, drag:1.3, local:true}); }
     jumboT -= dt; if (jumboT <= 0 && jumboTex){ jumboT = 0.25; jumboTex.redraw(); }
   }
   // 空・水・鳥・花火
@@ -2487,9 +2629,9 @@ function updateHUD(dt){
     $('cdMain').style.transform = `scaleX(${hold ? 0 : clamp(player.dashCD/CFG.tackleCD, 0, 1)})`;
     $('actMain').classList.toggle('dim', player.stun>0 || (!hold && (player.dashCD>0 || player.recover>0)));
     $('actMain').classList.remove('hot');
-    setText('subLbl', hold ? 'パス' : (h && h.team===0 ? 'パス要求' : 'パス'));
+    setText('subLbl', hold ? 'パス' : (h && h.team===player.team ? 'パス要求' : 'パス'));
     $('cdSub').style.transform = 'scaleX(0)';
-    $('actSub').classList.toggle('dim', !(hold || (h && h.team===0 && !h.isPlayer)));
+    $('actSub').classList.toggle('dim', !(hold || (h && h.team===player.team && !h.isPlayer)));
   }
   $('cdRoll').style.transform = `scaleX(${clamp(player.rollCD/CFG.rollCD,0,1)})`;
   $('actRoll').classList.toggle('dim', player.rollCD>0 || player.stun>0);
@@ -2535,10 +2677,301 @@ function updateHUD(dt){
 }
 
 // =====================================================================
+//  オンライン（PeerJS: ブラウザ同士を直接つなぐ）
+// =====================================================================
+const net = { active:false, host:false, guest:false, peer:null, conns:{}, conn:null, code:'', myId:'', lobby:null, setup:null, sendT:0, inT:0, fx:[], snapT:0, joining:false };
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const PEER_PREFIX = 'qdch-fan-v1-';
+const PEER_OPTS = { debug:0, config:{ iceServers:[
+  {urls:'stun:stun.l.google.com:19302'}, {urls:'stun:global.stun.twilio.com:3478'},
+  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject'},
+]}};
+const r2 = v => Math.round(v*100)/100;
+const va = v => [r2(v.x), r2(v.y), r2(v.z)];
+const _nv = new V3(), _nv2 = new V3();
+const ALL_TEAMS = () => Object.assign({}, HOUSES, ENGLAND, NATIONS);
+function genCode(){ let c = ''; for (let i=0;i<4;i++) c += CODE_CH[Math.floor(Math.random()*CODE_CH.length)]; return c; }
+function netFx(f){ if (net.host) net.fx.push(f); }
+function netSend(m){ if (net.guest && net.conn && net.conn.open) net.conn.send(m); }
+function netBroadcast(m){ for (const id in net.conns){ const c = net.conns[id]; if (c && c.open) c.send(m); } }
+function toastAll(text, dur, color){ toast(text, dur, color); netFx({t:'toastAll', x:text, d:dur, c:color}); }
+function teamToast(team, ally, enemy){
+  toast(team===player.team ? ally : enemy, 1.1, team===player.team ? 'var(--blue)' : 'var(--bad)');
+  netFx({t:'teamToast', team, a:ally, e:enemy});
+}
+function myName(){ return (settings.name || '').trim() || 'プレイヤー'; }
+function inviteUrl(){ const u = location.href.split('?')[0].split('#')[0]; return `${u}?room=${net.code}`; }
+function netReset(){
+  try { if (net.peer) net.peer.destroy(); } catch(e){}
+  Object.assign(net, {active:false, host:false, guest:false, peer:null, conns:{}, conn:null, code:'', myId:'', lobby:null, setup:null, fx:[], joining:false});
+}
+function onlineMsg(t){ $('onlineMsg').textContent = t || ''; if (!t) $('onlineMsg').style.color = 'var(--bad)'; }
+function openOnline(){
+  if (!window.Peer || !window.RTCPeerConnection){ openSub('online'); onlineMsg('この環境ではオンライン対戦が使えません。GitHub版のURLから開いてください。'); return; }
+  $('nameIn').value = settings.name || ''; openSub('online'); onlineMsg('');
+}
+function saveName(){ settings.name = $('nameIn').value.trim().slice(0,10); saveSettings(); }
+// ---------- ホスト ----------
+function hostRoom(){
+  saveName(); netReset();
+  Object.assign(net, {active:true, host:true, code:genCode(), myId:'host'});
+  const h0 = settings.house, h1 = rivalOf(settings.house);
+  net.lobby = { players:[{id:'host', name:myName(), team:0, slot:0, broom:settings.broom, host:true}], cfg:{h0, h1, stage:'hog', diff:settings.diff==='world' ? 'normal' : settings.diff} };
+  openLobby('部屋を準備しています…');
+  const peer = new Peer(PEER_PREFIX + net.code, PEER_OPTS); net.peer = peer;
+  peer.on('open', ()=>{ renderLobby(); });
+  peer.on('error', err=>{
+    if (err.type==='unavailable-id' && net.host){ try{ peer.destroy(); }catch(e){} net.code = genCode(); const keep = net.lobby; hostRetry(keep); return; }
+    lobbyStatus('通信エラー: ' + err.type);
+  });
+  peer.on('connection', conn=>{
+    conn.on('data', d=>hostOnData(conn, d));
+    conn.on('close', ()=>hostOnLeave(conn.peer));
+    conn.on('error', ()=>hostOnLeave(conn.peer));
+  });
+}
+function hostRetry(lobby){
+  const peer = new Peer(PEER_PREFIX + net.code, PEER_OPTS); net.peer = peer; net.lobby = lobby;
+  peer.on('open', ()=>renderLobby());
+  peer.on('connection', conn=>{ conn.on('data', d=>hostOnData(conn, d)); conn.on('close', ()=>hostOnLeave(conn.peer)); });
+  peer.on('error', err=>lobbyStatus('通信エラー: ' + err.type));
+}
+function freeSlot(){
+  const L = net.lobby, cnt = t => L.players.filter(p=>p.team===t).length;
+  const order = cnt(0) <= cnt(1) ? [0,1] : [1,0];
+  for (const t of order) for (const sl of [0,1,2]) if (!L.players.some(p=>p.team===t && p.slot===sl)) return {team:t, slot:sl};
+  return null;
+}
+function hostOnData(conn, d){
+  if (!d || !d.t) return;
+  const L = net.lobby;
+  if (d.t==='hello'){
+    if (game.state!=='lobby' && ['countdown','play','paused','end'].includes(game.state)){ conn.send({t:'busy'}); setTimeout(()=>conn.close(), 300); return; }
+    if (L.players.length >= 6){ conn.send({t:'full'}); setTimeout(()=>conn.close(), 300); return; }
+    const fs = freeSlot(); if (!fs){ conn.send({t:'full'}); return; }
+    net.conns[conn.peer] = conn;
+    L.players = L.players.filter(p=>p.id!==conn.peer);
+    L.players.push({id:conn.peer, name:String(d.name||'プレイヤー').slice(0,10), team:fs.team, slot:fs.slot, broom:BROOMS[d.broom] ? d.broom : 'swift'});
+    sfxJoin(); broadcastLobby(); return;
+  }
+  const me = L.players.find(p=>p.id===conn.peer);
+  if (d.t==='pick' && me && !L.players.some(p=>p.team===d.team && p.slot===d.slot) && [0,1].includes(d.team) && [0,1,2].includes(d.slot)){ me.team = d.team; me.slot = d.slot; broadcastLobby(); }
+  else if (d.t==='broom' && me && BROOMS[d.broom]){ me.broom = d.broom; broadcastLobby(); }
+  else if (d.t==='in'){ const e = ents.find(x=>x.peer===conn.peer); if (e){ d.t = performance.now(); e.net = d; } }
+  else if (d.t==='act'){ const e = ents.find(x=>x.peer===conn.peer); if (e) hostAct(e, d); }
+}
+function hostOnLeave(id){
+  if (!net.host || !net.lobby) return;
+  const L = net.lobby, p = L.players.find(x=>x.id===id);
+  delete net.conns[id];
+  if (!p) return;
+  L.players = L.players.filter(x=>x.id!==id);
+  const e = ents.find(x=>x.peer===id);
+  if (e){ e.human = false; e.remote = false; e.peer = null; if (e.mesh.nameTag) e.mesh.nameTag.visible = false; e.charging = false; }
+  if (['countdown','play','paused','end'].includes(game.state)) toastAll(`${p.name} が退出しました（ボットが代わりに入ります）`, 1.8, '#ffe08a');
+  broadcastLobby();
+}
+function broadcastLobby(){ netBroadcast({t:'lobby', lobby:net.lobby}); if (game.state==='lobby') renderLobby(); }
+function sfxJoin(){ const q = game.state; game.state = 'x'; beep(880, 0.08, 'triangle', 0.08); beep(1320, 0.1, 'triangle', 0.08, 0.08); game.state = q; }
+function hostStart(){
+  const L = net.lobby;
+  if (L.cfg.h0 === L.cfg.h1){ lobbyStatus('チームAとチームBに別のチームを選んでください'); return; }
+  const setup = {cfg: Object.assign({}, L.cfg), slots: L.players.map(p=>({id:p.id, name:p.name, team:p.team, slot:p.slot, broom:p.broom}))};
+  netBroadcast({t:'start', setup});
+  startOnlineMatch(setup);
+}
+function hostToLobby(){ netBroadcast({t:'toLobby'}); backToLobby(); }
+// ---------- ゲスト ----------
+function joinRoom(code){
+  saveName();
+  code = String(code||'').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,4);
+  if (code.length !== 4){ onlineMsg('4文字の部屋コードを入れてください'); return; }
+  netReset(); Object.assign(net, {active:true, guest:true, code, joining:true});
+  onlineMsg(''); $('joinBtn').disabled = true; $('joinBtn').textContent = '接続中…';
+  const fail = (t)=>{ $('joinBtn').disabled = false; $('joinBtn').textContent = '入る'; netReset(); openSub('online'); onlineMsg(t); };
+  const peer = new Peer(undefined, PEER_OPTS); net.peer = peer;
+  peer.on('open', id=>{
+    net.myId = id;
+    const conn = peer.connect(PEER_PREFIX + code, {reliable:true}); net.conn = conn;
+    conn.on('open', ()=>{ conn.send({t:'hello', name:myName(), broom:settings.broom}); });
+    conn.on('data', guestOnData);
+    conn.on('close', ()=>{ if (net.guest) netLost('部屋との接続が切れました'); });
+    setTimeout(()=>{ if (net.joining && !(conn && conn.open)) fail('部屋が見つかりませんでした。コードを確認してください。'); }, 9000);
+  });
+  peer.on('error', err=>{ if (net.joining || !net.lobby) fail(err.type==='peer-unavailable' ? '部屋が見つかりませんでした。コードを確認してください。' : '接続できませんでした（' + err.type + '）'); });
+}
+function netLost(msg){
+  const wasMatch = ['countdown','play','paused','end'].includes(game.state);
+  netReset(); if (document.pointerLockElement) document.exitPointerLock();
+  startDemo(); openSub('online'); onlineMsg(msg);
+  if (wasMatch) showOverlay('online');
+}
+function guestOnData(d){
+  if (!d || !d.t) return;
+  if (d.t==='lobby'){
+    net.lobby = d.lobby;
+    if (net.joining){ net.joining = false; $('joinBtn').disabled = false; $('joinBtn').textContent = '入る'; openLobby(''); }
+    else if (game.state==='lobby') renderLobby();
+  }
+  else if (d.t==='full'){ netReset(); openSub('online'); onlineMsg('この部屋は満員です（最大6人）'); }
+  else if (d.t==='busy'){ netReset(); openSub('online'); onlineMsg('この部屋は試合中です。終わってからもう一度入ってください。'); }
+  else if (d.t==='start') startOnlineMatch(d.setup);
+  else if (d.t==='snap') applySnap(d);
+  else if (d.t==='end') guestEnd(d);
+  else if (d.t==='toLobby') backToLobby();
+}
+// ---------- ロビー画面 ----------
+function openLobby(status){ game.state = 'lobby'; showOverlay('lobby'); renderLobby(); lobbyStatus(status); }
+function lobbyStatus(t){ $('lobbyStatus').textContent = t || ''; }
+function backToLobby(){
+  if (document.pointerLockElement) document.exitPointerLock();
+  startDemo(); openLobby('');
+}
+function renderLobby(){
+  const L = net.lobby;
+  $('lobbyCode').textContent = net.code || '----';
+  $('lobbyLink').value = net.code ? inviteUrl() : '';
+  if (!L){ $('lobbyTeams').innerHTML = ''; return; }
+  const T = ALL_TEAMS();
+  const roleOf = sl => sl===2 ? 'B' : 'C';
+  $('lobbyTeams').innerHTML = [0,1].map(t=>{
+    const H = T[t===0 ? L.cfg.h0 : L.cfg.h1] || HOUSES.gryffindor;
+    const rows = [0,1,2].map(sl=>{
+      const p = L.players.find(x=>x.team===t && x.slot===sl), r = roleOf(sl);
+      const who = p ? `<span class="who ${p.id===net.myId?'me':''}">${p.name.replace(/[<>&]/g,'')}${p.id===net.myId?'（あなた）':''}${p.host?'<span class="tagh">ホスト</span>':''}</span>`
+                    : `<span class="who bot">ボット</span><button data-pick="${t},${sl}">ここに入る</button>`;
+      return `<div class="slot">${svgIcon(r, H.css)}<span class="rl">${ROLE_NAME[r]}</span>${who}</div>`;
+    }).join('') + `<div class="slot">${svgIcon('K', H.css)}<span class="rl">キーパー</span><span class="who bot">ボット（固定）</span></div>`;
+    return `<div class="tcol" style="--tc:${H.css}"><h3>${t===0?'チームA':'チームB'}：${H.name}</h3>${rows}</div>`;
+  }).join('');
+  document.querySelectorAll('[data-pick]').forEach(b=>{ b.onclick = ()=>{
+    uiClick(); const [t, sl] = b.dataset.pick.split(',').map(Number);
+    if (net.host){ const me = L.players.find(p=>p.id==='host'); if (!L.players.some(p=>p.team===t && p.slot===sl)){ me.team = t; me.slot = sl; broadcastLobby(); } }
+    else netSend({t:'pick', team:t, slot:sl});
+  }; });
+  const me = L.players.find(p=>p.id===net.myId);
+  $('lobbyBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${(me ? me.broom : settings.broom)===k?' selected':''}>${b.name}（${b.tag}）</option>`).join('');
+  $('hostCfg').style.display = net.host ? '' : 'none';
+  if (net.host){
+    const opts = sel => Object.entries(T).map(([k,H])=>`<option value="${k}"${sel===k?' selected':''}>${H.name}</option>`).join('');
+    $('cfgH0').innerHTML = opts(L.cfg.h0); $('cfgH1').innerHTML = opts(L.cfg.h1);
+    $('cfgStage').value = L.cfg.stage; $('cfgDiff').value = L.cfg.diff;
+  }
+  $('lobbyStart').style.display = net.host ? '' : 'none';
+  $('lobbyWait').textContent = `${L.players.length} / 6 人` + (net.host ? (net.peer && net.peer.open ? '' : '（準備中…）') : ' ・ 部屋を作った人が開始するのを待っています');
+  if (net.host && net.peer && net.peer.open && !$('lobbyStatus').textContent) lobbyStatus('友達にコードかリンクを送ってください');
+}
+// ---------- 試合の開始・同期 ----------
+function startOnlineMatch(setup){
+  net.setup = setup;
+  game.state = 'countdown';
+  D = DIFF[setup.cfg.diff] || DIFF.normal;
+  setHouses(setup.cfg.h0, setup.cfg.h1);
+  setStage(setup.cfg.stage);
+  buildTeamsOnline(setup.slots);
+  resetGame();
+  D = DIFF[setup.cfg.diff] || DIFF.normal;
+  camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
+  game.cd = 3; lastCd = 4; net.snapT = performance.now();
+  showOverlay(null); audio(); lockPointer();
+}
+function buildSnap(){
+  return {t:'snap', st: game.state==='paused' ? game.prevState : game.state, tm:r2(game.time), sc:game.score, ch:r2(game.cheer), cd:r2(game.cd),
+    e: ents.map(e=>[va(e.pos), va(e.dir), r2(e.speed), r2(e.stun), e.stunKind==='bludger'?1:0, r2(e.roll), r2(e.rollSpin), e.dash>0?1:0, e.windup>0?1:0, e.boosting?1:0, r2(e.swing), r2(e.callT), va(e.knock), r2(e.spin), e.human?1:0]),
+    b: [va(ball.pos), va(ball.vel), ball.holder ? ents.indexOf(ball.holder) : -1],
+    bl: bludgers.map(b=>[va(b.pos), va(b.vel), b.homing>0?1:0, b.heldBy ? ents.indexOf(b.heldBy) : -1, b.summonTo ? ents.indexOf(b.summonTo) : -1]),
+    sn: [snitch.active?1:0, va(snitch.pos), va(snitch.vel), r2(snitch.rest)],
+    fx: net.fx.splice(0)};
+}
+function applySnap(s){
+  net.snapT = performance.now();
+  if (game.state==='paused') game.prevState = s.st;
+  else if (s.st !== 'end' && ['countdown','play'].includes(s.st)) game.state = s.st;
+  game.time = s.tm; game.score = s.sc; game.cheer = s.ch; game.cd = s.cd;
+  s.e.forEach((a,i)=>{
+    const e = ents[i]; if (!e) return;
+    if (e.isPlayer){
+      if (a[3] > 0 && e.stun <= 0){ e.stun = a[3]; e.stunKind = a[4] ? 'bludger' : 'tackle'; e.knock.fromArray(a[12]); e.vel.set(0,0,0); e.dash = 0; e.charging = false; }
+      return;
+    }
+    e.netT = {p:a[0], d:a[1], sp:a[2]};
+    e.stun = a[3]; e.stunKind = a[4] ? 'bludger' : 'tackle'; e.roll = a[5]; e.rollSpin = a[6]; e.dash = a[7] ? 0.1 : 0; e.windup = a[8] ? 0.1 : 0;
+    e.boosting = !!a[9]; e.swing = a[10]; e.callT = a[11]; e.spin = a[13];
+    if (!a[14] && e.human){ e.human = false; if (e.mesh.nameTag) e.mesh.nameTag.visible = false; }
+  });
+  ball.netT = {p:s.b[0], v:s.b[1]}; ball.holder = s.b[2] >= 0 ? ents[s.b[2]] : null;
+  s.bl.forEach((a,i)=>{ const bl = bludgers[i]; bl.netT = {p:a[0], v:a[1]}; bl.homing = a[2] ? 0.1 : 0; bl.heldBy = a[3] >= 0 ? ents[a[3]] : null; bl.summonTo = a[4] >= 0 ? ents[a[4]] : null; });
+  const wasActive = snitch.active; snitch.active = !!s.sn[0]; snitch.mesh.visible = snitch.active; snitch.netT = {p:s.sn[1], v:s.sn[2]}; snitch.rest = s.sn[3];
+  if (snitch.active && !wasActive){ snitch.pos.fromArray(s.sn[1]); snitch.vel.fromArray(s.sn[2]); }
+  for (const f of s.fx || []){
+    if (f.t==='banner'){ const q = net.host; banner(f.x, f.d, f.c); }
+    else if (f.t==='toast'){ if (f.to===net.myId){ toast(f.x, f.d, f.c); if (f.ex) localFx(f.ex); } }
+    else if (f.t==='toastAll') toast(f.x, f.d, f.c);
+    else if (f.t==='teamToast') toast(f.team===player.team ? f.a : f.e, 1.1, f.team===player.team ? 'var(--blue)' : 'var(--bad)');
+    else if (f.t==='emit') emit(_nv.fromArray(f.p).clone(), f.n, Object.assign({local:true}, f.o));
+    else if (f.t==='sfx') sfx(f.k, false);
+    else if (f.t==='ring'){ const r = hoopRings[f.s] && hoopRings[f.s][f.i]; if (r) r.userData.flash = 1; }
+    else if (f.t==='hit'){ if (f.to===net.myId){ player.dashHit = true; player.dash = 0; player.vel.copy(player.dashDir).multiplyScalar(9); } }
+  }
+}
+function followNet(o, dt, age, grav){
+  if (!o.netT) return;
+  _nv.fromArray(o.netT.p).addScaledVector(_nv2.fromArray(o.netT.v), age);
+  if (grav) _nv.y -= 0.5*G*age*age;
+  if (o.pos.distanceTo(_nv) > 10) o.pos.copy(_nv); else o.pos.lerp(_nv, Math.min(1, 14*dt));
+  if (o.vel) o.vel.fromArray(o.netT.v);
+}
+function handPos(h, out, side=0.55, up=0.35, fwd=1.2){
+  const rt = new V3().crossVectors(h.dir, UP); if (rt.lengthSq() < 1e-4) rt.set(1,0,0); rt.normalize();
+  return out.copy(h.pos).addScaledVector(h.dir, fwd).addScaledVector(rt, side).add(new V3(0, up, 0));
+}
+function guestUpdate(dt){
+  now += dt;
+  const age = Math.min(0.25, (performance.now() - net.snapT)/1000);
+  if (performance.now() - net.snapT > 9000){ netLost('部屋との接続が切れました'); return; }
+  for (const e of ents){
+    e.prevPos.copy(e.pos); e.prevDir.copy(e.dir);
+    if (e.isPlayer || !e.netT) continue;
+    _nv2.fromArray(e.netT.d);
+    _nv.fromArray(e.netT.p).addScaledVector(_nv2, e.netT.sp*age);
+    if (e.pos.distanceTo(_nv) > 10) e.pos.copy(_nv); else e.pos.lerp(_nv, Math.min(1, 14*dt));
+    if (_nv2.lengthSq() > 1e-4){ e.dir.lerp(_nv2.normalize(), Math.min(1, 12*dt)); e.dir.normalize(); }
+    e.speed = e.netT.sp;
+  }
+  // 自分の移動は自分のPCで計算（遅れなし）
+  const live = game.state==='play' || (game.state==='paused' && game.prevState==='play');
+  const p = player;
+  for (const k of ['dashCD','recover','rollCD','swing','callT','hitCD','summonCD','tackleImmune']) if (p[k] > 0) p[k] -= dt;
+  p.wasDashing = p.dash > 0; p.boosting = false;
+  if (live) updateEntity(p, dt);
+  { const a = W.A-3, b = W.B-3, k = (p.pos.x/a)**2 + (p.pos.z/b)**2; if (k > 1){ const sc = 1/Math.sqrt(k); p.pos.x *= sc; p.pos.z *= sc; } p.pos.y = clamp(p.pos.y, 2, W.TOP); }
+  // クアッフル・ブラッジャー・スニッチ
+  if (ball.holder){ const h = ball.holder; if (h.isPlayer || h.role!=='K') handPos(h, ball.pos, h.isPlayer ? 0.55 : 0, h.isPlayer ? 0.35 : -0.15, h.isPlayer ? 1.2 : 1.1); else handPos(h, ball.pos, 0, -0.15, 1.1); ball.vel.copy(h.dir).multiplyScalar(h.speed); }
+  else followNet(ball, dt, age, true);
+  for (const bl of bludgers){ bl.prev.copy(bl.pos); if (bl.heldBy) handPos(bl.heldBy, bl.pos, 0.75, 0.6, 1.0); else followNet(bl, dt, age, false); }
+  if (snitch.active){ followNet(snitch, dt, age, false); if (Math.random() < 0.5) emit(snitch.pos, 1, {colors:[0xffe680], speed:1, life:0.6, size:0.25, drag:1, local:true}); }
+  // 自分の状態をホストへ（1秒に30回）
+  net.inT -= dt;
+  if (net.inT <= 0){
+    net.inT = 1/30;
+    const mv = (p.dash > 0 || p.stun > 0) ? p.dir.clone().multiplyScalar(p.speed) : p.vel;
+    netSend({t:'in', p:va(p.pos), v:va(mv), d:va(p.dir), sp:r2(p.speed), da:p.dash>0?1:0, di:p.dashId||0, dd:va(p.dashDir), ro:r2(p.roll), rs:r2(p.rollSpin), bo:p.boosting?1:0, ch:p.charging?1:0, cg:r2(p.charge||0)});
+  }
+}
+function guestEnd(d){
+  game.state = 'end'; game.score = d.sc;
+  const st = (d.stats || {})[net.myId] || {};
+  player.stats = st;
+  showResult(d.reason);
+}
+
+// =====================================================================
 //  画面遷移・入力
 // =====================================================================
 let lastCd = 4, pausedAt = 0;
-const OVERLAYS = ['menu','select','howto','settings','pause','end'];
+const OVERLAYS = ['menu','select','howto','settings','pause','end','online','lobby'];
 function showOverlay(id){
   for (const o of OVERLAYS) $(o).hidden = o!==id;
   const inMatch = ['countdown','play','paused','end'].includes(game.state);
@@ -2554,6 +2987,7 @@ function startDemo(){
   game.time = 1e9; game.snitchSpawned = true;
 }
 function openMenu(){
+  if (net.active) netReset();
   if (document.pointerLockElement) document.exitPointerLock();
   if (['countdown','play','paused','end'].includes(game.state)) startDemo();
   game.state = 'menu'; showOverlay('menu');
@@ -2608,22 +3042,52 @@ function resume(){
 function endGame(reason){
   if (game.state!=='play') return;
   game.state = 'end';
-  const [a,b] = game.score;
+  if (net.host){
+    const stats = {}; for (const e of ents) if (e.human && e.peer) stats[e.peer] = e.stats;
+    netBroadcast(Object.assign(buildSnap(), {st:'end'}));
+    netBroadcast({t:'end', reason, sc:game.score, stats});
+  }
+  showResult(reason);
+}
+function showResult(reason){
+  const my = player.team, a = game.score[my], b = game.score[1-my];
   $('endTitle').textContent = a>b ? '勝利！' : a<b ? '敗北…' : '引き分け';
   $('endTitle').style.color = a>b ? 'var(--good)' : a<b ? 'var(--bad)' : '#fff';
   $('endReason').textContent = reason;
-  $('endScore').innerHTML = `<span class="blue">${TEAM_NAME[0]} ${a}</span> − <span class="red">${b} ${TEAM_NAME[1]}</span>`;
-  const s = game.stats;
+  $('endScore').innerHTML = `<span class="blue">${TEAM_NAME[0]} ${game.score[0]}</span> − <span class="red">${game.score[1]} ${TEAM_NAME[1]}</span>`;
+  const s = player.stats || {}, v = k => s[k] || 0;
   const items = player.role==='B'
-    ? [['ブラッジャー命中',s.bhits],['タックル命中',s.tackles],['クアッフルを弾いた',s.tackles ? s.steals : 0]]
-    : [['ゴール',s.goals],['タックル命中',s.tackles],['タックル奪取',s.steals],['パスカット',s.cuts]];
-  $('endStats').innerHTML = items.map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+    ? [['ブラッジャー命中',v('bhits')],['タックル命中',v('tackles')],['クアッフルを弾いた',v('steals')]]
+    : [['ゴール',v('goals')],['タックル命中',v('tackles')],['タックル奪取',v('steals')],['パスカット',v('cuts')]];
+  $('endStats').innerHTML = items.map(([k,val])=>`<div class="stat"><b>${val}</b><span>${k}</span></div>`).join('');
+  $('againBtn').textContent = net.active ? (net.host ? 'みんなでロビーに戻る' : 'ロビーに戻る') : 'もう一度';
+  $('changeBtn').style.display = net.active ? 'none' : '';
+  $('endMenuBtn').textContent = net.active ? '部屋を出る' : 'メニューへ';
   setTimeout(()=>{ if (game.state==='end'){ showOverlay('end'); if (document.pointerLockElement) document.exitPointerLock(); } }, 1100);
 }
 function lockPointer(){
   try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(()=>{ lockFailed = true; }); } catch(e){ lockFailed = true; }
 }
 
+$('mOnline').onclick = ()=>{ uiClick(); openOnline(); };
+$('hostBtn').onclick = ()=>{ uiClick(); hostRoom(); };
+$('joinBtn').onclick = ()=>{ uiClick(); joinRoom($('codeIn').value); };
+$('codeIn').addEventListener('keydown', ev=>{ if (ev.key==='Enter') joinRoom($('codeIn').value); });
+$('nameIn').addEventListener('change', saveName);
+$('copyBtn').onclick = ()=>{
+  const t = $('lobbyLink').value;
+  const ok = ()=>{ $('copyBtn').textContent = 'コピーしました！'; setTimeout(()=>$('copyBtn').textContent = '招待リンクをコピー', 1500); };
+  try { navigator.clipboard.writeText(t).then(ok, ()=>{ $('lobbyLink').select(); }); } catch(e){ $('lobbyLink').select(); }
+};
+$('lobbyStart').onclick = ()=>{ uiClick(); if (net.host) hostStart(); };
+$('lobbyLeave').onclick = ()=>{ uiClick(); openMenu(); };
+$('lobbyBroom').onchange = ev=>{
+  const b = ev.target.value; settings.broom = b; saveSettings();
+  if (net.host){ const me = net.lobby.players.find(p=>p.id==='host'); me.broom = b; broadcastLobby(); } else netSend({t:'broom', broom:b});
+};
+for (const [id, key] of [['cfgH0','h0'],['cfgH1','h1'],['cfgStage','stage'],['cfgDiff','diff']]){
+  $(id).onchange = ev=>{ if (!net.host) return; net.lobby.cfg[key] = ev.target.value; broadcastLobby(); };
+}
 $('mPlay').onclick = ()=>{ uiClick(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
 $('mHow').onclick = ()=>{ uiClick(); openSub('howto'); };
 $('mSet').onclick = ()=>{ uiClick(); syncSettingsUI(); openSub('settings'); };
@@ -2633,9 +3097,9 @@ document.querySelectorAll('.pcard[data-role]').forEach(c=>{
   c.ondblclick = ()=>{ selectRole(c.dataset.role); startMatch(); };
 });
 $('goBtn').onclick = startMatch;
-$('againBtn').onclick = startMatch;
+$('againBtn').onclick = ()=>{ if (net.active){ if (net.host) hostToLobby(); else backToLobby(); } else startMatch(); };
 $('changeBtn').onclick = ()=>{ startDemo(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
-$('restartBtn').onclick = startMatch;
+$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else startMatch(); };
 $('resumeBtn').onclick = resume;
 $('toMenuBtn').onclick = openMenu;
 $('endMenuBtn').onclick = openMenu;
@@ -2666,7 +3130,7 @@ document.addEventListener('keydown', ev=>{
     ev.preventDefault();
     if (game.state==='paused'){ if (performance.now() - pausedAt > 200) resume(); }
     else if (game.state==='play' || game.state==='countdown'){ if (document.pointerLockElement) document.exitPointerLock(); else pause(); }
-    else if (['select','howto','settings'].includes(game.state)) openMenu();
+    else if (['select','howto','settings','online'].includes(game.state)) openMenu();
     return;
   }
   if (ev.target.tagName==='INPUT' || ev.target.tagName==='SELECT') return;
@@ -2702,21 +3166,28 @@ function applyQuality(){
 applyQuality();
 startDemo();
 showOverlay('menu');
+{ // 招待リンク（?room=ABCD）で開いたら、コード入力済みでオンライン画面へ
+  const rm = new URLSearchParams(location.search).get('room');
+  if (rm){ openOnline(); $('codeIn').value = rm.toUpperCase().slice(0,4); onlineMsg(''); $('onlineMsg').style.color = 'var(--gold)'; onlineMsg(`招待された部屋：${rm.toUpperCase().slice(0,4)}　名前を入れて「入る」を押してください`); setTimeout(()=>$('nameIn').focus(), 50); }
+}
 let last = performance.now();
 function loop(ts){
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (ts - last)/1000); last = ts;
   const t = ts/1000;
   const demo = quiet();
-  if (game.state==='play' || demo) step(dt);
-  else if (game.state==='countdown'){
+  const inMatch = ['countdown','play','paused','end'].includes(game.state);
+  if (net.guest && inMatch) guestUpdate(dt);
+  else if (game.state==='play' || demo || (net.host && game.state==='paused' && game.prevState==='play')) step(dt);
+  else if (game.state==='countdown' || (net.host && game.state==='paused' && game.prevState==='countdown')){
     game.cd -= dt;
     const c = Math.ceil(game.cd);
-    if (c !== lastCd){ lastCd = c; if (c > 0){ banner(String(c), 0.9); beep(440, 0.12); } }
-    if (game.cd <= 0){ game.state = 'play'; banner('スタート！', 1.0, '#ffe08a'); beep(880, 0.25); noise(1.2, 0.25, 700, 0.4); game.cheer = 1.5; }
+    if (c !== lastCd){ lastCd = c; if (c > 0){ banner(String(c), 0.9); sfx('count'); } }
+    if (game.cd <= 0){ if (game.state==='paused') game.prevState = 'play'; else game.state = 'play'; banner('スタート！', 1.0, '#ffe08a'); sfx('start'); game.cheer = 1.5; }
     for (const e of ents){ e.prevDir.copy(e.dir); e.prevPos.copy(e.pos); }
   }
-  else if (game.state==='end'){
+  if (net.host && inMatch){ net.sendT -= dt; if (net.sendT <= 0){ net.sendT = 0.05; netBroadcast(buildSnap()); } }
+  else if (game.state==='end' && !net.guest){
     for (const e of ents){ e.prevDir.copy(e.dir); e.speed *= 0.98; e.pos.addScaledVector(e.dir, e.speed*dt); }
   }
   if (demo) updateDemoCamera(dt, t); else updateCamera(dt);
