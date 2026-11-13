@@ -640,7 +640,8 @@ const NATIONS = {
   germany:  {name:'ドイツ',       letter:'D', motto:'鉄壁の守備', col:0xd9a520, dark:0x1a1a1a, css:'#ffd75e', deep:'#8a6a10', acc:'#1a1a1a'},
 };
 if (!(HOUSES[settings.house] || NATIONS[settings.house] || ENGLAND[settings.house])) settings.house = 'gryffindor';
-const ENGLAND = { england: {name:'イギリス', letter:'E', motto:'イギリス代表', col:0x1e2f6e, dark:0x0b1430, css:'#9fb4ff', deep:'#16245a', acc:'#c8102e'} };
+const ENGLAND = { england: {name:'イギリス', letter:'E', motto:'イギリス代表', col:0x1e2f6e, dark:0x0b1430, css:'#9fb4ff', deep:'#16245a', acc:'#c8102e'},
+  englandwc: {name:'イギリス（W杯代表）', letter:'E', motto:'寮の仲間と代表が集結', col:0x1e2f6e, dark:0x0b1430, css:'#9fb4ff', deep:'#16245a', acc:'#c8102e'} };
 const WC_OWN = Object.assign({}, HOUSES, ENGLAND);   // 世界級で自分が選べるチーム
 if (!(HOUSES[settings.wcTeam] || NATIONS[settings.wcTeam] || ENGLAND[settings.wcTeam])) settings.wcTeam = 'gryffindor';
 const wcRival = () => { const ks = Object.keys(NATIONS); return Math.random() < 0.35 ? 'bulgaria' : ks[Math.floor(Math.random()*ks.length)]; };
@@ -702,6 +703,8 @@ const CHARS = {
 };
 const CHAR_BY_ID = {};
 for (const t in CHARS) CHARS[t] = CHARS[t].map(([id,name,role,rar,sk,hair])=>(CHAR_BY_ID[id] = {id, name, role, rar, sk, hair:HAIR[hair], team:t}));
+// ストーリーで代表選考に勝ったあとのイギリス：グリフィンドールの仲間＋イギリス代表（覚醒ロンは準決勝専用なので除く）
+CHARS.englandwc = CHARS.gryffindor.filter(c=>c.id!=='ronx').concat(CHARS.england);
 const HAIR_STYLE = {
   harry:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', ronss:'short', wood:'short', ron:'short', mclaggen:'curly',
   flint:'short', draco:'slick', pucey:'short', montague:'buzz', crabbe:'buzz', goyle:'buzz', bletchley:'short',
@@ -803,6 +806,7 @@ const FLAGS = {
 };
 // チームのマーク：国は国旗、寮は寮の2色と頭文字のオリジナルの盾
 function emblemSvg(key, size=56){
+  if (key==='englandwc') key = 'england';
   if (FLAGS[key]) return `<svg class="emb flag" viewBox="0 0 30 20" width="${size*1.4}" height="${size*0.93}" aria-hidden="true">${FLAGS[key]}<rect width="30" height="20" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".6"/></svg>`;
   const H = HOUSES[key] || ALL_TEAMS()[key] || {}, c1 = hexCss(H.col || 0x888888), c2 = H.acc || '#e8b53a';
   return `<svg class="emb" viewBox="0 0 40 46" width="${size*0.87}" height="${size}" aria-hidden="true">
@@ -4586,7 +4590,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13b';
+const APP_VERSION = '2026-11-13c';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
