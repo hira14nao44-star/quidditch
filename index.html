@@ -85,7 +85,21 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #cut .txt{font-size:21px;line-height:1.65;min-height:70px;color:#fff}
 #cut .nx{text-align:right;font-size:12px;opacity:.55}
 @media (max-width:640px){.chap{grid-template-columns:1fr 1fr}#cut .txt{font-size:17px}}
-.cinfoWrap{margin-top:10px}
+.cinfoWrap{display:none}
+#ctip{position:fixed;z-index:55;width:330px;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))}
+#ctip[hidden]{display:none}#ctip .cinfo{background:#0f1525;border-color:rgba(255,207,74,.45)}
+.lslot select.hid{display:none}
+.pickBtn{width:100%;display:flex;align-items:center;gap:6px;font:inherit;font-size:14px;text-align:left;padding:7px 10px;border-radius:8px;background:#141a2b;color:#fff;border:1px solid rgba(255,255,255,.22);cursor:pointer}
+.pickBtn:hover{border-color:var(--gold)}.pickBtn .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pickBtn .pv{opacity:.6;font-size:11px}
+#picker{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.35)}#picker[hidden]{display:none}
+#picker .pkBox{position:absolute;display:flex;gap:10px;background:#0f1525;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;box-shadow:0 16px 50px rgba(0,0,0,.6);width:min(640px,94vw)}
+#picker .pkList{flex:0 0 250px;max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+#picker .pkItem{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;color:#fff;text-align:left;background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:8px;padding:7px 9px;cursor:pointer}
+#picker .pkItem:hover,#picker .pkItem:focus{background:rgba(255,255,255,.1);border-color:rgba(255,207,74,.6);outline:none}
+#picker .pkItem.cur{border-color:var(--gold)}#picker .pkItem .ico{width:15px;height:15px;flex:none}
+#picker .pkItem b{flex:1}#picker .pkItem .rar{font-size:11px}
+#picker .pkInfo{flex:1;min-width:0}#picker .pkInfo .cinfo{height:100%;box-sizing:border-box}
+@media (max-width:640px){#picker .pkBox{flex-direction:column}#picker .pkList{flex:none;max-height:200px}}
 .vsHead{display:flex;align-items:center;justify-content:center;gap:26px;margin:10px 0 2px;padding:14px;border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.02),rgba(255,255,255,.06))}
 .vsTeam{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:150px}.vsTeam b{font-size:18px}
 .vsMark{font-size:38px;font-weight:900;font-style:italic;color:#ffcf4a;text-shadow:0 0 18px rgba(255,190,60,.55),0 3px 0 #8a5a00;letter-spacing:2px}
@@ -93,8 +107,8 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .rcards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
 .rcard{position:relative;border-radius:12px;padding:10px 12px;background:linear-gradient(160deg,#20283d,#121827);border:2px solid #3a4560;cursor:default;outline:none;overflow:hidden}
 .rcard:hover,.rcard:focus{transform:translateY(-2px)}
-.rcard.rSR{border-color:#4f8fd8}.rcard.rSSR{border-color:#e7b43a;box-shadow:0 0 14px rgba(231,180,58,.35)}
-.rcard.rUR{border-color:#ff5fd2;box-shadow:0 0 18px rgba(255,95,210,.5);background:linear-gradient(160deg,#3a1a3a,#151020)}
+.rcard.rSR{border-color:#9aa6b8}.rcard.rR{border-color:#9a6a42}.rcard.rSSR{border-color:#e7b43a;box-shadow:0 0 14px rgba(231,180,58,.35)}
+.rcard.rUR{border-color:#b98aff;box-shadow:0 0 18px rgba(185,138,255,.5);background:linear-gradient(160deg,#2a1a40,#151020)}
 .rcard .rtop{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.9}.rcard .rtop .ico{width:15px;height:15px}.rcard .rtop b{margin-left:auto;font-size:13px}
 .rcard .rname{font-weight:800;font-size:15px;margin:6px 0 4px;line-height:1.3}
 .rcard .rsk{font-size:11.5px;font-weight:800;min-height:15px}
@@ -334,6 +348,10 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   </div>
 </div>
 
+<div id="ctip" hidden></div>
+<!-- 選手選びパネル -->
+<div id="picker" hidden><div class="pkBox"><div class="pkList" id="pkList"></div><div class="pkInfo" id="pkInfo"></div></div></div>
+
 <!-- ストーリー -->
 <div class="overlay" id="story" hidden>
   <div class="panel">
@@ -411,7 +429,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <div class="pick brooms" id="broomCards"></div>
     <div class="btns">
       <button class="btn" id="goBtn">試合開始</button>
-      <label>難易度 <select id="diffSel" data-set="diff"><option value="easy">かんたん</option><option value="normal">ふつう</option><option value="hard">むずかしい</option><option value="world">世界級（W杯会場）</option></select></label>
+      <label>大会 <select id="diffSel" data-set="diff"><option value="normal">寮対抗戦（ホグワーツ）</option><option value="world">ワールドカップ（W杯会場）</option></select></label>
       <button class="btn ghost" data-back style="margin-left:auto">戻る</button>
     </div>
   </div>
@@ -511,7 +529,6 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
           <span>チームA</span><select id="cfgH0" aria-label="チームA"></select>
           <span>チームB</span><select id="cfgH1" aria-label="チームB"></select>
           <span>ステージ</span><select id="cfgStage" aria-label="ステージ"><option value="hog">ホグワーツ（昼）</option><option value="wc">ワールドカップ会場（夜）</option></select>
-          <span>ボットの強さ</span><select id="cfgDiff" aria-label="ボットの強さ"><option value="easy">かんたん</option><option value="normal">ふつう</option><option value="hard">むずかしい</option><option value="world">世界級</option></select>
         </div>
       </div>
     </div>
@@ -586,6 +603,7 @@ const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, lineup:{}, myChar:{}, av
 try { Object.assign(settings, JSON.parse(localStorage.getItem('skyball-settings')||'{}')); } catch(e){}
 if (!BROOMS[settings.broom]) settings.broom = 'swift';
 const saveSettings = () => { try { localStorage.setItem('skyball-settings', JSON.stringify(settings)); } catch(e){} };
+if (settings.diff !== 'world') settings.diff = 'normal';   // 難易度の選択は廃止（寮対抗戦 / ワールドカップ）
 let D = DIFF[settings.diff] || DIFF.normal;
 
 const W = { A: 95, B: 50, TOP: 60, HOOPX: 78 };
@@ -701,7 +719,7 @@ const AVATARS = [
 ];
 const AV_BY_ID = Object.fromEntries(AVATARS.map(a=>[a.id, a]));
 const avatarLook = id => { const a = AV_BY_ID[id] || AVATARS[0]; return {hair:a.hair, hs:a.hs, skin:a.skin, sex:a.sex}; };
-const RARITY = {R:{pw:1.0, col:'#9aa4b2'}, SR:{pw:1.04, col:'#5fb0ff'}, SSR:{pw:1.09, col:'#e7b43a'}, UR:{pw:1.13, col:'#ff5fd2'}};
+const RARITY = {R:{pw:1.0, col:'#d08b52'}, SR:{pw:1.04, col:'#cfd6e2'}, SSR:{pw:1.09, col:'#f4c34a'}, UR:{pw:1.13, col:'#b98aff'}};
 const SKILL_TEXT = {seeker:'スニッチ戦に強い', krum:'スニッチを最短距離で奪う', ron:'至近距離以外のシュートを全部止める', bagman:'ブラッジャーが速く、強く追尾する'};
 const charsOf = (team, role) => (CHARS[team] || []).filter(c=>c.role===role);
 // 自分以外の枠（役職ごと）にメンバーを割り当てる。pref = {C:[id..], B:[id..], K:[id..]}（足りない分はランダム）
@@ -786,21 +804,64 @@ function charInfoHtml(c){
   if (!c) return '';
   const T = ALL_TEAMS()[c.team] || {};
   const desc = PROFILE[c.id] || 'このゲームのオリジナル選手。';
-  return `<div class="cinfo"><div class="ch"><b>${escHtml(c.name)}</b> <span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="ctag">${T.name || ''}・${ROLE_NAME[c.role]}</span></div>
+  return `<div class="cinfo"><div class="ch"><b style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</b> <span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="ctag">${T.name || ''}・${ROLE_NAME[c.role]}</span></div>
     ${c.sk ? `<div class="csk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : ''}<p>${desc}</p></div>`;
 }
 function showCharInfo(el, id){ if (el) el.innerHTML = charInfoHtml(CHAR_BY_ID[id]); }
 // 選択欄にカーソルを合わせた／選んだ選手の紹介を下に出す
-function wireInfo(container, infoEl){
-  if (!container || !infoEl) return;
-  const show = id => { infoEl.dataset.id = id; showCharInfo(infoEl, id); };
-  container.querySelectorAll('[data-cid]').forEach(slot=>{
-    slot.addEventListener('mouseenter', ()=>show(slot.dataset.cid));
-    const sel = slot.querySelector('select'); if (sel) sel.addEventListener('focus', ()=>show(sel.value));
+// 標準のリストの代わりに、カーソルを合わせると紹介が出る選択パネルを使う
+function enhanceSelects(container){
+  if (!container) return;
+  container.querySelectorAll('.lslot select').forEach(sel=>{
+    if (sel.classList.contains('hid')) return;
+    sel.classList.add('hid');
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'pickBtn';
+    const cur = CHAR_BY_ID[sel.value];
+    btn.innerHTML = `<span class="pn" style="color:${cur ? RARITY[cur.rar].col : '#fff'}">${cur ? escHtml(cur.name) : '選ぶ'}</span>${cur ? `<b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}<span class="pv">▼</span>`;
+    btn.onclick = ev=>{ ev.stopPropagation(); uiClick(); openPicker(btn, [...sel.options].map(o=>o.value), sel.value, id=>{ sel.value = id; sel.dispatchEvent(new Event('change')); }); };
+    sel.after(btn);
   });
-  const ids = [...container.querySelectorAll('[data-cid]')].map(x=>x.dataset.cid);
-  show(ids.includes(infoEl.dataset.id) ? infoEl.dataset.id : ids[0]);
 }
+let pickerDone = null;
+function openPicker(anchor, ids, curId, onPick){
+  const list = $('pkList'), box = document.querySelector('#picker .pkBox');
+  list.innerHTML = ids.map(id=>{ const c = CHAR_BY_ID[id]; if (!c) return '';
+    return `<button type="button" class="pkItem${id===curId ? ' cur' : ''}" data-id="${id}">${svgIcon(c.role, '#ffcf4a')}<b style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</b><span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span></button>`; }).join('');
+  hideTip(); const show = id => showCharInfo($('pkInfo'), id);
+  list.querySelectorAll('.pkItem').forEach(it=>{
+    it.addEventListener('mouseenter', ()=>show(it.dataset.id)); it.addEventListener('focus', ()=>show(it.dataset.id));
+    it.onclick = ev=>{ ev.stopPropagation(); closePicker(); uiClick(); onPick(it.dataset.id); };
+  });
+  show(curId || ids[0]);
+  $('picker').hidden = false;
+  const r = anchor.getBoundingClientRect(), bw = Math.min(640, innerWidth*0.94);
+  box.style.left = Math.max(8, Math.min(r.left, innerWidth - bw - 8)) + 'px';
+  const below = r.bottom + 6, h = 360;
+  box.style.top = (below + h < innerHeight ? below : Math.max(8, r.top - h - 6)) + 'px';
+  const curEl = list.querySelector('.pkItem.cur') || list.querySelector('.pkItem'); if (curEl) curEl.focus({preventScroll:false});
+}
+function closePicker(){ $('picker').hidden = true; }
+function wireInfo(container){
+  enhanceSelects(container);
+  if (!container) return;
+  container.querySelectorAll('[data-cid]').forEach(slot=>{
+    const id = () => slot.dataset.cid;
+    slot.addEventListener('mouseenter', ()=>showTip(slot, id()));
+    slot.addEventListener('mouseleave', hideTip);
+    slot.addEventListener('focusin', ()=>showTip(slot, id()));
+    slot.addEventListener('focusout', hideTip);
+  });
+}
+function showTip(anchor, id){
+  const c = CHAR_BY_ID[id]; if (!c || !$('picker').hidden) return;
+  const t = $('ctip'); t.innerHTML = charInfoHtml(c); t.hidden = false;
+  const r = anchor.getBoundingClientRect(), w = 330, h = t.offsetHeight;
+  let x = r.right + 10; if (x + w > innerWidth - 8) x = r.left - w - 10; if (x < 8) x = Math.min(innerWidth - w - 8, r.left);
+  let y = r.top; if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  if (x === r.left || (x < r.right && x + w > r.left)) y = r.bottom + 8 + h > innerHeight ? r.top - h - 8 : r.bottom + 8;
+  t.style.left = x + 'px'; t.style.top = y + 'px';
+}
+function hideTip(){ $('ctip').hidden = true; }
 const shortName = c => c.name.split('・')[0].replace(/（.*）/, '') + (c.name.includes('（覚醒）') ? '（覚醒）' : c.name.includes('（成長）') ? '（成長）' : '');
 const entLabel = e => e.human ? (e.isPlayer && !net.active ? (settings.name || 'あなた') : e.name) : e.char ? shortName(e.char) : ROLE_NAME[e.role];
 const teamDict = k => HOUSES[k] ? HOUSES : NATIONS;
@@ -1898,7 +1959,7 @@ function makeEnt(team, role, isPlayer, i, opt={}){
   };
   if (isPlayer){ e.sk = ''; e.pw = 1; }   // 自分が選んだ選手は見た目と名前だけ（操作はプレイヤー）
   if (opt.human && !isPlayer && opt.name){ e.mesh.nameTag = nameSprite(opt.name, TEAM_CSS[team]); scene.add(e.mesh.nameTag); }
-  else if (ch && !isPlayer){ e.mesh.nameTag = nameSprite(shortName(ch), ch.rar==='UR' ? '#ff9be6' : ch.rar==='SSR' ? '#ffd877' : '#e8ecf4'); scene.add(e.mesh.nameTag); }
+  else if (ch && !isPlayer){ e.mesh.nameTag = nameSprite(shortName(ch), RARITY[ch.rar].col); scene.add(e.mesh.nameTag); }
   return e;
 }
 function clearEnts(){
@@ -2285,7 +2346,6 @@ const SETTINGS_HTML = `<div class="set">
   <span>上下反転</span><input type="checkbox" data-set="invY" aria-label="上下反転">
   <span>効果音</span><input type="range" data-set="vol" min="0" max="1" step="0.05" aria-label="効果音の音量">
   <span>BGM</span><input type="range" data-set="bgm" min="0" max="1" step="0.05" aria-label="BGMの音量">
-  <span>難易度</span><select data-set="diff" aria-label="難易度"><option value="easy">かんたん</option><option value="normal">ふつう</option><option value="hard">むずかしい</option><option value="world">世界級（W杯会場）</option></select>
   <span>画質</span><select data-set="quality" aria-label="画質"><option value="ultra">最高（くっきり）</option><option value="high">高（きれい）</option><option value="medium">中</option><option value="low">低（軽い）</option></select>
 </div>`;
 document.querySelectorAll('.ctlwrap').forEach(el=>el.innerHTML = CONTROLS_HTML);
@@ -2318,7 +2378,7 @@ const rosterState = {};
 function buildRoster(){
   for (const k in rosterState) delete rosterState[k];
   $('roster').innerHTML = [0,1].map(t=>`<div class="rteam t${t}"><div class="rt" style="color:${TEAM_CSS[t]}">${TEAM_NAME[t]}</div>${
-    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? escHtml(settings.name || ROLE_NAME[e.role])+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? (e.ace ? '★' : '')+escHtml(shortName(e.char))+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
+    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? escHtml(settings.name || ROLE_NAME[e.role])+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? `<span style="color:${RARITY[e.char.rar].col}">${e.ace ? '★' : ''}${escHtml(shortName(e.char))}</span>`+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
   }</div>`).join('');
 }
 
@@ -3641,6 +3701,7 @@ function sfxJoin(){ const q = game.state; game.state = 'x'; beep(880, 0.08, 'tri
 function hostStart(){
   const L = net.lobby;
   if (L.cfg.h0 === L.cfg.h1){ lobbyStatus('チームAとチームBに別のチームを選んでください'); return; }
+  L.cfg.diff = L.cfg.stage==='wc' ? 'world' : 'normal';   // ボットの強さはステージで決まる（あとはキャラのレア度）
   const setup = {cfg: Object.assign({}, L.cfg), slots: L.players.map(p=>({id:p.id, name:p.name, team:p.team, slot:p.slot, broom:p.broom, avatar:p.avatar||''}))};
   setup.chars = [];
   for (const t of [0,1]){ const lu = randomLineup(t===0 ? L.cfg.h0 : L.cfg.h1, {C:2,B:1,K:1}); ROLES.forEach((r,i)=>{ const c = lu[r].shift(); setup.chars[t*4+i] = c ? c.id : null; }); }
@@ -3722,7 +3783,7 @@ function renderLobby(){
   if (net.host){
     const opts = sel => Object.entries(T).map(([k,H])=>`<option value="${k}"${sel===k?' selected':''}>${H.name}</option>`).join('');
     $('cfgH0').innerHTML = opts(L.cfg.h0); $('cfgH1').innerHTML = opts(L.cfg.h1);
-    $('cfgStage').value = L.cfg.stage; $('cfgDiff').value = L.cfg.diff;
+    $('cfgStage').value = L.cfg.stage;
   }
   $('lobbyStart').style.display = net.host ? '' : 'none';
   $('lobbyWait').textContent = `${L.players.length} / 6 人` + (net.host ? (net.peer && net.peer.open ? '' : '（準備中…）') : ' ・ 部屋を作った人が開始するのを待っています');
@@ -3839,6 +3900,7 @@ function guestEnd(d){
 let lastCd = 4, pausedAt = 0;
 const OVERLAYS = ['menu','select','howto','settings','pause','end','online','lobby','story','storyPrep','profile'];
 function showOverlay(id){
+  hideTip(); closePicker();
   for (const o of OVERLAYS) $(o).hidden = o!==id;
   const inMatch = ['countdown','play','paused','end'].includes(game.state);
   $('hud').classList.toggle('off', !inMatch);
@@ -3874,11 +3936,11 @@ const rivalMode = () => settings.diff==='world' ? 'wc' : 'hog';
 function rivalChoice(){
   if (!settings.rivalPick || typeof settings.rivalPick !== 'object') settings.rivalPick = {};
   if (!settings.rivalLineup || typeof settings.rivalLineup !== 'object') settings.rivalLineup = {};
-  const dict = settings.diff==='world' ? NATIONS : HOUSES, own = lineupTeam(), cur = settings.rivalPick[rivalMode()] || 'random';
+  const dict = ALL_TEAMS(), own = lineupTeam(), cur = settings.rivalPick[rivalMode()] || 'random';
   return (cur !== 'random' && dict[cur] && cur !== own) ? cur : 'random';
 }
 function renderRival(){
-  const dict = settings.diff==='world' ? NATIONS : HOUSES, own = lineupTeam(), cur = rivalChoice();
+  const dict = ALL_TEAMS(), own = lineupTeam(), cur = rivalChoice();
   $('rivalSel').innerHTML = `<option value="random">ランダム（毎試合）</option>` + Object.entries(dict).filter(([k])=>k!==own).map(([k,H])=>`<option value="${k}">${H.name}</option>`).join('');
   $('rivalSel').value = cur;
   $('rivalEmb').innerHTML = cur==='random' ? '' : emblemSvg(cur, 30);
@@ -3897,7 +3959,7 @@ function renderRival(){
     if (j >= 0 && j !== k) arr[j] = old;
     arr[k] = sel.value; saveSettings(); uiClick(); $('rivalInfo').dataset.id = sel.value; renderRival();
   }; });
-  wireInfo($('rivalWrap'), $('rivalInfo'));
+  wireInfo($('rivalWrap'));
 }
 $('rivalSel').onchange = ev=>{ settings.rivalPick[rivalMode()] = ev.target.value; saveSettings(); uiClick(); renderRival(); };
 $('rivalRand').onclick = ()=>{ uiClick(); const cur = rivalChoice(); if (cur==='random') return; const r = randomLineup(cur, {C:2, B:1, K:1}); settings.rivalLineup[cur] = {C:r.C.map(c=>c.id), B:r.B.map(c=>c.id), K:r.K.map(c=>c.id)}; saveSettings(); renderRival(); };
@@ -3928,7 +3990,7 @@ function renderLineup(){
     if (j >= 0 && j !== k) arr[j] = old;   // 同じ選手を2枠に入れたら入れ替え
     arr[k] = sel.value; saveSettings(); uiClick(); $('lineupInfo').dataset.id = sel.value; renderLineup();
   }; });
-  wireInfo(wrap, $('lineupInfo'));
+  wireInfo(wrap);
 }
 $('lineupRand').onclick = ()=>{
   uiClick(); const team = lineupTeam(), mc = myCharFor(team, game.playerRole || settings.role), r = pickLineup(team, {C:2, B:1, K:1}, null, mc && mc.id);
@@ -4033,7 +4095,7 @@ $('lobbyBroom').onchange = ev=>{
   const b = ev.target.value; settings.broom = b; saveSettings();
   if (net.host){ const me = net.lobby.players.find(p=>p.id==='host'); me.broom = b; broadcastLobby(); } else netSend({t:'broom', broom:b});
 };
-for (const [id, key] of [['cfgH0','h0'],['cfgH1','h1'],['cfgStage','stage'],['cfgDiff','diff']]){
+for (const [id, key] of [['cfgH0','h0'],['cfgH1','h1'],['cfgStage','stage']]){
   $(id).onchange = ev=>{ if (!net.host) return; net.lobby.cfg[key] = ev.target.value; broadcastLobby(); };
 }
 $('mPlay').onclick = ()=>{ uiClick(); needProfile(()=>{ selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); }); };
@@ -4370,11 +4432,11 @@ function renderPrep(i){
   { const rl = chLineup(C), list = [...rl.C, ...rl.B, ...rl.K];
     $('prepRival').innerHTML = list.map(c=>`<div class="rcard r${c.rar}" data-cid="${c.id}" tabindex="0">
       <div class="rtop">${svgIcon(c.role, '#fff')}<span>${ROLE_NAME[c.role]}</span><b class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</b></div>
-      <div class="rname">${escHtml(c.name)}</div>
+      <div class="rname" style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</div>
       ${c.sk ? `<div class="rsk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : '<div class="rsk"></div>'}
     </div>`).join('');
-    wireInfo($('prepRival'), $('prepRivalInfo'));
-    $('prepRival').querySelectorAll('.rcard').forEach(el=>el.addEventListener('focus', ()=>{ $('prepRivalInfo').dataset.id = el.dataset.cid; showCharInfo($('prepRivalInfo'), el.dataset.cid); })); }
+    wireInfo($('prepRival'));
+  }
   $('prepNote').textContent = i >= 4 ? 'グリフィンドールの仲間とイギリス代表の選手から選べます。' : 'グリフィンドールの仲間から選べます。';
   document.querySelectorAll('[data-prole]').forEach(b=>{ b.classList.toggle('sel', b.dataset.prole===role); b.onclick = ()=>{ uiClick(); selectRole(b.dataset.prole); renderPrep(i); }; });
   const [lu, mc] = chOwnLineup(i);
@@ -4402,7 +4464,7 @@ function renderPrep(i){
     if (j >= 0 && j !== k) arr[j] = old;
     arr[k] = el.value; sel[r] = arr; saveStory(); uiClick(); $('prepInfo').dataset.id = el.value; renderPrep(i);
   }; });
-  wireInfo($('prepLineup'), $('prepInfo'));
+  wireInfo($('prepLineup'));
   $('prepBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${settings.broom===k?' selected':''}>${b.name}（${b.tag}）</option>`).join('');
 }
 $('prepBroom').onchange = ev=>{ settings.broom = ev.target.value; saveSettings(); };
@@ -4490,13 +4552,16 @@ function markAces(){
     for (const e of ents){ if (e.team!==t || !e.char || e.isPlayer) continue; if (!best || RANK[e.char.rar] > RANK[best.char.rar]) best = e; }
     if (!best || RANK[best.char.rar] < 2) continue;
     best.ace = true;
-    const ur = best.char.rar==='UR', col = ur ? 'rgba(255,120,225,0.75)' : 'rgba(255,214,110,0.7)';
+    const ur = best.char.rar==='UR', col = ur ? 'rgba(185,138,255,0.8)' : 'rgba(255,214,110,0.7)';
     const a = sprite(auraTex[col] || (auraTex[col] = glowTex(col)), {blending:THREE.AdditiveBlending}); scene.add(a); best.mesh.aura = a;
     if (best.mesh.nameTag){ scene.remove(best.mesh.nameTag); best.mesh.nameTag.material.map.dispose(); }
-    best.mesh.nameTag = nameSprite('★ ' + shortName(best.char), ur ? '#ff9be6' : '#ffd877'); scene.add(best.mesh.nameTag);
+    best.mesh.nameTag = nameSprite('★ ' + shortName(best.char), RARITY[best.char.rar].col); scene.add(best.mesh.nameTag);
   }
 }
 
+// 選手選びパネルの閉じる操作
+$('picker').addEventListener('click', ev=>{ if (ev.target.id==='picker') closePicker(); });
+addEventListener('keydown', ev=>{ if (ev.key==='Escape' && !$('picker').hidden){ ev.stopPropagation(); closePicker(); } }, true);
 applyQuality();
 startDemo();
 showOverlay('menu');
