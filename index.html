@@ -2003,11 +2003,19 @@ function makeEnt(team, role, isPlayer, i, opt={}){
   else if (ch && !isPlayer){ e.mesh.nameTag = nameSprite(shortName(ch), RARITY[ch.rar].col); scene.add(e.mesh.nameTag); }
   return e;
 }
+// 試合ごとに作った形・材質・テクスチャを片づける（残ると試合を重ねるほど重くなる）
+function disposeTree(root){
+  root.traverse(o=>{
+    if (o.geometry) o.geometry.dispose();
+    const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const mt of ms){ if (mt.map && !mt.map.keep) mt.map.dispose(); mt.dispose(); }
+  });
+}
 function clearEnts(){
   for (const e of ents){
     const m = e.mesh;
     scene.remove(m.g, m.badge, m.ring, m.warn, m.call, e.trail.mesh); if (m.nameTag) scene.remove(m.nameTag); if (m.aura) scene.remove(m.aura);
-    m.g.traverse(o=>{ if (o.geometry) o.geometry.dispose(); });
+    for (const o of [m.g, m.badge, m.ring, m.warn, m.call, m.nameTag]) if (o) disposeTree(o);
     e.trail.geo.dispose();
   }
   ents = [];
@@ -2084,7 +2092,7 @@ const quiet = () => ['menu','select','howto','settings','online','lobby','story'
 //  効果音
 // =====================================================================
 let actx = null, noiseBuf = null;
-function audio(){ try { actx = actx || new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} return actx; }
+function audio(){ try { if (!actx){ const AC = window.AudioContext||window.webkitAudioContext; try { actx = new AC({latencyHint:'playback'}); } catch(e){ actx = new AC(); } } } catch(e){} return actx; }
 function beep(f, d, type='sine', vol=0.12, delay=0, slide=0){
   if (quiet()) return;
   const a = audio(); if (!a || settings.vol<=0) return;
@@ -2162,7 +2170,7 @@ function muInit(){
     const comp = a.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
     MU.bus.connect(MU.lp); MU.lp.connect(comp); comp.connect(a.destination);
     MU.dry = a.createGain(); MU.dry.connect(MU.bus);
-    const conv = a.createConvolver(); conv.buffer = irBuf(a, 2.8);
+    const conv = a.createConvolver(); conv.buffer = irBuf(a, 1.8);
     MU.wet = a.createGain(); MU.wet.gain.value = 0.55; MU.wet.connect(conv); conv.connect(MU.bus);
     // 観客のざわめき（ループするノイズ）
     if (!noiseBuf){ noiseBuf = a.createBuffer(1, a.sampleRate*2, a.sampleRate); const ch = noiseBuf.getChannelData(0); for (let i=0;i<ch.length;i++) ch[i] = Math.random()*2-1; }
@@ -2198,12 +2206,12 @@ const INS = {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+Math.min(0.6, d*0.4)); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.8);
     const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 9.5; lg.gain.value = 0.45; lfo.connect(lg); lg.connect(am.gain); am.gain.value = 0.55;
     const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.connect(am);
-    [-8, 0, 7].forEach(dt=>mOsc('sawtooth', f, t, t+d+0.85, lp, dt, 0.5)); lfo.start(t); lfo.stop(t+d+0.85);
+    [-6, 6].forEach(dt=>mOsc('sawtooth', f, t, t+d+0.85, lp, dt, 0.6)); lfo.start(t); lfo.stop(t+d+0.85);
   },
   horn(t, f, d, v){
     const g = mVoice(0.6); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.18); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.5);
     const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(500, t); lp.frequency.linearRampToValueAtTime(1300, t+0.25); lp.connect(g);
-    mOsc('sawtooth', f, t, t+d+0.55, lp, -3, 0.6); mOsc('triangle', f, t, t+d+0.55, lp, 4); mOsc('sine', f/2, t, t+d+0.55, lp, 0, 0.4);
+    mOsc('sawtooth', f, t, t+d+0.55, lp, -3, 0.6); mOsc('triangle', f, t, t+d+0.55, lp, 4, 1.25);
   },
   harp(t, f, v){
     const g = mVoice(0.45); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.003); g.gain.exponentialRampToValueAtTime(0.0008, t+1.8);
@@ -2218,7 +2226,7 @@ const INS = {
   stac(t, f, v){
     const g = mVoice(0.22); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.008); g.gain.exponentialRampToValueAtTime(0.0008, t+0.17);
     const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2300; lp.connect(g);
-    mOsc('sawtooth', f, t, t+0.19, lp, -5); mOsc('sawtooth', f, t, t+0.19, lp, 6);
+    mOsc('sawtooth', f, t, t+0.19, lp, 0, 1.4);
   },
   bass(t, f, d, v){
     const g = mVoice(0.1); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.012); g.gain.setTargetAtTime(v*0.55, t+0.05, 0.12); g.gain.setTargetAtTime(0, t+d, 0.05);
@@ -2231,14 +2239,14 @@ const INS = {
     lp.frequency.setValueAtTime(450, t); lp.frequency.exponentialRampToValueAtTime(2800, t+0.06); lp.frequency.exponentialRampToValueAtTime(1600, t+0.3); lp.connect(g);
     // ゆるいビブラート
     const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 5.2; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f*0.006, t+Math.min(0.5, d)); lfo.connect(lg);
-    const o1 = mOsc('sawtooth', f, t, t+d+0.4, lp, -4), o2 = mOsc('sawtooth', f, t, t+d+0.4, lp, 5); mOsc('square', f/2, t, t+d+0.4, lp, 0, 0.18);
+    const o1 = mOsc('sawtooth', f, t, t+d+0.4, lp, -4), o2 = mOsc('sawtooth', f, t, t+d+0.4, lp, 5);
     lg.connect(o1.frequency); lg.connect(o2.frequency); lfo.start(t); lfo.stop(t+d+0.4);
   },
   strings(t, f, d, v){
     const g = mVoice(0.55); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.07); g.gain.setValueAtTime(v, t+d); g.gain.setTargetAtTime(0, t+d, 0.1);
     const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; lp.connect(g);
     const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 5.6; lg.gain.value = f*0.005; lfo.connect(lg);
-    const os = [-9, 0, 8].map(dt=>mOsc('sawtooth', f, t, t+d+0.5, lp, dt, 0.6)); os.forEach(o=>lg.connect(o.frequency)); lfo.start(t); lfo.stop(t+d+0.5);
+    const os = [-8, 8].map(dt=>mOsc('sawtooth', f, t, t+d+0.5, lp, dt, 0.75)); os.forEach(o=>lg.connect(o.frequency)); lfo.start(t); lfo.stop(t+d+0.5);
   },
   timp(t, f, v){
     const g = mVoice(0.35); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.006); g.gain.exponentialRampToValueAtTime(0.001, t+1.1);
@@ -2330,13 +2338,10 @@ function musicStinger(kind){
 // 値が変わったときだけ予約する（毎フレーム予約すると予定がたまり続けて音がだんだん重くなる）
 const muLast = {};
 function muSet(key, param, v, now, tc){
-  const last = muLast[key];
-  if (last !== undefined && Math.abs(last - v) < Math.max(0.002, Math.abs(v)*0.01)) return;
-  muLast[key] = v;
-  try {
-    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else { param.cancelScheduledValues(now); param.setValueAtTime(param.value, now); }
-    param.setTargetAtTime(v, now, tc);
-  } catch(e){}
+  const L = muLast[key] || (muLast[key] = {v:undefined, t:-9});
+  if (L.v !== undefined && (Math.abs(L.v - v) < Math.max(0.004, Math.abs(v)*0.05) || now - L.t < 0.15)) return;
+  L.v = v; L.t = now;
+  try { param.setTargetAtTime(v, now, tc); } catch(e){}
 }
 function musicTick(dt){
   if (!MU.a) return;
@@ -2357,7 +2362,7 @@ function musicTick(dt){
   if (!MU.song) return;
   if (MU.next < now - 0.15) MU.next = now + 0.05; // タブ非表示から戻ったとき
   const S = SONGS[MU.song];
-  while (MU.next < now + 0.22){
+  while (MU.next < now + 0.45){
     if (MU.step === 0) MU.I = (MU.song==='match' && (game.snitchSpawned || game.time <= CFG.snitchAt + 2)) ? 1 : 0;
     const sl = 60 / (S.bpm * (MU.I ? 1.09 : 1)) / S.div;
     try { playStep(MU.song, MU.bar, MU.step, MU.next, sl); } catch(e){}
@@ -4734,7 +4739,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13h';
+const APP_VERSION = '2026-11-13i';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
