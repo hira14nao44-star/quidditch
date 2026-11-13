@@ -2123,7 +2123,7 @@ function noise(d, vol, freq, q=0.8){
 }
 function sfx(k, bc=true){
   if (bc) netFx({t:'sfx', k});
-  if (k==='goal' || k==='snitch' || k==='catch') musicStinger(k);
+  if ((k==='goal' || k==='snitch' || k==='catch') && !quiet()) musicStinger(k);   // メニュー裏のデモ試合では鳴らさない
   if (k==='goal') game.slowT = SLOW_DUR;   // ゴールの瞬間だけ少しゆっくり（オンラインでも全員）
   if (k==='goal'){ [523,659,784,1046].forEach((f,i)=>beep(f, 0.2, 'triangle', 0.12, i*0.09)); noise(1.6, 0.35, 700, 0.4); }
   else if (k==='snitch'){ [880,1175,1568].forEach((f,i)=>beep(f, 0.25, 'sine', 0.1, i*0.12)); }
@@ -4762,7 +4762,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14c';
+const APP_VERSION = '2026-11-14d';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
