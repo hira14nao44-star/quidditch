@@ -39,6 +39,29 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .rrow .ico{width:15px;height:15px;flex:none}
 .rrow .rn{min-width:110px}
 .rar{font-size:10px;font-weight:800;letter-spacing:.5px}
+.chlist{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.chap{display:grid;grid-template-columns:70px 1fr 1.3fr 130px 70px;align-items:center;gap:10px;text-align:left;font:inherit;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;cursor:pointer}
+.chap:hover:not([disabled]){background:rgba(255,255,255,.1);border-color:var(--gold)}
+.chap[disabled]{opacity:.45;cursor:default}
+.chap .cn{font-size:12px;opacity:.7}.chap .ct{font-weight:800}.chap .cv{font-size:14px}.chap .cd{font-size:12px;opacity:.75}
+.chap .cs{font-size:12px;font-weight:800;text-align:center;border-radius:20px;padding:2px 0}
+.chap .cs.clear{color:#7ee2a8}.chap .cs.now{color:var(--gold)}.chap.now{border-color:rgba(255,207,74,.6)}
+.srow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+.srow button.sel{border-color:var(--gold);color:var(--gold)}
+.srow select{font:inherit;font-size:14px;padding:5px 8px;border-radius:8px;background:#141a2b;color:#fff;border:1px solid rgba(255,255,255,.2)}
+#cut{position:fixed;inset:0;z-index:40;cursor:pointer;user-select:none}
+#cut[hidden]{display:none}
+#cut .cbar{position:absolute;left:0;right:0;height:10vh;background:#000}
+#cut .cbar.top{top:0}#cut .cbar.bot{bottom:0}
+#cut .cutTitle{position:absolute;top:calc(10vh + 18px);left:28px;font-size:30px;font-weight:800;color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.8);opacity:0}
+#cut .cutTitle.on{animation:ctitle 3.6s ease forwards}
+@keyframes ctitle{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+#cutSkip{position:absolute;top:calc(10vh + 14px);right:18px}
+#cut .cap{position:absolute;left:50%;bottom:calc(10vh + 18px);transform:translateX(-50%);width:min(880px,92vw);box-sizing:border-box;background:rgba(6,10,20,.78);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:14px 22px 10px}
+#cut .who{color:var(--gold);font-weight:800;font-size:15px;min-height:20px}
+#cut .txt{font-size:21px;line-height:1.65;min-height:70px;color:#fff}
+#cut .nx{text-align:right;font-size:12px;opacity:.55}
+@media (max-width:640px){.chap{grid-template-columns:1fr 1fr}#cut .txt{font-size:17px}}
 .lineup{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
 .lslot.me{border-color:rgba(127,209,255,.45);background:rgba(127,209,255,.07)}
 .lslot{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
@@ -236,6 +259,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <h1 class="logo big">クィディッチ</h1>
     <p class="sub">箒で空を翔ける 4対4 のクィディッチ</p>
     <div class="menuBtns">
+      <button class="mbtn primary" id="mStory">ストーリー</button>
       <button class="mbtn primary" id="mPlay">ひとりで遊ぶ</button>
       <button class="mbtn primary" id="mOnline">みんなで遊ぶ（オンライン）</button>
       <button class="mbtn" id="mHow">遊び方</button>
@@ -243,6 +267,30 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     </div>
     <p class="foot">パソコン（マウス＋キーボード）向けです</p>
   </div>
+</div>
+
+<!-- ストーリー -->
+<div class="overlay" id="story" hidden>
+  <div class="panel">
+    <p class="ptitle">ストーリー</p>
+    <p class="sub">グリフィンドールの新人として寮杯を勝ち抜き、イギリス代表に選ばれてワールドカップ優勝を目指そう。相手チームのメンバーは章ごとに固定です。</p>
+    <div class="chlist" id="chList"></div>
+    <div class="srow"><span>ポジション</span><button class="btn ghost small" data-srole="C" type="button">チェイサー</button><button class="btn ghost small" data-srole="B" type="button">ビーター</button>
+      <span style="margin-left:14px">箒</span><select id="storyBroom" aria-label="箒"></select></div>
+    <p class="sub" style="font-size:13px">味方のメンバーと自分の選手は「ひとりで遊ぶ」の画面で選んだものが使われます。</p>
+    <div class="btns">
+      <button class="btn" id="storyGo">はじめから</button>
+      <button class="btn ghost" id="storyReset">進み具合をリセット</button>
+      <button class="btn ghost" data-back style="margin-left:auto">戻る</button>
+    </div>
+  </div>
+</div>
+<!-- ストーリーの場面（3Dの景色＋字幕） -->
+<div id="cut" hidden>
+  <div class="cbar top"></div><div class="cbar bot"></div>
+  <div class="cutTitle" id="cutTitle"></div>
+  <button class="btn ghost small" id="cutSkip" type="button">スキップ</button>
+  <div class="cap"><div class="who" id="cutWho"></div><div class="txt" id="cutTxt"></div><div class="nx">クリック / Space で次へ</div></div>
 </div>
 
 <!-- ポジション選択 -->
@@ -1662,7 +1710,7 @@ function makeEnt(team, role, isPlayer, i, opt={}){
 function clearEnts(){
   for (const e of ents){
     const m = e.mesh;
-    scene.remove(m.g, m.badge, m.ring, m.warn, m.call, e.trail.mesh); if (m.nameTag) scene.remove(m.nameTag);
+    scene.remove(m.g, m.badge, m.ring, m.warn, m.call, e.trail.mesh); if (m.nameTag) scene.remove(m.nameTag); if (m.aura) scene.remove(m.aura);
     m.g.traverse(o=>{ if (o.geometry) o.geometry.dispose(); });
     e.trail.geo.dispose();
   }
@@ -1677,7 +1725,7 @@ function buildTeams(playerRole, lineups, myChar){
     ents.push(makeEnt(team, r, isPlayer, i, isPlayer ? {char: myChar || null} : {char: pools[team][r].shift() || null}));
   });
   player = ents.find(e=>e.isPlayer) || ents[0];
-  buildRoster();
+  markAces(); buildRoster();
 }
 // オンライン: ロビーの枠（slot 0,1=チェイサー / 2=ビーター）から全員同じ順番で作る
 function buildTeamsOnline(slots, chars){
@@ -1689,7 +1737,7 @@ function buildTeamsOnline(slots, chars){
     ents.push(makeEnt(team, r, isPlayer, i, sl ? {human:true, remote: net.host && !isPlayer, peer:sl.id, name:sl.name, broom:sl.broom} : {char:ch}));
   });
   player = ents.find(e=>e.isPlayer) || ents[0];
-  buildRoster();
+  markAces(); buildRoster();
 }
 const keeperOf = t => ents.find(e=>e.team===t && e.role==='K');
 const mateChaser = e => ents.find(o=>o!==e && o.team===e.team && o.role==='C');
@@ -1734,7 +1782,7 @@ snitch.trail = new Trail(20, 0.18, 0xffd54a, 0.9);
 
 const game = {fw:[], state:'menu', time:CFG.matchTime, score:[0,0], cd:0, snitchSpawned:false, prevState:null, shake:0, cheer:0, playerRole:settings.role||'C',
   stats:{goals:0, tackles:0, steals:0, cuts:0, bhits:0}};
-const quiet = () => ['menu','select','howto','settings','online','lobby'].includes(game.state);
+const quiet = () => ['menu','select','howto','settings','online','lobby','story','cut'].includes(game.state);
 
 // =====================================================================
 //  効果音
@@ -2053,7 +2101,7 @@ const rosterState = {};
 function buildRoster(){
   for (const k in rosterState) delete rosterState[k];
   $('roster').innerHTML = [0,1].map(t=>`<div class="rteam t${t}"><div class="rt" style="color:${TEAM_CSS[t]}">${TEAM_NAME[t]}</div>${
-    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? (e.char ? escHtml(shortName(e.char)) : ROLE_NAME[e.role])+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? escHtml(shortName(e.char))+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
+    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? (e.char ? escHtml(shortName(e.char)) : ROLE_NAME[e.role])+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? (e.ace ? '★' : '')+escHtml(shortName(e.char))+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
   }</div>`).join('');
 }
 
@@ -2909,6 +2957,7 @@ function syncVisuals(dt, t){
     m.badge.position.copy(head); m.badge.scale.set(sc, sc, 1);
     m.badge.material.opacity = e.stun > 0 ? 0.45 : 1;
     if (m.nameTag){ m.nameTag.position.copy(head); m.nameTag.position.y += sc*0.85; m.nameTag.scale.set(sc*2.4, sc*0.6, 1); }
+    if (m.aura){ m.aura.position.copy(e.pos); const as = 4.2 + Math.sin(t*3.5 + e.id)*0.5; m.aura.scale.set(as, as, 1); m.aura.material.opacity = e.stun > 0 ? 0.3 : 0.85; }
     m.ring.visible = ball.holder===e && !e.isPlayer; m.ring.position.copy(head); m.ring.scale.set(sc*1.35, sc*1.35, 1);
     m.warn.visible = e.windup > 0 || (e.dash > 0 && !e.isPlayer);
     m.call.visible = e.callT > 0;
@@ -3454,7 +3503,7 @@ function guestEnd(d){
 //  画面遷移・入力
 // =====================================================================
 let lastCd = 4, pausedAt = 0;
-const OVERLAYS = ['menu','select','howto','settings','pause','end','online','lobby'];
+const OVERLAYS = ['menu','select','howto','settings','pause','end','online','lobby','story'];
 function showOverlay(id){
   for (const o of OVERLAYS) $(o).hidden = o!==id;
   const inMatch = ['countdown','play','paused','end'].includes(game.state);
@@ -3472,7 +3521,8 @@ function startDemo(){
 function openMenu(){
   if (net.active) netReset();
   if (document.pointerLockElement) document.exitPointerLock();
-  if (['countdown','play','paused','end'].includes(game.state)) startDemo();
+  game.story = null; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null;
+  if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
   game.state = 'menu'; showOverlay('menu');
 }
 function openSub(id){ game.state = id; showOverlay(id); }
@@ -3536,7 +3586,7 @@ function selectRole(r){
   document.querySelectorAll('.pcard[data-role]').forEach(c=>c.classList.toggle('sel', c.dataset.role===r));
 }
 function startMatch(){
-  game.state = 'countdown';
+  game.state = 'countdown'; game.story = null; D = DIFF[settings.diff] || DIFF.normal;
   const isW = settings.diff==='world', myTeam = isW ? settings.wcTeam : settings.house;
   setHouses(myTeam, isW ? wcRival() : rivalOf(myTeam));
   setStage(settings.diff==='world' ? 'wc' : 'hog');
@@ -3588,6 +3638,14 @@ function showResult(reason){
   $('againBtn').textContent = net.active ? (net.host ? 'みんなでロビーに戻る' : 'ロビーに戻る') : 'もう一度';
   $('changeBtn').style.display = net.active ? 'none' : '';
   $('endMenuBtn').textContent = net.active ? '部屋を出る' : 'メニューへ';
+  if (game.story){
+    const ch = game.story.ch, won = a > b;
+    if (won && story.done <= ch){ story.done = ch + 1; saveStory(); }
+    $('againBtn').textContent = won ? 'もう一度' : '再挑戦';
+    $('changeBtn').textContent = '次へ'; $('changeBtn').style.display = won ? '' : 'none';
+    $('endMenuBtn').textContent = 'ストーリーへ';
+    if (!won) $('endReason').textContent = reason + '　ヒント：' + CHAPTERS[ch].hint;
+  }
   setTimeout(()=>{ if (game.state==='end'){ showOverlay('end'); if (document.pointerLockElement) document.exitPointerLock(); } }, 1100);
 }
 function lockPointer(){
@@ -3622,12 +3680,12 @@ document.querySelectorAll('.pcard[data-role]').forEach(c=>{
   c.ondblclick = ()=>{ selectRole(c.dataset.role); startMatch(); };
 });
 $('goBtn').onclick = startMatch;
-$('againBtn').onclick = ()=>{ if (net.active){ if (net.host) hostToLobby(); else backToLobby(); } else startMatch(); };
-$('changeBtn').onclick = ()=>{ startDemo(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
-$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else startMatch(); };
+$('againBtn').onclick = ()=>{ if (game.story){ startStoryMatch(game.story.ch); return; } if (net.active){ if (net.host) hostToLobby(); else backToLobby(); } else startMatch(); };
+$('changeBtn').onclick = ()=>{ if (game.story){ storyAfterWin(game.story.ch); return; } startDemo(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
+$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else if (game.story) startStoryMatch(game.story.ch); else startMatch(); };
 $('resumeBtn').onclick = resume;
 $('toMenuBtn').onclick = openMenu;
-$('endMenuBtn').onclick = openMenu;
+$('endMenuBtn').onclick = ()=>{ if (game.story){ game.story = null; startDemo(); openStory(); } else openMenu(); };
 
 document.addEventListener('pointerlockchange', ()=>{
   if (document.pointerLockElement===canvas){ lockFailed = false; $('lockHint').style.display = 'none'; }
@@ -3688,6 +3746,266 @@ function applyQuality(){
   grass.count = q==='low' ? 0 : Math.floor(grassCount.g*(f===1 ? 1 : 0.4)); flowers.count = q==='low' ? 0 : Math.floor(grassCount.f*(f===1 ? 1 : 0.4));
   if (wcCrowd){ const n = Math.floor(wcCrowd.total*(f===1 ? 1 : q==='medium' ? 0.55 : 0.3)); wcCrowd.body.count = wcCrowd.head.count = n; }
 }
+
+// =====================================================================
+//  ストーリー（寮杯 → 代表選考 → ワールドカップ）。文章はオリジナル
+// =====================================================================
+const STORY_KEY = 'qdch-story';
+const story = {done:0, wc5:null};
+try { Object.assign(story, JSON.parse(localStorage.getItem(STORY_KEY) || '{}')); } catch(e){}
+const saveStory = () => { try { localStorage.setItem(STORY_KEY, JSON.stringify(story)); } catch(e){} };
+const L_ = (cam, who, text) => ({cam, who, text});
+const NAR = '', CAP = 'キャプテン', ANN = '実況', COACH = 'ハーグリーヴズ監督';
+const WC5_LINEUP = {
+  france:  {C:['elodie','jeanluc'], B:['antoine'], K:['louis']},
+  germany: {C:['klaus','hanna'], B:['lukas'], K:['dieter']},
+};
+const CHAPTERS = [
+  { title:'はじめての公式戦', own:'gryffindor', rival:'ravenclaw', stage:'hog', diff:'easy',
+    lineup:{C:['cho','davies'], B:['inglebee'], K:['page']},
+    intro:[
+      L_('castle', NAR, '九月。湖の向こうの古城に、今年も新しい季節がやってきた。'),
+      L_('pitch', NAR, '入団テストで最後の一枠をつかんだあなたは、グリフィンドールのユニフォームに袖を通した。'),
+      L_('stands', CAP, 'ようこそ、チームへ。初戦の相手はレイブンクロー。頭の切れる連中だ、油断するなよ。'),
+      L_('ace', CAP, '向こうのエースはチョウ・チャン。スニッチ勝負になると手ごわい。それまでに点差をつけておけ。'),
+      L_('sky', NAR, '初めての公式戦。箒を握る手に、少しだけ力が入った。'),
+    ],
+    win:[
+      L_('stands', ANN, '試合終了！ グリフィンドール、新人の活躍で初戦を白星で飾りました！'),
+      L_('pitch', CAP, '上出来だ。次はハッフルパフ。しぶとさなら学校一だぞ。'),
+    ],
+    hint:'レイブンクローはパス回しが上手い。クアッフルを持っている相手にタックルして奪い返そう。' },
+  { title:'しぶとい黄色', own:'gryffindor', rival:'hufflepuff', stage:'hog', diff:'normal',
+    lineup:{C:['cedric','zacharias'], B:['rickett'], K:['fleet']},
+    intro:[
+      L_('castle', NAR, '十一月。冷たい風が吹く中、二戦目の朝が来た。'),
+      L_('ace', CAP, 'ハッフルパフは最後まで絶対にあきらめない。エースのセドリック・ディゴリーは、チェイサーとしても一流だ。'),
+      L_('low', CAP, '点を取られても慌てるな。取り返せばいい。'),
+      L_('stands', ANN, 'さあ、黄色と赤の対決です！ スタンドは満員！'),
+    ],
+    win:[
+      L_('stands', ANN, 'グリフィンドール二連勝！ 寮杯の行方は、宿命のライバルとの決勝戦へ！'),
+      L_('castle', NAR, '次の相手はスリザリン。廊下ですれ違うたび、緑のローブが冷たく笑った。'),
+    ],
+    hint:'ハッフルパフはしぶとい。Q のブーストでマークを振り切ってからシュートしよう。' },
+  { title:'寮杯決勝', own:'gryffindor', rival:'slytherin', stage:'hog', diff:'hard',
+    lineup:{C:['flint','draco'], B:['crabbe'], K:['bletchley']},
+    intro:[
+      L_('sky', NAR, '寮杯決勝。城じゅうが赤と緑の二色に分かれた。'),
+      L_('ace', CAP, 'スリザリンは当たりが強い。キャプテンのマーカス・フリントのタックルには気をつけろ。'),
+      L_('low', CAP, 'ラフプレーに付き合うな。かわして、運んで、決める。それだけだ。'),
+      L_('pitch', ANN, '勝てば寮杯！ グリフィンドール対スリザリン、決勝戦です！'),
+    ],
+    win:[
+      L_('stands', ANN, '決まったー！ 寮杯はグリフィンドールの手に！'),
+      L_('stands', NAR, '歓声の中、スタンドの最上段で、見知らぬ大人がこちらをじっと見ていた。'),
+      L_('sky', '？？？', '……いい動きだ。代表選考に呼んでみる価値はある。'),
+    ],
+    hint:'相手の頭上に「！」が出たらタックルの予備動作。Space の回避ロールでかわそう。' },
+  { title:'代表選考試合', own:'gryffindor', rival:'england', stage:'hog', diff:'hard',
+    lineup:{C:['charlotte','edward'], B:['bagman'], K:['william']},
+    intro:[
+      L_('castle', NAR, '冬休みの前日、一通の手紙が届いた。'),
+      L_('pitch', COACH, 'イギリス代表監督のハーグリーヴズだ。ワールドカップに向けて、若い力を探している。'),
+      L_('stands', COACH, '試験は一試合。君の寮チームで、いまの代表チームと戦ってもらう。'),
+      L_('ace', COACH, '向こうには伝説のビーター、ルード・バグマンがいる。ブラッジャーから目を離すな。'),
+      L_('sky', NAR, '相手は国の代表。でも、ここで勝てば世界への扉が開く。'),
+    ],
+    win:[
+      L_('pitch', COACH, '……合格だ。いや、それ以上だな。ようこそ、イギリス代表へ。'),
+      L_('stands', NAR, 'さっきまで敵だったバグマンが、豪快に笑って肩をたたいてきた。'),
+      L_('sky', NAR, 'こうしてあなたは、ワールドカップのメンバーに選ばれた。'),
+    ],
+    hint:'バグマンが打つブラッジャーはしつこく追ってくる。ブーストで逃げるか、Space のロールでかわそう。' },
+  { title:'ワールドカップ 1回戦', own:'england', rival:'wc5', stage:'wc', diff:'hard',
+    intro:[
+      L_('wc', NAR, 'クィディッチ・ワールドカップ。夜空の下、満員のスタジアムが揺れていた。'),
+      L_('wcLow', ANN, '1回戦、イギリス対{rival}！ イギリスには若き新星が加わっています！'),
+      L_('ace', COACH, '相手のエースは{ace}。大舞台だが、やることは変わらない。いつも通り飛べ。'),
+    ],
+    win:[
+      L_('wc', ANN, 'イギリス、1回戦突破！ 準決勝の相手は……ブルガリアです！'),
+      L_('wcLow', COACH, 'ブルガリアにはビクトール・クラムがいる。世界最高のシーカーだ。'),
+    ],
+    hint:'相手は世界レベル。右クリックのパスでつないで、空いたリングを狙おう。' },
+  { title:'ワールドカップ 準決勝', own:'england', rival:'bulgaria', stage:'wc', diff:'world',
+    lineup:{C:['krum','dimitrov'], B:['volkov'], K:['zograf']},
+    intro:[
+      L_('wcLow', COACH, '作戦を説明する。クラムがスニッチを見つけたら、まず止められない。'),
+      L_('ace', COACH, 'スニッチが出るのは残り1分。それまでに50点より大きくリードしろ。そうすれば、クラムに取られても勝てる。'),
+      L_('wc', NAR, 'スタンドが揺れる。「クラム！ クラム！」の大合唱が地鳴りのように響いた。'),
+    ],
+    win:[
+      L_('wc', ANN, '信じられない！ スニッチを取られても点差を守り切った！ イギリス、決勝進出！'),
+      L_('wcLow', COACH, 'よくやった。……あとひとつだ。'),
+    ],
+    hint:'スニッチが出る残り1:00までに、60点以上の差をつけておこう。' },
+  { title:'ワールドカップ 決勝', own:'england', rival:'ireland', stage:'wc', diff:'world',
+    lineup:{C:['troy','lynch'], B:['connolly'], K:['ryan']},
+    intro:[
+      L_('wc', NAR, '決勝の夜。花火が上がり、緑の光がスタジアムを包んだ。'),
+      L_('ace', COACH, 'アイルランドのチェイサーは世界一の連携だ。トロイを中心に、まるで一つの生き物みたいに動く。'),
+      L_('wcLow', COACH, 'パスの出どころを止めろ。そして最後は、君が決めてこい。'),
+      L_('sky', NAR, '城の小さなピッチから、ここまで来た。最後の試合が始まる。'),
+    ],
+    win:[
+      L_('wc', ANN, '試合終了！ ワールドカップ優勝は、イギリス！！'),
+      L_('wcLow', NAR, '降りそそぐ紙吹雪の中、あなたは仲間たちと金色のカップを高く掲げた。'),
+      L_('wc', COACH, '最高のチームだった。……来年も、頼むぞ。'),
+      L_('castle', NAR, '― おしまい ―'),
+    ],
+    hint:'アイルランドはパスが速い。パスカットとタックルで流れを断ち切ろう。' },
+];
+const chRival = C => C.rival==='wc5' ? (story.wc5 || (story.wc5 = Math.random() < 0.5 ? 'france' : 'germany', saveStory(), story.wc5)) : C.rival;
+const chLineup = C => { const rv = chRival(C); return pickLineup(rv, {C:2, B:1, K:1}, C.lineup || WC5_LINEUP[rv]); };
+const chOwnLineup = C => { const mc = myCharFor(C.own, game.playerRole); return [pickLineup(C.own, needFor(game.playerRole), (settings.lineup||{})[C.own], mc && mc.id), mc]; };
+const DIFF_LABEL = {easy:'かんたん', normal:'ふつう', hard:'むずかしい', world:'世界級'};
+function chText(C, text){
+  const rv = chRival(C), ace = chLineup(C);
+  const best = [...ace.C, ...ace.B, ...ace.K].sort((a,b)=>RARITY[b.rar].pw - RARITY[a.rar].pw)[0];
+  return text.replace('{rival}', (ALL_TEAMS()[rv] || {}).name || '').replace('{ace}', best ? best.name : '');
+}
+
+// --- 章の背景（試合の相手チームを飛ばしておく） ---
+function storyScene(i){
+  const C = CHAPTERS[i], rv = chRival(C);
+  setHouses(C.own, rv); setStage(C.stage);
+  buildTeams(null, [pickLineup(C.own, {C:2,B:1,K:1}, (settings.lineup||{})[C.own]), chLineup(C)]);
+  resetGame(); game.time = 1e9; game.snitchSpawned = true;
+}
+
+// --- 紙芝居（3Dの場面＋字幕） ---
+const cut = {lines:null, i:0, shown:0, done:null, cam:'', camT:0, ch:null};
+function playCut(lines, title, done, C){
+  cut.lines = lines.map(l=>Object.assign({}, l, {text: C ? chText(C, l.text) : l.text}));
+  cut.i = -1; cut.done = done; cut.cam = ''; cut.shown = 0;
+  game.state = 'cut'; showOverlay(null); $('cut').hidden = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const tt = $('cutTitle'); tt.textContent = title || ''; tt.classList.remove('on'); void tt.offsetWidth; if (title) tt.classList.add('on');
+  cutNext(true);
+}
+function cutNext(first){
+  const L = cut.lines && cut.lines[cut.i];
+  if (!first && L && cut.shown < L.text.length){ cut.shown = L.text.length; $('cutTxt').textContent = L.text; return; }
+  cut.i++;
+  if (!cut.lines || cut.i >= cut.lines.length) return cutEnd();
+  const n = cut.lines[cut.i];
+  const C = cut.ch !== null ? CHAPTERS[cut.ch] : null;
+  const wantStage = n.cam==='castle' ? 'hog' : n.cam.startsWith('wc') ? 'wc' : (C ? C.stage : stage);
+  if (stage !== wantStage) setStage(wantStage);
+  if (n.cam !== cut.cam){ cut.cam = n.cam; cut.camT = 0; }
+  cut.shown = 0;
+  $('cutWho').textContent = n.who || ''; $('cutWho').style.visibility = n.who ? 'visible' : 'hidden';
+  $('cutTxt').textContent = '';
+  if (!first) uiClick();
+}
+function cutEnd(){
+  $('cut').hidden = true; const d = cut.done; cut.lines = null; cut.done = null;
+  if (d) d();
+}
+function cutTick(dt){
+  if (!cut.lines) return;
+  cut.camT += dt;
+  const L = cut.lines[cut.i];
+  if (L && cut.shown < L.text.length){ cut.shown = Math.min(L.text.length, cut.shown + dt*34); $('cutTxt').textContent = L.text.slice(0, Math.floor(cut.shown)); }
+}
+const _cp = new V3(), _cl = new V3();
+function storyCamera(dt, t){
+  const k = cut.camT, wc = stage==='wc';
+  let snap = k < 0.05;
+  switch (cut.cam){
+    case 'castle': _cp.set(10 + k*1.4, 34 + k*0.4, 20); _cl.set(CASTLE.x, CASTLE.h + 35, CASTLE.z); break;
+    case 'sky': _cp.set(0, 22, 0); _cl.set(60 - k*2, 70 + k*1.5, -90); if (wc) _cl.set(-40 + k*3, 110, 60); break;
+    case 'stands': { const a = 1.2 + k*0.02; _cp.set(-20 + k*1.6, 9, wc ? 25 : 28); _cl.set(-14 + k*1.6, wc ? 22 : 11, 80); break; }
+    case 'low': _cp.set(-W.HOOPX + 10 + k*1.8, 5, -16); _cl.set(0, 30, 6); break;
+    case 'wc': { const a = 2.2 + k*0.035; _cp.set(Math.cos(a)*165, 72, Math.sin(a)*120); _cl.set(0, 18, 0); break; }
+    case 'wcLow': _cp.set(-50 + k*2, 6, 34); _cl.set(10, 45, -60); break;
+    case 'ace': {
+      const e = ents.find(x=>x.ace && x.team===1) || ents.find(x=>x.team===1) || ents[0];
+      const back = e.dir.clone().setY(0); if (back.lengthSq() < 1e-3) back.set(1,0,0); back.normalize();
+      _cp.copy(e.pos).addScaledVector(back, -5.5).add(new V3(0, 1.6, 0)).addScaledVector(new V3(-back.z, 0, back.x), 2.2);
+      _cl.copy(e.pos).add(new V3(0, 0.6, 0));
+      if (!snap){ camera.position.lerp(_cp, 1 - Math.exp(-5*dt)); demoLook.lerp(_cl, 1 - Math.exp(-8*dt)); camera.lookAt(demoLook); sky.position.copy(camera.position); return; }
+      break;
+    }
+    default: { const a = 0.6 + k*0.04; _cp.set(Math.cos(a)*(wc ? 140 : 110), wc ? 60 : 50, Math.sin(a)*(wc ? 100 : 70)); _cl.set(0, 15, 0); }
+  }
+  camera.position.copy(_cp); demoLook.copy(_cl); camera.lookAt(_cl);
+  if (Math.abs(camera.fov - 55) > 0.1){ camera.fov = 55; camera.updateProjectionMatrix(); }
+  sky.position.copy(camera.position);
+}
+
+// --- ストーリーの画面 ---
+function renderStory(){
+  $('chList').innerHTML = CHAPTERS.map((C, i)=>{
+    const rv = chRival(C), name = (ALL_TEAMS()[rv] || {}).name || '', own = (ALL_TEAMS()[C.own] || {}).name;
+    const st = i < story.done ? 'clear' : i === story.done ? 'now' : 'lock';
+    const tag = st==='clear' ? 'クリア' : st==='now' ? '挑戦中' : '未開放';
+    const vs = st==='lock' && i > story.done ? '？？？' : `${own} 対 ${name}`;
+    return `<button class="chap ${st}" data-ch="${i}" ${st==='lock' ? 'disabled' : ''}><span class="cn">第${i+1}章</span><span class="ct">${C.title}</span><span class="cv">${vs}</span><span class="cd">${DIFF_LABEL[C.diff]}${C.stage==='wc' ? '・W杯会場' : ''}</span><span class="cs ${st}">${tag}</span></button>`;
+  }).join('') + (story.done >= CHAPTERS.length ? `<p class="sub" style="color:var(--gold);margin:8px 0 0">全章クリア！ おめでとう。好きな章をもう一度遊べます。</p>` : '');
+  document.querySelectorAll('.chap[data-ch]').forEach(b=>{ b.onclick = ()=>{ uiClick(); playChapter(+b.dataset.ch); }; });
+  document.querySelectorAll('[data-srole]').forEach(b=>{ b.classList.toggle('sel', b.dataset.srole===(game.playerRole||settings.role)); b.onclick = ()=>{ uiClick(); selectRole(b.dataset.srole); renderStory(); }; });
+  $('storyBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${settings.broom===k?' selected':''}>${b.name}（${b.tag}）</option>`).join('');
+  $('storyGo').textContent = story.done >= CHAPTERS.length ? '最終章をもう一度' : story.done === 0 ? 'はじめから' : `つづきから（第${story.done+1}章）`;
+}
+function openStory(){
+  if (net.active) netReset();
+  if (document.pointerLockElement) document.exitPointerLock();
+  game.story = null; D = DIFF[settings.diff] || DIFF.normal;
+  if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
+  game.playerRole = game.playerRole || settings.role || 'C';
+  game.state = 'story'; renderStory(); showOverlay('story');
+}
+function playChapter(i){
+  cut.ch = i; storyScene(i);
+  playCut(CHAPTERS[i].intro, `第${i+1}章　${CHAPTERS[i].title}`, ()=>startStoryMatch(i), CHAPTERS[i]);
+}
+function startStoryMatch(i){
+  const C = CHAPTERS[i], rv = chRival(C);
+  game.state = 'countdown'; game.story = {ch:i};
+  D = DIFF[C.diff] || DIFF.normal;
+  setHouses(C.own, rv); setStage(C.stage);
+  const [own, mc] = chOwnLineup(C);
+  buildTeams(game.playerRole, [own, chLineup(C)], mc);
+  resetGame();
+  D = DIFF[C.diff] || DIFF.normal;   // resetGame が通常モードの難易度に戻すので、章の難易度をかけ直す
+  camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
+  game.cd = 3; lastCd = 4;
+  showOverlay(null); audio(); lockPointer();
+}
+function storyAfterWin(i){
+  game.story = null; cut.ch = i; storyScene(i);
+  const last = i === CHAPTERS.length - 1;
+  playCut(CHAPTERS[i].win, last ? 'ワールドカップ優勝！' : `第${i+1}章 クリア！`, ()=>{ startDemo(); openStory(); }, CHAPTERS[i]);
+}
+$('mStory').onclick = ()=>{ uiClick(); openStory(); };
+$('storyGo').onclick = ()=>{ uiClick(); playChapter(Math.min(story.done, CHAPTERS.length - 1)); };
+$('storyReset').onclick = ()=>{ if (!confirm('ストーリーの進み具合を最初に戻しますか？')) return; story.done = 0; story.wc5 = null; saveStory(); renderStory(); };
+$('storyBroom').onchange = ev=>{ settings.broom = ev.target.value; saveSettings(); };
+$('cut').addEventListener('click', ev=>{ if (ev.target.id !== 'cutSkip') cutNext(); });
+$('cutSkip').onclick = ev=>{ ev.stopPropagation(); uiClick(); cutEnd(); };
+addEventListener('keydown', ev=>{
+  if (game.state !== 'cut') return;
+  if (ev.code==='Space' || ev.code==='Enter'){ ev.preventDefault(); cutNext(); }
+  else if (ev.code==='Escape'){ ev.preventDefault(); cutEnd(); }
+});
+
+// --- 各チームのエース（いちばんレア度の高い選手）を目立たせる ---
+const RANK = {R:0, SR:1, SSR:2, UR:3}, auraTex = {};
+function markAces(){
+  for (const t of [0,1]){
+    let best = null;
+    for (const e of ents){ if (e.team!==t || !e.char || e.isPlayer) continue; if (!best || RANK[e.char.rar] > RANK[best.char.rar]) best = e; }
+    if (!best || RANK[best.char.rar] < 2) continue;
+    best.ace = true;
+    const ur = best.char.rar==='UR', col = ur ? 'rgba(255,120,225,0.75)' : 'rgba(255,214,110,0.7)';
+    const a = sprite(auraTex[col] || (auraTex[col] = glowTex(col)), {blending:THREE.AdditiveBlending}); scene.add(a); best.mesh.aura = a;
+    if (best.mesh.nameTag){ scene.remove(best.mesh.nameTag); best.mesh.nameTag.material.map.dispose(); }
+    best.mesh.nameTag = nameSprite('★ ' + shortName(best.char), ur ? '#ff9be6' : '#ffd877'); scene.add(best.mesh.nameTag);
+  }
+}
+
 applyQuality();
 startDemo();
 showOverlay('menu');
@@ -3718,7 +4036,8 @@ function loop(ts){
   else if (game.state==='end' && !net.guest){
     for (const e of ents){ e.prevDir.copy(e.dir); e.speed *= 0.98; e.pos.addScaledVector(e.dir, e.speed*dt); }
   }
-  if (demo) updateDemoCamera(dt, t); else updateCamera(dt);
+  cutTick(dt);
+  if (demo){ if (game.state==='cut') storyCamera(dt, t); else updateDemoCamera(dt, t); } else updateCamera(dt);
   syncVisuals(game.state==='paused' ? 0 : gdt, t);
   if (!demo) updateHUD(dt);
   else { drawSpeedLines(0); $('holdGlow').classList.remove('on'); }
