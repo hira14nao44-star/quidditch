@@ -26,6 +26,15 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #board b{font-size:26px;font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
 #timer{background:var(--panel-solid);padding:6px 16px;font-size:24px;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-width:72px;justify-content:center}
 #timer.snitch{color:var(--gold)}
+#missionBar{position:absolute;top:66px;left:50%;transform:translateX(-50%);background:rgba(40,12,40,.82);border:1px solid rgba(255,155,230,.55);color:#ffd6f3;border-radius:20px;padding:5px 16px;font-size:14px;font-weight:800;white-space:nowrap}
+#missionBar.ok{background:rgba(10,50,30,.85);border-color:rgba(126,226,168,.7);color:#bff5d4}
+#missionCard{position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);width:min(520px,90vw);text-align:center;background:linear-gradient(180deg,rgba(60,14,58,.95),rgba(20,10,34,.95));border:2px solid #ff9be6;border-radius:18px;padding:22px 26px;box-shadow:0 0 40px rgba(255,120,225,.45);animation:mcard .6s ease}
+#missionCard .mk{display:inline-block;background:#ff5fd2;color:#fff;font-weight:800;font-size:13px;letter-spacing:2px;padding:3px 14px;border-radius:20px}
+#missionCard .mt{font-size:30px;font-weight:800;margin:10px 0 6px;color:#fff}
+#missionCard .mb{font-size:19px;line-height:1.6;color:#fff}
+#missionCard .mb b{color:#ffd877}#missionCard .mb .big{font-size:26px}
+#missionCard .ms{font-size:13.5px;opacity:.85;margin-top:10px;line-height:1.6}
+@keyframes mcard{from{opacity:0;transform:translate(-50%,-50%) scale(.85)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 #timer.final{color:#ff7a7a;animation:tpulse .5s ease-in-out infinite alternate}
 @keyframes tpulse{from{transform:scale(1)}to{transform:scale(1.12)}}
 #endMvp{margin-top:6px;font-size:15px;color:var(--gold)}
@@ -237,6 +246,13 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <div class="team t0"><span id="tn0">蒼鷹</span><b id="s0">0</b></div>
     <div id="timer">4:00</div>
     <div class="team t1"><b id="s1">0</b><span id="tn1">紅竜</span></div>
+  </div>
+  <div id="missionBar" hidden></div>
+  <div id="missionCard" hidden>
+    <div class="mk">特別ミッション</div>
+    <div class="mt">クラムに勝つ方法</div>
+    <div class="mb">クラムがスニッチを取るまでに<br><b class="big">51点以上リード</b> せよ</div>
+    <div class="ms">スニッチが出るのは残り1:00。出たらクラムはすぐに取りに来る。<br>取られた瞬間に51点以上リードしていれば勝ち。守りは覚醒ロンに任せて、とにかく攻めろ！</div>
   </div>
   <div id="snitchInfo"></div>
   <div id="lockHint">画面をクリックするとマウス操作に戻ります</div>
@@ -2588,7 +2604,7 @@ function chaserAI(e, dt){
   const sign = e.team===0 ? 1 : -1, hx = attackX(e.team);
   const mate = mateChaser(e);
   const h = ball.holder;
-  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && snitchWorth(e.team)){   // 元シーカーはスニッチ戦に参加
+  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && (e.sk==='krum' || snitchWorth(e.team))){   // 元シーカーはスニッチ戦に参加
     const k = e.sk==='krum', sd = e.pos.distanceTo(snitch.pos);
     steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 1.1), k || sd < 25, dt), dt, k ? 5 : 3);
     return;
@@ -2877,9 +2893,11 @@ function spawnSnitch(){
 }
 function updateSnitch(dt){
   if (!snitch.active) return;
+  const krumOnly = !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission==='krum');
+  if (krumOnly && game.time < 1.5){ const k = ents.find(x=>x.sk==='krum'); if (k){ k.stun = 0; k.pos.copy(snitch.pos); catchSnitch(k); return; } }   // 時間切れ直前でも最後は必ずクラムが取る
   { const w = [snitchWorth(0), snitchWorth(1)];
     if (!game.snWorth) game.snWorth = [true, true];
-    for (const t of [0,1]) if (game.snWorth[t] && !w[t]) toastAll(`${TEAM_NAME[t]}はスニッチを取っても勝てない！ 点を取りに行く`, 2.2, '#ffe08a');
+    for (const t of [0,1]) if (game.snWorth[t] && !w[t] && !ents.some(x=>x.team===t && x.sk==='krum' && !x.human)) toastAll(`${TEAM_NAME[t]}はスニッチを取っても勝てない！ 点を取りに行く`, 2.2, '#ffe08a');
     game.snWorth = w; }
   let near = null, nd = 1e9;
   for (const e of ents){ if (e.role==='K' || e.stun>0) continue; const d = e.pos.distanceTo(snitch.pos); if (d<nd){ nd = d; near = e; } }
@@ -2907,7 +2925,11 @@ function updateSnitch(dt){
   if (Math.random() < 0.5) emit(snitch.pos, 1, {colors:[0xffe680], speed:1, life:0.6, size:0.25, drag:1});
   for (const e of ents){
     if (e.role==='K' || e.stun>0) continue;
-    if (!e.human && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない
+    if (krumOnly && e.sk!=='krum'){   // 準決勝：スニッチはクラムしか取れない（クラムのプライド）
+      if (e.isPlayer && !game.krumNote && e.pos.distanceTo(snitch.pos) < 3){ game.krumNote = true; toast('スニッチに手が届かない…これはクラムの獲物だ！', 2.2, '#ff9be6'); }
+      continue;
+    }
+    if (!e.human && e.sk!=='krum' && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない（クラムは別）
     if (e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : e.sk==='krum' ? 2.2 : 1.3)){ catchSnitch(e); return; }
   }
 }
@@ -3194,7 +3216,19 @@ function placeLock(tgt, label, dim, id='lock'){
   lock.querySelector('span').textContent = label;
 }
 let hudLastSec = -1;
+function updateMission(dt){
+  const M = game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission;
+  if (game.state !== 'paused') game.missionCardT = Math.max(0, (game.missionCardT || 0) - dt);
+  $('missionCard').hidden = !(M && game.missionCardT > 0);
+  const showBar = !!M && (game.state==='play' || game.state==='countdown' || game.state==='paused');
+  $('missionBar').hidden = !showBar;
+  if (!showBar) return;
+  const l = lead(player.team);
+  setText('missionBar', `特別ミッション：クラムがスニッチを取るまでに 51点差　いま ${l >= 0 ? '+' : ''}${l}点`);
+  $('missionBar').classList.toggle('ok', l > 50);
+}
 function updateHUD(dt){
+  updateMission(dt);
   setText('s0', String(game.score[0])); setText('s1', String(game.score[1]));
   const t = Math.max(0, Math.ceil(game.time));
   setText('timer', `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`);
@@ -3894,7 +3928,7 @@ const CHAPTERS = [
       L_('wcLow', COACH, 'ブルガリアにはビクトール・クラムがいる。世界最高のシーカーだ。'),
     ],
     hint:'相手は世界レベル。右クリックのパスでつないで、空いたリングを狙おう。' },
-  { title:'ワールドカップ 準決勝', own:'england', rival:'bulgaria', stage:'wc', diff:'world', forceK:'ronx',
+  { title:'ワールドカップ 準決勝', own:'england', rival:'bulgaria', stage:'wc', diff:'world', forceK:'ronx', mission:'krum',
     lineup:{C:['krum','dimitrov'], B:['volkov'], K:['zograf']},
     intro:[
       L_('wcLow', COACH, '悪い知らせだ。正キーパーが練習中にケガをした。'),
@@ -3902,16 +3936,16 @@ const CHAPTERS = [
       L_('sky', NAR, '青い顔で震えていたロンは、相手がクラムだと聞いた瞬間、目つきが変わった。'),
       L_('wc', 'ロン', '……クラムが相手なら、一本も入れさせない。'),
       L_('wcLow', COACH, '作戦を説明する。クラムがスニッチを見つけたら、まず止められない。'),
-      L_('ace', COACH, 'スニッチが出るのは残り1分。それまでに50点より大きくリードしろ。そうなればクラムはスニッチを取っても勝てない。あとは守り切れ。'),
+      L_('ace', COACH, 'スニッチが出るのは残り1分。クラムに取られるまでに50点より大きくリードしろ。そうすれば、取られても勝てる。'),
       L_('wc', NAR, 'スタンドが揺れる。「クラム！ クラム！」の大合唱が地鳴りのように響いた。'),
       L_('ace', NAR, '覚醒ロン対ビクトール・クラム。UR同士の一戦が始まる。'),
     ],
     win:[
-      L_('wc', ANN, '信じられない！ ロンが止めて、止めて、止めまくった！ クラムにスニッチを取らせないまま、イギリス決勝進出！'),
+      L_('wc', ANN, '信じられない！ 世界最強のシーカーを相手に、点差で押し切った！ イギリス、決勝進出！'),
       L_('stands', 'ロン', '……オレ、いま何本止めた？ 覚えてないや。'),
       L_('wcLow', COACH, 'よくやった。……あとひとつだ。'),
     ],
-    hint:'守りは覚醒ロンに任せて攻めよう。スニッチが出る残り1:00までに、60点以上の差をつけておくこと。' },
+    hint:'守りは覚醒ロンに任せて攻めよう。クラムがスニッチを取る前に、60点以上の差をつけておくこと。' },
   { title:'ワールドカップ 決勝', own:'england', rival:'ireland', stage:'wc', diff:'world',
     lineup:{C:['troy','lynch'], B:['connolly'], K:['ryan']},
     intro:[
@@ -4052,6 +4086,8 @@ function startStoryMatch(i){
   D = DIFF[C.diff] || DIFF.normal;   // resetGame が通常モードの難易度に戻すので、章の難易度をかけ直す
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
   game.cd = 3; lastCd = 4;
+  game.missionShown = false; game.missionCardT = 0; game.krumNote = false;
+  if (C.mission){ game.cd = 6; lastCd = 7; game.missionCardT = 6.5; musicStinger('snitch'); }
   showOverlay(null); audio(); lockPointer();
 }
 function openPrep(i){
