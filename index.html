@@ -82,6 +82,16 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .srow select{font:inherit;font-size:14px;padding:5px 8px;border-radius:8px;background:#141a2b;color:#fff;border:1px solid rgba(255,255,255,.2)}
 #cut{position:fixed;inset:0;z-index:40;cursor:pointer;user-select:none}
 #cut[hidden]{display:none}
+body.incut canvas{filter:blur(1.6px) saturate(.82) sepia(.18) contrast(.96)}
+#cut .cutBg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .5s;filter:blur(1.2px) saturate(.85) sepia(.15)}
+#cut .cutBg.on{opacity:1}
+#cut .cutFx{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%)}
+#cut .cutFx::after{content:"";position:absolute;inset:0;opacity:.13;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
+#cut .cutSil{position:absolute;right:6vw;bottom:calc(10vh + 150px);width:min(34vw,360px);opacity:0;transform:translateX(30px);transition:opacity .5s,transform .5s;pointer-events:none}
+#cut .cutSil.on{opacity:1;transform:none}#cut .silSvg{width:100%;height:auto;display:block;overflow:visible}
+#cut .silName{text-align:center;color:#ffcf4a;font-weight:800;letter-spacing:8px;margin-bottom:-18px;position:relative;text-shadow:0 2px 10px rgba(0,0,0,.8)}
+#cut .txt.dir{font-style:italic;color:#c9d2e2}
+#cut .who svg{vertical-align:-4px;margin-right:6px}
 #cut .cbar{position:absolute;left:0;right:0;height:10vh;background:#000}
 #cut .cbar.top{top:0}#cut .cbar.bot{bottom:0}
 #cut .cutTitle{position:absolute;top:calc(10vh + 18px);left:28px;font-size:30px;font-weight:800;color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.8);opacity:0}
@@ -402,6 +412,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
 </div>
 <!-- ストーリーの場面（3Dの景色＋字幕） -->
 <div id="cut" hidden>
+  <div class="cutBg" id="cutBg"></div><div class="cutFx"></div><div class="cutSil" id="cutSil"></div>
   <div class="cbar top"></div><div class="cbar bot"></div>
   <div class="cutTitle" id="cutTitle"></div>
   <button class="btn ghost small" id="cutSkip" type="button">スキップ</button>
@@ -4018,7 +4029,7 @@ function startDemo(){
 function openMenu(){
   if (net.active) netReset();
   if (document.pointerLockElement) document.exitPointerLock();
-  game.story = null; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null;
+  game.story = null; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null; document.body.classList.remove('incut');
   if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
   game.state = 'menu'; showOverlay('menu');
 }
@@ -4396,6 +4407,59 @@ const CHAPTERS = [
     ],
     hint:'アイルランドはパスが速い。パスカットとタックルで流れを断ち切ろう。' },
 ];
+const STORY_SCRIPT = [{"intro": [{"who": "", "text": "九月。湖の向こうの古い城に、新しい一年が始まった。", "bg": "湖畔の古城"}, {"who": "ロン", "text": "……今日だろ、クィディッチの入団テスト。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "ああ。ウッドが一人だけ新しい選手を取るって言ってた。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "一人だけかよ。去年、何十人も受けて全員落とされたって聞いたぞ。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "（向かいの席の{name}に気づいて）きみも受けるのか。", "bg": "朝の大食堂"}, {"who": "", "text": "{name}、うなずく", "dir": 1, "bg": "朝の大食堂"}, {"who": "ハリー", "text": "……そうか。ハリーだ。テストで会おう。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "ロンだ。キーパーやってる。……まあ、がんばれよ。ぼくも毎回、手が震えてる。", "bg": "朝の大食堂"}, {"who": "ウッド", "text": "いいか。グリフィンドールは、もう何年も寮杯から遠ざかっている。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "今年こそ取る。そのために、足りないピースを一つ埋める。", "bg": "夕方の練習場"}, {"who": "アンジェリーナ", "text": "中途半端な気持ちなら、今のうちに帰って。ウッドの練習は、本気で毎日だから。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "……{name}。お前に決めた。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "明日の朝六時、ここに来い。遅れたら外す。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "おめでとう、新人。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "明日から地獄へようこそ。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "冗談じゃなく、本当に。", "bg": "夕方の練習場"}, {"who": "アンジェリーナ", "text": "明日の相手はレイブンクロー。主将のロジャー・デイビースがチームを引っぱってる。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "シーカーはチョウ・チャン。相手のシーカーにぴったり張りついて、スニッチの前に入るのがうまいって評判。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "ぼくも前に当たったことがある。気づいたら、いつも前にいるんだ。", "bg": "夜の談話室"}, {"who": "ロン", "text": "ハリーがそう言うなら、相当だな……。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "レイブンクローは頭で飛ぶ。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "パスの一本一本に、ちゃんと理由がある。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "だからこそ、こっちは迷わず攻める。スニッチが出る残り一分までに、点差をつけておけ。", "bg": "夜の談話室"}, {"who": "チョウ", "text": "（すれ違いざまに）新しく入った人だよね。噂は聞いてる。", "bg": "夕方の練習場"}, {"who": "チョウ", "text": "……明日、手加減はしないから。", "bg": "夕方の練習場"}], "win": [{"who": "ウッド", "text": "初戦、勝った。……だが、まだ一つ目だ。浮かれるな。", "bg": "夜の談話室"}, {"who": "アンジェリーナ", "text": "素直にほめればいいのに。{name}、いい動きだったわ。", "bg": "夜の談話室"}, {"who": "ロン", "text": "（深く息を吐いて）……止められてよかった。心臓が口から出るかと思った。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "次はハッフルパフだ。セドリック・ディゴリーが主将になってから、あそこは変わった。", "bg": "夜の談話室"}]}, {"intro": [{"who": "ウッド", "text": "雨だろうと練習はやる。試合の日の天気は選べない。", "bg": "雨の練習場"}, {"who": "ロン", "text": "（ずぶぬれでゴール前に立ちながら）……わかってるよ。", "bg": "雨の練習場"}, {"who": "", "text": "ロンが三本続けてシュートを止める", "dir": 1, "bg": "雨の練習場"}, {"who": "ジニー", "text": "ロン、今の三本、全部止めたじゃん。", "bg": "雨の練習場"}, {"who": "ロン", "text": "……たまたまだ。", "bg": "雨の練習場"}, {"who": "ハリー", "text": "たまたまは三回も続かない。", "bg": "雨の練習場"}, {"who": "セドリック", "text": "グリフィンドールの新しい選手だね。セドリック・ディゴリーだ。", "bg": "城の廊下"}, {"who": "セドリック", "text": "週末の試合、いい勝負にしよう。……ただ、勝つのはうちだ。", "bg": "城の廊下"}, {"who": "", "text": "セドリック、去る", "dir": 1, "bg": "城の廊下"}, {"who": "ハリー", "text": "……前に一度、あいつにスニッチを取られて負けたことがある。", "bg": "城の廊下"}, {"who": "ハリー", "text": "天候がひどい日だった。それでも、あいつは最後まで冷静だった。", "bg": "城の廊下"}, {"who": "フレッド", "text": "言い訳はしないのが、ハリーのいいところだ。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "そして、二度目はないってのもな。", "bg": "城の廊下"}], "win": [{"who": "ジニー", "text": "二連勝。……でも、次が本番だよ。", "bg": "朝の大食堂"}, {"who": "アンジェリーナ", "text": "スリザリン。寮杯の決勝。", "bg": "朝の大食堂"}, {"who": "", "text": "大食堂の向こうの席から", "dir": 1, "bg": "朝の大食堂"}, {"who": "ドラコ", "text": "二つ勝ったくらいで、ずいぶん楽しそうだな。", "bg": "朝の大食堂"}, {"who": "ドラコ", "text": "決勝で、どっちが上か教えてやる。……せいぜい箒から落ちないことだ。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……あいつ。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "放っておけ、ロン。答えは試合で返す。", "bg": "朝の大食堂"}]}, {"intro": [{"who": "アンジェリーナ", "text": "スリザリンの主将、マーカス・フリント。反則すれすれの当たりで有名よ。審判の見ていないところで平気でぶつけてくる。", "bg": "城の廊下"}, {"who": "フレッド", "text": "あいつと当たるときは、箒ごと持っていかれる覚悟がいる。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "ブラッジャーより、主将のほうが危ないチームだ。", "bg": "城の廊下"}, {"who": "ジニー", "text": "シーカーはマルフォイ。腕は悪くない。それに、父親がチーム全員に最新型の箒を贈ったって話。", "bg": "城の廊下"}, {"who": "ロン", "text": "箒で勝てるなら苦労しないさ。", "bg": "城の廊下"}, {"who": "ハリー", "text": "……そうだ。最後に勝つのは、飛ぶほうだ。", "bg": "城の廊下"}, {"who": "ロン", "text": "……なあ、{name}。", "bg": "夜の談話室"}, {"who": "ロン", "text": "ぼくがゴールを守る。それは変わらない。……でも、止められなかったら、全部ぼくのせいだ。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "一人で背負わないでよ。チームでしょ。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "ロン。お前が止められなかった一本は……", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "……ぼくたちが倍にして返す。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "前で止める。後ろはロンに任せる。それでいい。", "bg": "夜の談話室"}, {"who": "", "text": "{name}、静かにうなずく", "dir": 1, "bg": "夜の談話室"}, {"who": "ロン", "text": "……わかった。腹、くくるよ。", "bg": "夜の談話室"}], "win": [{"who": "ウッド", "text": "……寮杯だ。何年ぶりだと思ってる。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "（言葉に詰まる）", "bg": "夜の談話室"}, {"who": "アンジェリーナ", "text": "主将、泣くのは明日にして。みんな見てるわよ。", "bg": "夜の談話室"}, {"who": "ロン", "text": "……ぼく、ちゃんと止められてたかな。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "最後の三本。全部止めてた。", "bg": "夜の談話室"}, {"who": "", "text": "窓の外。スタンドの最上段で、見知らぬ大人がじっとこちらを見ていた", "dir": 1, "bg": "夜の談話室"}]}, {"intro": [{"who": "", "text": "冬休みの前日。一羽のフクロウが、重い封蝋のついた手紙を運んできた。", "bg": "手紙が届く冬の窓辺"}, {"who": "ジニー", "text": "その封蝋……魔法スポーツの協会のものじゃない？", "bg": "手紙が届く冬の窓辺"}, {"who": "", "text": "「イギリス代表・ワールドカップ強化選手 選考試合への招待」", "bg": "手紙が届く冬の窓辺"}, {"who": "ハリー", "text": "……代表の選考だ。", "bg": "手紙が届く冬の窓辺"}, {"who": "ロン", "text": "（自分あての手紙を握りしめて）……ぼくのところにも来た。キーパーで。", "bg": "手紙が届く冬の窓辺"}, {"who": "ロン", "text": "何かの間違いだ。ぼくなんかが――", "bg": "手紙が届く冬の窓辺"}, {"who": "ハリー", "text": "間違いじゃない。決勝を、誰かが見てたんだ。", "bg": "手紙が届く冬の窓辺"}, {"who": "ハーグリーヴズ監督", "text": "イギリス代表監督、ハーグリーヴズだ。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "選考は一試合。お前たちの寮のチームで、いまの代表と戦ってもらう。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "代表にはルード・バグマンがいる。イギリス代表のエースビーターだ。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "（小声で）バグマン……代表のビーターで一番有名な選手だ。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "（小声で）打ったブラッジャーの重さが違うって評判だ。", "bg": "夕方の練習場"}, {"who": "バグマン", "text": "ハハッ！　寮の学生が相手か。悪いが、手加減ってのは昔から苦手でね。全力でいかせてもらうよ！", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "ウィーズリー。", "bg": "夕方の練習場"}, {"who": "ロン", "text": "……はい。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "顔を上げろ。ここに呼んだのは、まぐれじゃない。", "bg": "夕方の練習場"}], "win": [{"who": "ハーグリーヴズ監督", "text": "……合格だ、{name}。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "それから、ウィーズリー。お前もだ。最後の三本、逃げずに止めた。", "bg": "夕方の練習場"}, {"who": "ロン", "text": "…………。", "bg": "夕方の練習場"}, {"who": "", "text": "ロン、言葉が出ないまま、深く頭を下げる", "dir": 1, "bg": "夕方の練習場"}, {"who": "バグマン", "text": "ハハッ、負けた負けた！　いい目をしてるな、お前たち。ワールドカップでは俺が味方だ。背中は任せとけ！", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "ワールドカップのメンバーは、代表の選手とお前たちの寮の仲間から選んでいい。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "最強のチームを作れ。", "bg": "夕方の練習場"}]}, {"intro": [{"who": "", "text": "クィディッチ・ワールドカップ。世界中から集まったテントが、丘を埋め尽くしていた。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "……すごい人。どこを見ても旗だらけ。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "ここに、世界中の一番がいる。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "浮かれてる場合じゃないな。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "ああ。今回ばかりは。", "bg": "大会のキャンプ場"}, {"who": "アンジェリーナ", "text": "フランスは、チェイサーのエロディを中心に、パスで崩してくるチームよ。", "bg": "夜のスタジアム（外観）", "cond": "france"}, {"who": "アンジェリーナ", "text": "ドイツは、チェイサーのクラウスを中心に、体を張って押し込んでくるチームよ。", "bg": "夜のスタジアム（外観）", "cond": "germany"}, {"who": "バグマン", "text": "初めての国際試合か。俺も最初は、手の震えが止まらなかったよ。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "でもな、一度飛び出しちまえば、観客の声なんて聞こえなくなる。聞こえるのは、風の音とボールの音だけだ。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "いつも通り飛べ。それだけだ。", "bg": "夜のスタジアム（外観）"}], "win": [{"who": "実況", "text": "試合終了！　イギリス、一回戦突破！", "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "……勝った。世界の舞台で、勝ったんだ。", "bg": "夜のスタジアム（内部）"}, {"who": "ハーグリーヴズ監督", "text": "喜ぶのは一瞬でいい。準決勝の相手は、ブルガリアだ。", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "テントの空気が、一瞬で張りつめる", "dir": 1, "bg": "夜のスタジアム（内部）"}]}, {"intro": [{"who": "ハリー", "text": "ビクトール・クラム。まだ学生なのに、ブルガリア代表のシーカーをやってる。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "世界最高のシーカーって呼ばれてる人でしょ。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "急降下で相手のシーカーをだまして、地面にたたきつける大技がある。……あれを見せられたら、普通は追えない。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "あの技に引っかかって、地面に激突したシーカーもいるって話だ。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "世界の舞台で、だぞ。", "bg": "大会のキャンプ場"}, {"who": "ロン", "text": "……人間じゃない。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "（テントの入口で）だから、作戦を立てる。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "クラムがスニッチを見つけたら、まず止められない。勝つ方法は一つ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "取られる前に、五十点より大きくリードしておくことだ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "……ブルガリアの守りは固い。遠くからでは入らない。ゴールの目の前まで運べ。", "bg": "大会のキャンプ場"}, {"who": "", "text": "赤いマフラーを巻いたブルガリアのファンが、ロンの隣に腰を下ろす。少し離れた席では、同じマフラーの男たちがこちらを見ている", "dir": 1, "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "おや。あんた、イギリスのキーパーだね。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……ああ。", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "一つ教えてやろう。わが国の伝説のキーパーはな、試合の前にかぼちゃジュースを十杯飲んでいたんだ。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……十杯？", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "十杯飲むと、ボールが止まって見えるようになる。", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "……まあ、全部飲みきれたら、の話だがね。", "bg": "朝の大食堂"}, {"who": "", "text": "ファン、席を立つ。仲間の席に戻ると、何か短くささやき、男たちが肩を揺らして笑う", "dir": 1, "bg": "朝の大食堂"}, {"who": "ハリー", "text": "ロン、気にするな。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "（ジュースのピッチャーを引き寄せる）", "bg": "朝の大食堂"}, {"who": "ジニー", "text": "……ロン？", "bg": "朝の大食堂"}, {"who": "", "text": "一杯、二杯、三杯……", "dir": 1, "bg": "朝の大食堂"}, {"who": "", "text": "いつの間にか、ロンの前に満杯のピッチャーがもう一つ置かれている。誰が置いたのかは、わからない", "dir": 1, "bg": "朝の大食堂"}, {"who": "フレッド", "text": "おい、本気か。", "bg": "朝の大食堂"}, {"who": "ジョージ", "text": "止めるべきか？", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "……いや。止めるな。", "bg": "朝の大食堂"}, {"who": "", "text": "十杯目を飲み干し、ロンがゆっくりと顔を上げる。離れた席の男たちが、満足そうにうなずき合って出ていく", "dir": 1, "bg": "朝の大食堂"}, {"who": "ロン", "text": "……少し、体が重い。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "でも、関係ない。……今日は、一本も入れさせない。", "bg": "朝の大食堂"}], "win": [{"who": "実況", "text": "試合終了！　スニッチはクラム！　しかし、点差はイギリスが守り切った！　イギリス、決勝進出！", "bg": "夜のスタジアム（内部）"}, {"who": "実況", "text": "そしてこの試合、ゴールを守り続けたのはロン・ウィーズリー！　ブルガリアの猛攻を、ことごとく止めてみせました！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "スタンドから、ロンの名前を呼ぶ声が広がっていく", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "観客席の一角で、赤いマフラーの男たちが、空になったピッチャーを見つめたまま黙って座っている", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "フレッド", "text": "ロン！", "bg": "夜のスタジアム（内部）"}, {"who": "ジョージ", "text": "担げ！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "双子がロンを肩に担ぎ上げる", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "お、おい！　……ああ、もう、いいや！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "ロン、こらえきれずに笑う", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ハリー", "text": "MVPだ、ロン。", "bg": "夜のスタジアム（内部）"}, {"who": "クラム", "text": "（ロンの前で立ち止まって）……いいキーパーだった。", "bg": "夜のスタジアム（内部）"}, {"who": "クラム", "text": "次は、負けない。", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "クラム、去る", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "……今の、聞いたか。", "bg": "夜のスタジアム（内部）"}, {"who": "ジニー", "text": "聞いた。……すごいよ、ロン。", "bg": "夜のスタジアム（内部）"}]}, {"intro": [{"who": "ハリー", "text": "アイルランド。前の大会の優勝国だ。", "bg": "大会のキャンプ場"}, {"who": "アンジェリーナ", "text": "チェイサーのトロイ、マレット、モラン。三人のパスが速すぎて、観客の目が追いつかないって言われてる。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "三人の連携は世界一だって評判。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "三人で一つの生き物、か。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "こっちは二人で一つだ。数で負けてるな。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "……でも、こっちは全員で一つだ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "最後だ。言うことは少ない。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "三人の誰かが持ったら、迷わずつぶせ。パスの出どころを止めろ。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "……そして最後は、お前が決めてこい、{name}。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "代表で、何度もこういう夜を越えてきた。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "最後に頼れるのは、仲間と、自分の腕だけだ。……行こうぜ！", "bg": "夜のスタジアム（外観）"}, {"who": "ハリー", "text": "城の小さなピッチから、ここまで来た。", "bg": "夜のスタジアム（外観）"}, {"who": "ロン", "text": "……ここで終わりにしたくない。", "bg": "夜のスタジアム（外観）"}, {"who": "ジニー", "text": "勝って、帰ろう。", "bg": "夜のスタジアム（外観）"}], "win": [{"who": "実況", "text": "試合終了！　ワールドカップ優勝は……イギリス！！", "bg": "優勝の紙吹雪"}, {"who": "", "text": "金と赤の紙吹雪", "dir": 1, "bg": "優勝の紙吹雪"}, {"who": "ロン", "text": "……勝った。本当に、勝ったんだ。", "bg": "優勝の紙吹雪"}, {"who": "ジニー", "text": "泣いてるの、ロン。", "bg": "優勝の紙吹雪"}, {"who": "ロン", "text": "……泣いてない。", "bg": "優勝の紙吹雪"}, {"who": "ハリー", "text": "泣いていいよ。今日くらいは。", "bg": "優勝の紙吹雪"}, {"who": "バグマン", "text": "……やったな。俺一人じゃ、ここまで来られなかった。最高のチームだ！", "bg": "優勝の紙吹雪"}, {"who": "ハーグリーヴズ監督", "text": "……最高のチームだった。{name}、来年も頼む。", "bg": "優勝の紙吹雪"}, {"who": "", "text": "秋。城に戻ると、いつもの毎日が待っていた。", "bg": "湖畔の古城"}, {"who": "ジニー", "text": "{name}、放課後、練習するよ。今年も寮杯、取るんだから。", "bg": "湖畔の古城"}, {"who": "ハリー", "text": "ウッドが、もう新しい練習メニューを考えてるらしい。", "bg": "湖畔の古城"}, {"who": "ロン", "text": "……朝六時からとか言わないよな。", "bg": "湖畔の古城"}, {"who": "", "text": "― おしまい ―", "bg": "湖畔の古城"}]}];
+
+// ---- 台本（story_script.md から変換）と表示の設定 ----
+// 背景の一枚絵：画像ができたら BG_IMG にファイル名を入れるだけで差し替わる。なければ3Dの景色をぼかして使う
+const BG_IMG = {};
+const BG_CAM = {'湖畔の古城':'castle', '朝の大食堂':'castle', '夜の談話室':'sky', '夕方の練習場':'pitch', '雨の練習場':'pitch', '城の廊下':'castle',
+  '手紙が届く冬の窓辺':'sky', '大会のキャンプ場':'wc', '夜のスタジアム（外観）':'wc', '夜のスタジアム（内部）':'wcLow', '優勝の紙吹雪':'wc'};
+const SPEAKER = {'ハリー':['harry','gryffindor'], 'ロン':['ron','gryffindor'], 'ジニー':['ginny','gryffindor'], 'フレッド':['fred','gryffindor'], 'ジョージ':['george','gryffindor'],
+  'ウッド':['wood','gryffindor'], 'アンジェリーナ':['angelina','gryffindor'], 'ドラコ':['draco','slytherin'], 'セドリック':['cedric','hufflepuff'], 'チョウ':['cho','ravenclaw'],
+  'バグマン':['bagman','england'], 'クラム':['krum','bulgaria'], 'ハーグリーヴズ監督':['','england'], 'ブルガリアのファン':['','bulgaria']};
+// 相手のエースのシルエット（性別・髪の長さ・体格だけをそろえたオリジナルの影）
+const SIL = {cho:{f:1, hair:'long', build:'slim'}, davies:{hair:'short', build:'normal'}, cedric:{hair:'short', build:'tall'}, flint:{hair:'short', build:'big'},
+  draco:{hair:'short', build:'slim'}, bagman:{hair:'short', build:'big'}, krum:{hair:'short', build:'big', hunch:1}, troy:{hair:'short', build:'normal'},
+  mullet:{f:1, hair:'mid', build:'slim'}, moran:{f:1, hair:'long', build:'slim'}, elodie:{f:1, hair:'long', build:'slim'}, klaus:{hair:'short', build:'big'}};
+const SIL_WORD = {'チョウ':'cho', 'デイビース':'davies', 'セドリック':'cedric', 'フリント':'flint', 'マルフォイ':'draco', 'ドラコ':'draco', 'バグマン':'bagman',
+  'クラム':'krum', 'トロイ':'troy', 'マレット':'mullet', 'モラン':'moran', 'エロディ':'elodie', 'クラウス':'klaus'};
+function silhouetteSvg(p){
+  const w = p.build==='big' ? 1.1 : p.build==='slim' ? 0.9 : p.build==='tall' ? 0.95 : 1, sh = p.f ? 0.9 : 1, tall = p.build==='tall' ? 1.08 : 1, hunch = p.hunch ? 10 : 0;
+  const hairPath = p.hair==='long' ? 'M88 58 C70 60 62 92 66 128 C74 120 84 104 92 92 Z' : p.hair==='mid' ? 'M88 58 C74 62 70 84 74 100 C80 94 86 86 92 82 Z' : '';
+  return `<svg viewBox="0 0 260 260" class="silSvg" aria-hidden="true">
+    <defs><radialGradient id="silGlow" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="rgba(255,200,120,.22)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient></defs>
+    <circle cx="130" cy="120" r="125" fill="url(#silGlow)"/>
+    <g transform="translate(${130 - 130*w} ${-(tall-1)*120}) scale(${w} ${tall})" fill="#06070b" stroke="rgba(255,214,150,.45)" stroke-width="1.6">
+      <path d="M20 196 L238 168 L240 176 L22 204 Z"/>
+      <path d="M204 166 C226 150 250 156 256 170 C246 176 228 180 210 178 Z"/>
+      <path d="M${92 - hunch} ${96 + hunch*0.4} C${120*sh} 92 ${150*sh} 108 156 140 L160 186 L112 192 C102 170 ${92 - hunch} 140 ${88 - hunch} 112 Z"/>
+      <path d="M140 160 L178 190 L170 198 L130 176 Z"/>
+      <path d="M118 112 C140 120 160 132 176 150 L170 158 C150 144 132 134 114 128 Z"/>
+      ${hairPath ? `<path d="${hairPath}"/>` : ''}
+      <circle cx="${100 - hunch}" cy="${74 + hunch*0.5}" r="20"/>
+      <path d="M${82 - hunch} ${66 + hunch*0.5} C${88 - hunch} ${50 + hunch*0.5} ${112 - hunch} ${48 + hunch*0.5} ${119 - hunch} ${64 + hunch*0.5} C${108 - hunch} ${58 + hunch*0.5} ${94 - hunch} ${58 + hunch*0.5} ${82 - hunch} ${66 + hunch*0.5} Z"/>
+    </g>
+    <ellipse cx="${130 - (130 - (93 - hunch))*w + 0}" cy="${(73 + hunch*0.5)*tall - (tall-1)*120}" rx="3.2" ry="1.6" fill="#ffd27a" opacity=".9"/>
+  </svg>`;
+}
+const toLine = e => ({cam: BG_CAM[e.bg] || 'pitch', bg: e.bg, who: e.who, text: e.text, cond: e.cond || null, dir: e.dir || 0});
+for (let i=0; i<CHAPTERS.length && i<STORY_SCRIPT.length; i++){
+  CHAPTERS[i].intro = STORY_SCRIPT[i].intro.map(toLine);
+  CHAPTERS[i].win = STORY_SCRIPT[i].win.map(toLine);
+}
+function cutSpeakerHtml(who){
+  if (!who) return '';
+  const sp = SPEAKER[who], c = sp && sp[0] ? CHAR_BY_ID[sp[0]] : null;
+  const col = c ? RARITY[c.rar].col : who==='実況' ? '#9fd0ff' : '#ffcf4a';
+  return `${sp ? emblemSvg(sp[1], 20) : ''}<span style="color:${col}">${escHtml(who)}</span>`;
+}
+function cutSilFor(L, C){
+  if (!C) return null;
+  const ownIds = new Set(storyPool(cut.ch).map(c=>c.id));
+  const words = Object.keys(SIL_WORD).filter(w=>(L.who && L.who.includes(w)) || L.text.includes(w));
+  for (const w of words){ const id = SIL_WORD[w]; if (!ownIds.has(id)) return id; }
+  return null;
+}
 const chRival = C => C.rival==='wc5' ? (story.wc5 || (story.wc5 = Math.random() < 0.5 ? 'france' : 'germany', saveStory(), story.wc5)) : C.rival;
 const chLineup = C => { const rv = chRival(C); return pickLineup(rv, {C:2, B:1, K:1}, C.lineup || WC5_LINEUP[rv]); };
 // 章ごとに選べる味方：寮杯〜選考はグリフィンドール、W杯はグリフィンドール＋イギリス代表（覚醒ロンは準決勝だけ）
@@ -4427,7 +4491,8 @@ function storyScene(i){
 // --- 紙芝居（3Dの場面＋字幕） ---
 const cut = {lines:null, i:0, shown:0, done:null, cam:'', camT:0, ch:null};
 function playCut(lines, title, done, C){
-  cut.lines = lines.map(l=>Object.assign({}, l, {text: C ? chText(C, l.text) : l.text}));
+  cut.lines = lines.filter(l=>!l.cond || (C && l.cond===chRival(C))).map(l=>Object.assign({}, l, {text: C ? chText(C, l.text) : l.text}));
+  cut.sil = null; $('cutSil').classList.remove('on'); $('cutSil').innerHTML = ''; document.body.classList.add('incut');
   cut.i = -1; cut.done = done; cut.cam = ''; cut.shown = 0;
   game.state = 'cut'; showOverlay(null); $('cut').hidden = false;
   if (document.pointerLockElement) document.exitPointerLock();
@@ -4445,12 +4510,15 @@ function cutNext(first){
   if (stage !== wantStage) setStage(wantStage);
   if (n.cam !== cut.cam){ cut.cam = n.cam; cut.camT = 0; }
   cut.shown = 0;
-  $('cutWho').textContent = n.who || ''; $('cutWho').style.visibility = n.who ? 'visible' : 'hidden';
+  $('cutWho').innerHTML = cutSpeakerHtml(n.who); $('cutWho').style.visibility = n.who ? 'visible' : 'hidden';
+  $('cutTxt').classList.toggle('dir', !!n.dir);
+  { const img = BG_IMG[n.bg]; $('cutBg').style.backgroundImage = img ? `url("${img}")` : ''; $('cutBg').classList.toggle('on', !!img); }
+  { const sid = cutSilFor(n, C); if (sid !== cut.sil){ cut.sil = sid; $('cutSil').innerHTML = sid ? '<div class="silName">？？？</div>' + silhouetteSvg(SIL[sid]) : ''; $('cutSil').classList.toggle('on', !!sid); } }
   $('cutTxt').textContent = '';
   if (!first) uiClick();
 }
 function cutEnd(){
-  $('cut').hidden = true; const d = cut.done; cut.lines = null; cut.done = null;
+  $('cut').hidden = true; document.body.classList.remove('incut'); const d = cut.done; cut.lines = null; cut.done = null;
   if (d) d();
 }
 function cutTick(dt){
@@ -4666,7 +4734,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13g';
+const APP_VERSION = '2026-11-13h';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
