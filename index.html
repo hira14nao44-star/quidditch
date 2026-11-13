@@ -39,7 +39,8 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .rrow .ico{width:15px;height:15px;flex:none}
 .rrow .rn{min-width:110px}
 .rar{font-size:10px;font-weight:800;letter-spacing:.5px}
-.lineup{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.lineup{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.lslot.me{border-color:rgba(127,209,255,.45);background:rgba(127,209,255,.07)}
 .lslot{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .lslot .lr{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.8}
 .lslot .lr .ico{width:16px;height:16px}
@@ -267,7 +268,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
       </button>
     </div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">チームのメンバー <button class="btn ghost small" id="lineupRand" type="button">ランダム</button></p>
-    <p class="sub" style="margin-top:4px">自分以外の3人を選べます。相手チームのメンバーは毎試合ランダムです。</p>
+    <p class="sub" style="margin-top:4px">自分の選手と、味方3人を選べます。相手チームのメンバーは毎試合ランダムです。</p>
     <div class="lineup" id="lineupWrap"></div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">箒を選ぶ</p>
     <div class="pick brooms" id="broomCards"></div>
@@ -444,7 +445,7 @@ const BROOMS = {
   swift: {name:'ニンバス2000',   tag:'バランス', desc:'高性能な競技用モデル。速さと持久力を両立。', boost:39.5, drain:0.33, fast:25, wood:0xa8784a, metal:0xc8ccd6, straw:'#e2c88a', trail:[0x9fd0ff,0xffffff,0x58a6ff]},
   blaze: {name:'ファイアボルト',     tag:'最速',   desc:'世界最速の国際試合用モデル。最高速だがスタミナ消費が激しい。', boost:43,   drain:0.45, fast:26, wood:0x2a1a12, metal:0xe8b53a, straw:'#8a5a2a', trail:[0xff7a2a,0xffd54a,0xff4b3a]},
 };
-const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, lineup:{}, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
+const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, lineup:{}, myChar:{}, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
 try { Object.assign(settings, JSON.parse(localStorage.getItem('skyball-settings')||'{}')); } catch(e){}
 if (!BROOMS[settings.broom]) settings.broom = 'swift';
 const saveSettings = () => { try { localStorage.setItem('skyball-settings', JSON.stringify(settings)); } catch(e){} };
@@ -536,14 +537,28 @@ const CHARS = {
 };
 const CHAR_BY_ID = {};
 for (const t in CHARS) CHARS[t] = CHARS[t].map(([id,name,role,rar,sk,hair])=>(CHAR_BY_ID[id] = {id, name, role, rar, sk, hair:HAIR[hair], team:t}));
+const HAIR_STYLE = {
+  harry:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', wood:'short', ron:'short', mclaggen:'curly',
+  flint:'short', draco:'slick', pucey:'short', montague:'buzz', crabbe:'buzz', goyle:'buzz', bletchley:'short',
+  cho:'long', davies:'messy', stretton:'curly', inglebee:'short', samuels:'buzz', page:'short',
+  cedric:'short', zacharias:'slick', cadwallader:'short', rickett:'short', oflaherty:'pony', fleet:'buzz',
+  charlotte:'long', edward:'short', thomas:'curly', bagman:'short', jack:'spiky', william:'short',
+  krum:'buzz', dimitrov:'short', ivanova:'pony', levski:'spiky', volkov:'buzz', vulchanov:'short', zograf:'curly',
+  troy:'messy', lynch:'short', mullet:'pony', moran:'long', connolly:'buzz', quigley:'curly', ryan:'short',
+  elodie:'long', jeanluc:'slick', pierre:'messy', antoine:'short', marcel:'buzz', louis:'curly',
+  klaus:'short', hanna:'pony', felix:'messy', lukas:'buzz', max:'spiky', dieter:'slick',
+};
+const BIG_BUILD = ['flint','crabbe','goyle','volkov','vulchanov','bagman','lukas','connolly'];
+for (const id in HAIR_STYLE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].hs = HAIR_STYLE[id];
+for (const id of BIG_BUILD) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].big = true;
 const RARITY = {R:{pw:1.0, col:'#9aa4b2'}, SR:{pw:1.04, col:'#5fb0ff'}, SSR:{pw:1.09, col:'#e7b43a'}, UR:{pw:1.13, col:'#ff5fd2'}};
 const SKILL_TEXT = {seeker:'スニッチ戦に強い', krum:'スニッチを最短距離で奪う', ron:'至近距離以外のシュートを全部止める', bagman:'ブラッジャーが速く、強く追尾する'};
 const charsOf = (team, role) => (CHARS[team] || []).filter(c=>c.role===role);
 // 自分以外の枠（役職ごと）にメンバーを割り当てる。pref = {C:[id..], B:[id..], K:[id..]}（足りない分はランダム）
-function pickLineup(team, need, pref){
+function pickLineup(team, need, pref, exclude){
   const out = {C:[], B:[], K:[]};
   for (const r of ['C','B','K']){
-    const pool = charsOf(team, r).slice(), want = (pref && pref[r]) || [];
+    const pool = charsOf(team, r).filter(c=>c.id!==exclude), want = (pref && pref[r]) || [];
     for (const id of want){ if (out[r].length >= need[r]) break; const c = pool.find(x=>x.id===id); if (c){ out[r].push(c); pool.splice(pool.indexOf(c), 1); } }
     while (out[r].length < need[r] && pool.length) out[r].push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
   }
@@ -707,7 +722,29 @@ const pitchTex = dynTex(2048, 2048, (g,w,h)=>{
     g.beginPath(); g.ellipse(cx, h/2, 20/W.A*w/2, 22/W.B*h/2, 0, s<0 ? -Math.PI/2 : Math.PI/2, s<0 ? Math.PI/2 : Math.PI*1.5); g.stroke();
   }
 });
-const pitch = new THREE.Mesh(new THREE.CircleGeometry(1, 96), mat(0xffffff, {map:pitchTex}));
+const grassDetailTex = (()=>{
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+  g.fillStyle = 'rgb(160,160,160)'; g.fillRect(0,0,512,512);
+  for (let i=0;i<14000;i++){
+    const x = Math.random()*512, y = Math.random()*512, l = 4 + Math.random()*9, a = -Math.PI/2 + (Math.random()-0.5)*0.9, v = Math.random();
+    g.strokeStyle = v < 0.45 ? 'rgba(95,95,95,.55)' : v < 0.9 ? 'rgba(215,215,215,.5)' : 'rgba(250,250,250,.6)';
+    g.lineWidth = 0.8 + Math.random()*1.2;
+    for (const [ox, oy] of [[0,0],[512,0],[-512,0],[0,512],[0,-512]]){ g.beginPath(); g.moveTo(x+ox, y+oy); g.lineTo(x+ox + Math.cos(a)*l, y+oy + Math.sin(a)*l); g.stroke(); }
+  }
+  for (let i=0;i<40;i++){ const x = Math.random()*512, y = Math.random()*512, r = 20 + Math.random()*50; const gr = g.createRadialGradient(x,y,0,x,y,r); const d = Math.random()<0.5; gr.addColorStop(0, d ? 'rgba(110,110,110,.25)' : 'rgba(200,200,200,.2)'); gr.addColorStop(1, 'rgba(160,160,160,0)'); g.fillStyle = gr; g.fillRect(x-r, y-r, r*2, r*2); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = (renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4;
+  return t;
+})();
+function withGrassDetail(m, rep){
+  m.onBeforeCompile = sh => {
+    sh.uniforms.detailMap = {value:grassDetailTex}; sh.uniforms.detailRep = {value:new THREE.Vector2(rep[0], rep[1])};
+    sh.fragmentShader = 'uniform sampler2D detailMap;\nuniform vec2 detailRep;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      vec3 dt1 = texture2D(detailMap, vUv*detailRep).rgb, dt2 = texture2D(detailMap, vUv*detailRep*0.23 + 0.37).rgb;
+      diffuseColor.rgb *= mix(vec3(1.0), dt1*1.6, 0.55) * mix(vec3(1.0), dt2*1.6, 0.35);`);
+  };
+  return m;
+}
+const pitch = new THREE.Mesh(new THREE.CircleGeometry(1, 96), withGrassDetail(mat(0xffffff, {map:pitchTex, roughness:0.95}), [(W.A+4)*2/2.4, (W.B+4)*2/2.4]));
 pitch.rotation.x = -Math.PI/2; pitch.scale.set(W.A+4, W.B+4, 1); pitch.position.y = 0.15; pitch.receiveShadow = true; scene.add(pitch);
 
 // ステージ（ホグワーツ側の景色）はグループにまとめて、W杯会場と切り替える
@@ -1107,8 +1144,35 @@ const buntMeta = [];
     }
     tops.push(new V3(x, h+5.6, z));
   }
-  // 長辺側の段々観客席
-  const standWood = fmat(0x7a5a3c);
+  // 長辺側の段々観客席（板張り）
+  const plankTex = (()=>{
+    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+    const rows = 8, rh = 512/rows;
+    for (let r=0;r<rows;r++){
+      let x = -Math.random()*200;
+      while (x < 512){
+        const w = 140 + Math.random()*220, base = 100 + Math.random()*28;
+        g.fillStyle = `rgb(${base+22|0},${base*0.74|0},${base*0.48|0})`; g.fillRect(x, r*rh, w, rh);
+        for (let k=0;k<9;k++){ const yy = r*rh + 3 + Math.random()*(rh-6); g.strokeStyle = `rgba(60,36,18,${0.12+Math.random()*0.2})`; g.lineWidth = 0.8 + Math.random(); g.beginPath(); g.moveTo(x, yy); for (let q=0;q<=6;q++) g.lineTo(x + q*w/6, yy + Math.sin(q*1.3 + k)*1.6); g.stroke(); }
+        if (Math.random()<0.4){ const kx = x + Math.random()*w, ky = r*rh + rh*0.3 + Math.random()*rh*0.4; g.fillStyle = 'rgba(55,32,15,.45)'; g.beginPath(); g.ellipse(kx, ky, 6, 3.5, 0, 0, Math.PI*2); g.fill(); }
+        g.fillStyle = 'rgba(30,18,8,.85)'; g.fillRect(x, r*rh, 2.5, rh);
+        g.fillStyle = 'rgba(40,40,44,.8)'; for (const ny of [0.25, 0.75]){ g.beginPath(); g.arc(x+8, r*rh + rh*ny, 2, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(x+w-8, r*rh + rh*ny, 2, 0, Math.PI*2); g.fill(); }
+        x += w;
+      }
+      g.fillStyle = 'rgba(25,14,6,.9)'; g.fillRect(0, r*rh, 512, 3);
+      g.fillStyle = 'rgba(255,230,190,.08)'; g.fillRect(0, r*rh+3, 512, 3);
+    }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = (renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4;
+    return t;
+  })();
+  const standWood = mat(0xffffff, {map:plankTex, bumpMap:plankTex, bumpScale:0.04, roughness:0.82});
+  // 箱のUVを実寸に合わせて、板の大きさがどの面でもそろうようにする（1枚=約3m四方）
+  const woodBox = (w, h, d) => {
+    const geo = new THREE.BoxGeometry(w, h, d), uv = geo.attributes.uv, U = 3;
+    const dims = [[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];
+    for (let f=0; f<6; f++) for (let k=0;k<4;k++){ const i = f*4+k; uv.setXY(i, uv.getX(i)*dims[f][0]/U, uv.getY(i)*dims[f][1]/U); }
+    return geo;
+  };
   for (let i=0;i<towerCount;i++){
     const p0 = tops[i], p1 = tops[(i+1)%towerCount];
     if (Math.abs(p0.x) > 70 || Math.abs(p1.x) > 70 || Math.sign(p0.z) !== Math.sign(p1.z)) continue;
@@ -1118,7 +1182,7 @@ const buntMeta = [];
     const side = mx < -18 ? 0 : mx > 18 ? 1 : -1;
     for (let tier=0; tier<4; tier++){
       const off = 2 + tier*2.4, hgt = 3 + tier*2.2;
-      const st = new THREE.Mesh(new THREE.BoxGeometry(len, hgt, 2.4), standWood);
+      const st = new THREE.Mesh(woodBox(len, hgt, 2.4), standWood); st.receiveShadow = true;
       st.position.set(mx + out.x*off, hgt/2, mz + out.z*off); st.rotation.y = ang; st.castShadow = true; scene.add(st);
       const nper = Math.floor(len/1.15);
       for (let k=0;k<nper && hogSet.meta.length < CROWD_MAX;k++){
@@ -1443,11 +1507,14 @@ function scarfTexture(team){
   if (scarfTexCache[team]) return scarfTexCache[team];
   return scarfTexCache[team] = canvasTex(32, 256, (g,w,h)=>{ for (let i=0;i<10;i++){ g.fillStyle = i%2 ? '#f2ead8' : TEAM_DEEP_CSS[team]; g.fillRect(0, i*h/10, w, h/10); } g.fillStyle = '#e8b53a'; g.fillRect(0, h-6, w, 6); });
 }
-function makeRider(team, role, isPlayer, broomType='swift', hairHex){
+const EYE_WHITE = mat(0xf7f5f0, {roughness:0.3}), MOUTH_M = mat(0x8a3d32, {roughness:0.6}), GOGGLE_M = mat(0x9fd6ff, {metalness:0.6, roughness:0.15, emissive:0x113344});
+const IRIS = [0x3b2a1e, 0x2d5a8a, 0x3f6b3a, 0x5a4030, 0x1e1e24];
+function makeRider(team, role, isPlayer, broomType='swift', look){
   const BR = BROOMS[broomType] || BROOMS.swift;
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const col = isPlayer ? new THREE.Color(TEAM_COL[team]).lerp(new THREE.Color(0xffffff), 0.25).getHex() : TEAM_COL[team];
-  const skin = mat(SKINS[Math.floor(Math.random()*SKINS.length)], {roughness:0.7});
+  const skin = mat(look && look.skin !== undefined ? look.skin : SKINS[Math.floor(Math.random()*SKINS.length)], {roughness:0.65});
+  const irisM = mat(IRIS[Math.floor(Math.random()*IRIS.length)], {roughness:0.3});
   const robe = mat(col, {roughness:0.75}), trim = mat(0xe8b53a, {metalness:0.5, roughness:0.4});
   const leather = mat(0x4a3220, {roughness:0.6}), pants = mat(0x2b2f3a, {roughness:0.85}), dark = mat(0x1d1f26, {roughness:0.5});
   // --- 箒 ---
@@ -1481,26 +1548,54 @@ function makeRider(team, role, isPlayer, broomType='swift', hairHex){
   const belt = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.04, 5, 20), leather); belt.rotation.x = Math.PI/2 + 0.5; belt.position.set(0,-0.12,-0.12); inner.add(belt);
   const sashCol = role==='K' ? 0xe8b53a : role==='B' ? 0x1b1b1b : 0xffffff;
   const sash = new THREE.Mesh(new THREE.TorusGeometry(0.3,0.045,6,18), mat(sashCol, {roughness:0.6})); sash.position.set(0,0.05,0.0); sash.rotation.set(0.5+Math.PI/2, 0.5, 0); inner.add(sash);
-  // --- 頭 ---
+  // --- 頭（顔・髪型） ---
+  const lk = look || {};
   const hc = new V3(0,0.74,0.32);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.23,16,12), skin); head.position.copy(hc); inner.add(head);
-  for (const sx of [-1,1]){ const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028,6,5), dark); eye.position.set(sx*0.08, 0.77, 0.535); inner.add(eye); }
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035,6,5), skin); nose.position.set(0,0.72,0.555); inner.add(nose);
-  const hairM = mat(hairHex !== undefined ? hairHex : HAIRS[Math.floor(Math.random()*HAIRS.length)], {roughness:0.8});
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.245,16,8,0,Math.PI*2,0,Math.PI*0.55), hairM); hair.position.copy(hc); hair.rotation.x = -0.45; inner.add(hair);
-  const style = Math.floor(Math.random()*3);
-  if (style===1){ const pt = new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6), hairM); pt.position.set(0,0.74,0.05); pt.scale.set(0.8,0.8,1.6); inner.add(pt); }
-  if (style===2){ for (let k=0;k<4;k++){ const sp = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.18,5), hairM); sp.position.set((k-1.5)*0.08, 0.96, 0.28); sp.rotation.x = -0.6; inner.add(sp); } }
-  const gband = new THREE.Mesh(new THREE.TorusGeometry(0.235,0.022,4,20), leather); gband.position.set(0,0.84,0.3); gband.rotation.x = Math.PI/2 - 0.5; inner.add(gband);
-  for (const sx of [-1,1]){ const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.04,10), mat(0x9fd6ff, {metalness:0.6, roughness:0.15, emissive:0x113344})); lens.rotation.x = Math.PI/2 - 0.9; lens.position.set(sx*0.085, 0.9, 0.48); inner.add(lens); }
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.235,20,16), skin); head.position.copy(hc); head.scale.set(0.98,1.04,1); inner.add(head);
+  for (const sx of [-1,1]){
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.05,8,6), skin); ear.position.set(sx*0.228, 0.73, 0.31); ear.scale.set(0.5,1,0.75); inner.add(ear);
+    const ew = new THREE.Mesh(new THREE.SphereGeometry(0.043,10,8), EYE_WHITE); ew.position.set(sx*0.078, 0.765, 0.515); ew.scale.set(1,1.18,0.5); inner.add(ew);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.026,8,6), irisM); iris.position.set(sx*0.078, 0.758, 0.54); iris.scale.set(1,1.15,0.6); inner.add(iris);
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.008,5,4), EYE_WHITE); hl.position.set(sx*0.078 + 0.01, 0.772, 0.552); inner.add(hl);
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.032,8,6), skin); nose.position.set(0,0.715,0.55); nose.scale.set(0.9,1,1); inner.add(nose);
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.009, 4, 12, Math.PI), MOUTH_M); mouth.position.set(0,0.668,0.528); mouth.rotation.z = Math.PI; inner.add(mouth);
+  const hairM = mat(lk.hair !== undefined ? lk.hair : HAIRS[Math.floor(Math.random()*HAIRS.length)], {roughness:0.75});
+  for (const sx of [-1,1]){ const br = new THREE.Mesh(new THREE.BoxGeometry(0.075,0.017,0.02), hairM); br.position.set(sx*0.078, 0.818, 0.53); br.rotation.z = -sx*0.12; inner.add(br); }
+  const hs = lk.hs || ['short','messy','spiky','pony','buzz'][Math.floor(Math.random()*5)];
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(hs==='buzz' ? 0.24 : 0.25,20,10,0,Math.PI*2,0,Math.PI*0.55), hairM);
+  cap.position.copy(hc); cap.rotation.x = hs==='slick' ? -0.62 : -0.45; if (hs==='slick') cap.scale.set(1,0.96,1.07); inner.add(cap);
+  const onHead = (x, y, z, r) => { const d = new V3(x, y, z).normalize(); return hc.clone().addScaledVector(d, r); };
+  const blob = (p, r, sc) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r,10,8), hairM); m.position.copy(p); if (sc) m.scale.set(sc[0], sc[1], sc[2]); inner.add(m); return m; };
+  if (hs==='short' || hs==='messy'){ blob(new V3(0,0.9,0.43), 0.1, [1.7,0.45,0.8]); }
+  if (hs==='messy'){ for (let k=0;k<8;k++){ const a = k/8*Math.PI*2; blob(onHead(Math.cos(a)*0.7, 0.75 + (k%2)*0.2, Math.sin(a)*0.55 - 0.15, 0.225), 0.075 + (k%3)*0.01); } }
+  if (hs==='curly'){ for (let k=0;k<16;k++){ const a = k/16*Math.PI*2, up = k%2 ? 0.9 : 0.45; blob(onHead(Math.cos(a)*0.8, up, Math.sin(a)*0.75 - 0.1, 0.24), 0.07); } }
+  if (hs==='spiky'){ for (let k=0;k<7;k++){ const a = (k/7 - 0.5)*2.2, d = new V3(Math.sin(a)*0.6, 0.8, -0.1 - Math.cos(a)*0.3).normalize();
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.055,0.2,5), hairM); sp.position.copy(hc).addScaledVector(d, 0.25); sp.quaternion.setFromUnitVectors(UP, d); inner.add(sp); } }
+  if (hs==='long'){
+    blob(new V3(0,0.6,0.16), 0.2, [1.15,1.6,0.6]);
+    for (const sx of [-1,1]) blob(new V3(sx*0.2,0.64,0.38), 0.07, [0.6,2.0,0.9]);
+    blob(new V3(0,0.9,0.43), 0.1, [1.6,0.42,0.8]);
+  }
+  if (hs==='pony'){
+    blob(new V3(0,0.8,0.1), 0.06);
+    const pt = blob(new V3(0,0.72,-0.04), 0.085, [0.75,0.75,2.4]); pt.rotation.x = -0.35;
+    blob(new V3(0,0.9,0.43), 0.1, [1.6,0.42,0.8]);
+  }
+  const gband = new THREE.Mesh(new THREE.TorusGeometry(0.243,0.02,4,22), leather); gband.position.set(0,0.84,0.3); gband.rotation.x = Math.PI/2 - 0.5; inner.add(gband);
+  for (const sx of [-1,1]){ const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.058,0.058,0.04,12), GOGGLE_M); lens.rotation.x = Math.PI/2 - 0.9; lens.position.set(sx*0.085, 0.905, 0.48); inner.add(lens); }
+  // 肩当て（キーパーは金の防具が別にある）
+  if (role!=='K') for (const sx of [-1,1]){ const pad = new THREE.Mesh(new THREE.SphereGeometry(0.15,10,8), leather); pad.position.set(sx*0.29,0.41,0.13); pad.scale.set(1,0.6,1.05); inner.add(pad); }
   // --- 腕 ---
   const shoulderL = new V3(-0.28,0.38,0.16), shoulderR = new V3(0.28,0.38,0.16);
   const handL = new V3(-0.1,-0.45,0.95);
   const handR = role==='B' ? new V3(0.62,0.78,0.05) : new V3(0.1,-0.45,0.95);
   limb(inner, shoulderL, handL, 0.08, robe, 0.06);
+  limb(inner, shoulderL.clone().lerp(handL, 0.6), shoulderL.clone().lerp(handL, 0.86), 0.092, leather, 0.086);
   const armPivot = new THREE.Group(); armPivot.position.copy(shoulderR); inner.add(armPivot);
   const rel = handR.clone().sub(shoulderR);
   limb(armPivot, new V3(), rel, 0.08, robe, 0.06);
+  limb(armPivot, rel.clone().multiplyScalar(0.6), rel.clone().multiplyScalar(0.86), 0.092, leather, 0.086);
   const gloveMat = role==='K' ? mat(0xf3efe6, {roughness:0.6}) : leather;
   const gr = role==='K' ? 0.17 : 0.085;
   const glL = new THREE.Mesh(new THREE.SphereGeometry(gr,10,8), gloveMat); glL.position.copy(handL); inner.add(glL);
@@ -1524,6 +1619,7 @@ function makeRider(team, role, isPlayer, broomType='swift', hairHex){
   const scarfGeo = new THREE.PlaneGeometry(0.15,1.5,1,10); scarfGeo.translate(0,-0.75,0);
   scarfPivot.add(new THREE.Mesh(scarfGeo, mat(0xffffff, {map:scarfTexture(team), side:THREE.DoubleSide, roughness:0.9})));
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.16,0.06,6,16), mat(0xffffff, {map:scarfTexture(team), roughness:0.9})); collar.position.set(0,0.5,0.22); collar.rotation.x = Math.PI/2 - 0.3; inner.add(collar);
+  if (look && look.big) inner.scale.set(1.12, 1.05, 1.06);
   g.traverse(o=>{ if (o.isMesh){ o.castShadow = true; } });
   scene.add(g);
   const badge = sprite(badgeTexture(team, role)); scene.add(badge);
@@ -1555,9 +1651,10 @@ function makeEnt(team, role, isPlayer, i, opt={}){
     dash:0, dashCD:0, dashDir:new V3(), dashTarget:null, dashSpeed:0, dashHoming:0, dashHit:false, wasDashing:false, windup:0, recover:0,
     roll:0, rollCD:0, rollDir:new V3(), rollSign:1, rollSpin:0, knock:new V3(), bank:0, swing:0, callT:0, summonCD:0,
     yaw:0, pitch:0, stamina:1, turnSign:1, vel:new V3(),
-    mesh: makeRider(team, role, isPlayer, broom, ch ? ch.hair : undefined),
+    mesh: makeRider(team, role, isPlayer, broom, ch ? {hair:ch.hair, hs:ch.hs, big:ch.big} : null),
     trail: new Trail(22, isPlayer?0.35:0.28, TEAM_COL[team], isPlayer?0.55:0.4),
   };
+  if (isPlayer){ e.sk = ''; e.pw = 1; }   // 自分が選んだ選手は見た目と名前だけ（操作はプレイヤー）
   if (opt.human && !isPlayer && opt.name){ e.mesh.nameTag = nameSprite(opt.name, TEAM_CSS[team]); scene.add(e.mesh.nameTag); }
   else if (ch && !isPlayer){ e.mesh.nameTag = nameSprite(shortName(ch), ch.rar==='UR' ? '#ff9be6' : ch.rar==='SSR' ? '#ffd877' : '#e8ecf4'); scene.add(e.mesh.nameTag); }
   return e;
@@ -1571,13 +1668,13 @@ function clearEnts(){
   }
   ents = [];
 }
-function buildTeams(playerRole, lineups){
+function buildTeams(playerRole, lineups, myChar){
   clearEnts();
   lineups = lineups || [0,1].map(t=>randomLineup(game.houses ? game.houses[t] : '', {C:2,B:1,K:1}));
   const pools = lineups.map(L=>({C:(L.C||[]).slice(), B:(L.B||[]).slice(), K:(L.K||[]).slice()}));
   for (const team of [0,1]) ROLES.forEach((r,i)=>{
     const isPlayer = team===0 && r===playerRole && !ents.some(x=>x.isPlayer);
-    ents.push(makeEnt(team, r, isPlayer, i, isPlayer ? {} : {char: pools[team][r].shift() || null}));
+    ents.push(makeEnt(team, r, isPlayer, i, isPlayer ? {char: myChar || null} : {char: pools[team][r].shift() || null}));
   });
   player = ents.find(e=>e.isPlayer) || ents[0];
   buildRoster();
@@ -1668,6 +1765,7 @@ function noise(d, vol, freq, q=0.8){
 function sfx(k, bc=true){
   if (bc) netFx({t:'sfx', k});
   if (k==='goal' || k==='snitch' || k==='catch') musicStinger(k);
+  if (k==='goal') game.slowT = SLOW_DUR;   // ゴールの瞬間だけ少しゆっくり（オンラインでも全員）
   if (k==='goal'){ [523,659,784,1046].forEach((f,i)=>beep(f, 0.2, 'triangle', 0.12, i*0.09)); noise(1.6, 0.35, 700, 0.4); }
   else if (k==='snitch'){ [880,1175,1568].forEach((f,i)=>beep(f, 0.25, 'sine', 0.1, i*0.12)); }
   else if (k==='catch'){ [1568,1318,1568,2093].forEach((f,i)=>beep(f, 0.22, 'sine', 0.1, i*0.1)); noise(2, 0.35, 700, 0.4); }
@@ -1955,7 +2053,7 @@ const rosterState = {};
 function buildRoster(){
   for (const k in rosterState) delete rosterState[k];
   $('roster').innerHTML = [0,1].map(t=>`<div class="rteam t${t}"><div class="rt" style="color:${TEAM_CSS[t]}">${TEAM_NAME[t]}</div>${
-    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? ROLE_NAME[e.role]+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? escHtml(shortName(e.char))+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
+    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? (e.char ? escHtml(shortName(e.char)) : ROLE_NAME[e.role])+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? escHtml(shortName(e.char))+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
   }</div>`).join('');
 }
 
@@ -1982,7 +2080,7 @@ function resetPositions(){
 }
 function resetGame(){
   D = DIFF[settings.diff] || DIFF.normal;
-  game.time = CFG.matchTime; game.score = [0,0]; game.snitchSpawned = false; game.shake = 0; game.cheer = 0; game.fw = [];
+  game.time = CFG.matchTime; game.score = [0,0]; game.snitchSpawned = false; game.shake = 0; game.slowT = 0; game.cheer = 0; game.fw = [];
   game.stats = {goals:0, tackles:0, steals:0, cuts:0, bhits:0};
   resetPositions();
 }
@@ -3389,21 +3487,31 @@ function renderHouseCards(){
 }
 // 自分のチームのメンバー選択（役職に合う選手だけ選べる）
 const lineupTeam = () => settings.diff==='world' ? settings.wcTeam : settings.house;
+function myCharFor(team, role){
+  if (!settings.myChar || typeof settings.myChar !== 'object') settings.myChar = {};
+  const c = CHAR_BY_ID[settings.myChar[team]];
+  return c && c.team===team && c.role===role ? c : null;
+}
 function lineupIds(team){
   if (!settings.lineup || typeof settings.lineup !== 'object') settings.lineup = {};
-  const cur = pickLineup(team, {C:2, B:1, K:1}, settings.lineup[team]);
+  const mc = myCharFor(team, game.playerRole || settings.role);
+  const cur = pickLineup(team, {C:2, B:1, K:1}, settings.lineup[team], mc && mc.id);
   return settings.lineup[team] = {C:cur.C.map(c=>c.id), B:cur.B.map(c=>c.id), K:cur.K.map(c=>c.id)};
 }
 function renderLineup(){
   const wrap = $('lineupWrap'); if (!wrap) return;
   const team = lineupTeam(), ids = lineupIds(team), need = needFor(game.playerRole || settings.role);
   const slots = []; for (const r of ['C','B','K']) for (let k=0;k<need[r];k++) slots.push([r, k]);
-  wrap.innerHTML = slots.map(([r,k])=>{
+  const myRole = game.playerRole || settings.role, mc = myCharFor(team, myRole);
+  const meOpts = `<option value="">オリジナル選手</option>` + charsOf(team, myRole).map(c=>`<option value="${c.id}"${mc && mc.id===c.id ? ' selected' : ''}>${escHtml(c.name)}（${c.rar}）</option>`).join('');
+  const meSlot = `<div class="lslot me"><span class="lr">${svgIcon(myRole, '#7fd1ff')}あなた（${ROLE_NAME[myRole]}）${mc ? ` <b class="rar" style="color:${RARITY[mc.rar].col}">${mc.rar}</b>` : ''}</span><select id="myCharSel" aria-label="自分の選手を選ぶ">${meOpts}</select><span class="lsk">見た目と名前が変わります（能力は自分の操作）</span></div>`;
+  wrap.innerHTML = meSlot + slots.map(([r,k])=>{
     const cur = CHAR_BY_ID[ids[r][k]];
-    const opts = charsOf(team, r).map(c=>`<option value="${c.id}"${cur && cur.id===c.id ? ' selected' : ''}>${escHtml(c.name)}（${c.rar}）</option>`).join('');
+    const opts = charsOf(team, r).filter(c=>!mc || c.id!==mc.id).map(c=>`<option value="${c.id}"${cur && cur.id===c.id ? ' selected' : ''}>${escHtml(c.name)}（${c.rar}）</option>`).join('');
     const sk = cur && cur.sk ? `<span style="color:${RARITY[cur.rar].col}">★ ${SKILL_TEXT[cur.sk]}</span>` : '';
     return `<div class="lslot"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-lr="${r}" data-lk="${k}" aria-label="${ROLE_NAME[r]}を選ぶ">${opts}</select><span class="lsk">${sk}</span></div>`;
   }).join('');
+  $('myCharSel').onchange = ev=>{ settings.myChar[team] = ev.target.value; saveSettings(); uiClick(); renderLineup(); };
   wrap.querySelectorAll('select[data-lr]').forEach(sel=>{ sel.onchange = ()=>{
     const r = sel.dataset.lr, k = +sel.dataset.lk, arr = ids[r], old = arr[k], j = arr.indexOf(sel.value);
     if (j >= 0 && j !== k) arr[j] = old;   // 同じ選手を2枠に入れたら入れ替え
@@ -3411,7 +3519,7 @@ function renderLineup(){
   }; });
 }
 $('lineupRand').onclick = ()=>{
-  uiClick(); const team = lineupTeam(), r = randomLineup(team, {C:2, B:1, K:1});
+  uiClick(); const team = lineupTeam(), mc = myCharFor(team, game.playerRole || settings.role), r = pickLineup(team, {C:2, B:1, K:1}, null, mc && mc.id);
   settings.lineup[team] = {C:r.C.map(c=>c.id), B:r.B.map(c=>c.id), K:r.K.map(c=>c.id)}; saveSettings(); renderLineup();
 };
 function renderBroomCards(){
@@ -3432,7 +3540,8 @@ function startMatch(){
   const isW = settings.diff==='world', myTeam = isW ? settings.wcTeam : settings.house;
   setHouses(myTeam, isW ? wcRival() : rivalOf(myTeam));
   setStage(settings.diff==='world' ? 'wc' : 'hog');
-  buildTeams(game.playerRole, [pickLineup(myTeam, needFor(game.playerRole), (settings.lineup||{})[myTeam]), randomLineup(game.houses[1], {C:2,B:1,K:1})]);
+  const mc = myCharFor(myTeam, game.playerRole);
+  buildTeams(game.playerRole, [pickLineup(myTeam, needFor(game.playerRole), (settings.lineup||{})[myTeam], mc && mc.id), randomLineup(game.houses[1], {C:2,B:1,K:1})], mc);
   resetGame();
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
   game.cd = 3; lastCd = 4;
@@ -3586,6 +3695,7 @@ showOverlay('menu');
   const rm = new URLSearchParams(location.search).get('room');
   if (rm){ openOnline(); $('codeIn').value = rm.toUpperCase().slice(0,4); onlineMsg(''); $('onlineMsg').style.color = 'var(--gold)'; onlineMsg(`招待された部屋：${rm.toUpperCase().slice(0,4)}　名前を入れて「入る」を押してください`); setTimeout(()=>$('nameIn').focus(), 50); }
 }
+const SLOW_DUR = 0.5;   // ゴール直後に少しだけゆっくりになる時間（秒）
 let last = performance.now();
 function loop(ts){
   requestAnimationFrame(loop);
@@ -3593,8 +3703,10 @@ function loop(ts){
   const t = ts/1000;
   const demo = quiet();
   const inMatch = ['countdown','play','paused','end'].includes(game.state);
-  if (net.guest && inMatch) guestUpdate(dt);
-  else if (game.state==='play' || demo || (net.host && game.state==='paused' && game.prevState==='play')) step(dt);
+  let gdt = dt;
+  if (game.slowT > 0 && game.state==='play'){ const u = 1 - game.slowT/SLOW_DUR; gdt = dt*(0.4 + 0.6*u*u); game.slowT -= dt; }
+  if (net.guest && inMatch) guestUpdate(gdt);
+  else if (game.state==='play' || demo || (net.host && game.state==='paused' && game.prevState==='play')) step(gdt);
   else if (game.state==='countdown' || (net.host && game.state==='paused' && game.prevState==='countdown')){
     game.cd -= dt;
     const c = Math.ceil(game.cd);
@@ -3607,7 +3719,7 @@ function loop(ts){
     for (const e of ents){ e.prevDir.copy(e.dir); e.speed *= 0.98; e.pos.addScaledVector(e.dir, e.speed*dt); }
   }
   if (demo) updateDemoCamera(dt, t); else updateCamera(dt);
-  syncVisuals(game.state==='paused' ? 0 : dt, t);
+  syncVisuals(game.state==='paused' ? 0 : gdt, t);
   if (!demo) updateHUD(dt);
   else { drawSpeedLines(0); $('holdGlow').classList.remove('on'); }
   musicTick(dt);
