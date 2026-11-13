@@ -400,7 +400,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
 <div class="overlay" id="select" hidden>
   <div class="panel">
     <p class="ptitle">ポジションを選ぶ</p>
-    <p class="sub">寮・ポジション・箒を選んで出場。相手の寮はランダムで決まり、残りのメンバーはボットが担当します。</p>
+    <p class="sub">自分のチーム・相手チーム・メンバー・ポジション・箒を選んで出場。自分以外の選手はボットが担当します。</p>
     <p class="ptitle" style="font-size:20px;margin-top:16px" id="houseTitle">寮を選ぶ</p>
     <div class="pick houses" id="houseCards"></div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">ポジションを選ぶ</p>
@@ -629,10 +629,10 @@ const NATIONS = {
   france:   {name:'フランス',     letter:'F', motto:'華麗な連携', col:0x3b8fe8, dark:0x123a6a, css:'#9cd0ff', deep:'#2160b0', acc:'#ffffff'},
   germany:  {name:'ドイツ',       letter:'D', motto:'鉄壁の守備', col:0xd9a520, dark:0x1a1a1a, css:'#ffd75e', deep:'#8a6a10', acc:'#1a1a1a'},
 };
-if (!HOUSES[settings.house]) settings.house = 'gryffindor';
+if (!(HOUSES[settings.house] || NATIONS[settings.house] || ENGLAND[settings.house])) settings.house = 'gryffindor';
 const ENGLAND = { england: {name:'イギリス', letter:'E', motto:'イギリス代表', col:0x1e2f6e, dark:0x0b1430, css:'#9fb4ff', deep:'#16245a', acc:'#c8102e'} };
 const WC_OWN = Object.assign({}, HOUSES, ENGLAND);   // 世界級で自分が選べるチーム
-if (!WC_OWN[settings.wcTeam]) settings.wcTeam = 'gryffindor';
+if (!(HOUSES[settings.wcTeam] || NATIONS[settings.wcTeam] || ENGLAND[settings.wcTeam])) settings.wcTeam = 'gryffindor';
 const wcRival = () => { const ks = Object.keys(NATIONS); return Math.random() < 0.35 ? 'bulgaria' : ks[Math.floor(Math.random()*ks.length)]; };
 
 // =====================================================================
@@ -645,7 +645,7 @@ const CHARS = {
     ['harry','ハリー・ポッター','C','SSR','seeker','black'], ['ginny','ジニー・ウィーズリー','C','SSR','','red'],
     ['angelina','アンジェリーナ・ジョンソン','C','SR','','black'], ['katie','ケイティ・ベル','C','SR','','brown'], ['alicia','アリシア・スピネット','C','R','','dark'],
     ['fred','フレッド・ウィーズリー','B','SR','','red'], ['george','ジョージ・ウィーズリー','B','SR','','red'],
-    ['ronx','ロン・ウィーズリー（覚醒）','K','UR','ron','red'], ['ronss','ロン・ウィーズリー（成長）','K','SSR','','red'], ['wood','オリバー・ウッド','K','SSR','','brown'],
+    ['ronx','ロン・ウィーズリー（覚醒）','K','UR','ron','red'], ['ronss','ロン・ウィーズリー（成長）','K','SSR','','red'], ['wood','オリバー・ウッド','K','SR','','brown'],
     ['ron','ロン・ウィーズリー','K','R','','red'], ['mclaggen','コーマック・マクラーゲン','K','R','','blond'],
   ],
   slytherin: [
@@ -871,6 +871,15 @@ const rivalOf = h => {
   if (h==='bulgaria' && Math.random() < 0.5) return 'ireland';
   return ks[Math.floor(Math.random()*ks.length)];
 };
+// ランダムな相手（自分と同じチームは除く。W杯では代表チームから）
+function randomRivalFor(own){
+  if (settings.diff==='world'){
+    const ks = Object.keys(NATIONS).filter(k=>k!==own);
+    if (own!=='bulgaria' && Math.random() < 0.35) return 'bulgaria';
+    return ks[Math.floor(Math.random()*ks.length)];
+  }
+  return HOUSES[own] ? rivalOf(own) : Object.keys(HOUSES)[Math.floor(Math.random()*4)];
+}
 const ROLE_NAME = {C:'チェイサー', B:'ビーター', K:'キーパー'};
 const SUMMON_CD = 1.0;
 const ICONS = {
@@ -3923,12 +3932,12 @@ function openMenu(){
 }
 function openSub(id){ game.state = id; showOverlay(id); }
 function renderHouseCards(){
-  const isW = settings.diff==='world', dict = isW ? WC_OWN : HOUSES, cur = isW ? settings.wcTeam : settings.house;
-  $('houseTitle').textContent = isW ? '自分のチームを選ぶ（相手は世界の代表チーム）' : '寮を選ぶ';
-  $('houseCards').innerHTML = Object.entries(dict).map(([k,H])=>`<button class="pcard${cur===k?' sel':''}" data-house="${k}"><span class="ph">${H.name}</span><span class="hsw" style="--c1:${hexCss(H.col)};--c2:${H.acc}"></span><p>${HOUSES[k] ? H.motto + 'を重んじる寮' : H.motto}</p></button>`).join('');
+  const isW = settings.diff==='world', dict = ALL_TEAMS(), cur = isW ? settings.wcTeam : settings.house;
+  $('houseTitle').textContent = '自分のチームを選ぶ';
+  $('houseCards').innerHTML = Object.entries(dict).map(([k,H])=>`<button class="pcard${cur===k?' sel':''}" data-house="${k}"><span class="ph" style="display:flex;align-items:center;gap:8px">${emblemSvg(k, 26)}${H.name}</span><span class="hsw" style="--c1:${hexCss(H.col)};--c2:${H.acc}"></span><p>${HOUSES[k] ? H.motto + 'を重んじる寮' : H.motto}</p></button>`).join('');
   document.querySelectorAll('[data-house]').forEach(c=>{ c.onclick = ()=>{
     uiClick(); if (isW) settings.wcTeam = c.dataset.house; else settings.house = c.dataset.house;
-    saveSettings(); renderHouseCards(); setHouses(c.dataset.house, isW ? wcRival() : rivalOf(c.dataset.house)); buildRoster(); }; });
+    saveSettings(); renderHouseCards(); setHouses(c.dataset.house, randomRivalFor(c.dataset.house)); buildRoster(); }; });
   renderLineup(); renderRival();
 }
 // 相手チームとメンバー（ランダムも可）
@@ -4012,7 +4021,7 @@ function selectRole(r){
 function startMatch(){
   game.state = 'countdown'; game.story = null; D = DIFF[settings.diff] || DIFF.normal;
   const isW = settings.diff==='world', myTeam = isW ? settings.wcTeam : settings.house;
-  const rc = rivalChoice(), rivalKey = rc !== 'random' ? rc : (isW ? wcRival() : rivalOf(myTeam));
+  const rc = rivalChoice(), rivalKey = rc !== 'random' ? rc : randomRivalFor(myTeam);
   setHouses(myTeam, rivalKey);
   setStage(settings.diff==='world' ? 'wc' : 'hog');
   const mc = myCharFor(myTeam, game.playerRole);
