@@ -26,6 +26,10 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #board b{font-size:26px;font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
 #timer{background:var(--panel-solid);padding:6px 16px;font-size:24px;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-width:72px;justify-content:center}
 #timer.snitch{color:var(--gold)}
+#quip{position:absolute;left:20px;bottom:96px;max-width:min(520px,70vw);background:linear-gradient(90deg,rgba(6,10,20,.88),rgba(6,10,20,.6));border-left:4px solid #fff;border-radius:6px;padding:8px 16px 9px;font-size:16px;opacity:0;transform:translateX(-14px);transition:opacity .25s,transform .25s;pointer-events:none}
+#quip.on{opacity:1;transform:none}
+#quip .qn{font-weight:800;font-size:13px;margin-right:6px}#quip .qr{font-size:10px;font-weight:800;margin-right:8px}
+#quip .qt{display:block;margin-top:2px;letter-spacing:.5px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7)}
 #missionBar{position:absolute;top:66px;left:50%;transform:translateX(-50%);background:rgba(40,12,40,.82);border:1px solid rgba(255,155,230,.55);color:#ffd6f3;border-radius:20px;padding:5px 16px;font-size:14px;font-weight:800;white-space:nowrap}
 #missionBar.ok{background:rgba(10,50,30,.85);border-color:rgba(126,226,168,.7);color:#bff5d4}
 #missionCard{position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);width:min(520px,90vw);text-align:center;background:linear-gradient(180deg,rgba(60,14,58,.95),rgba(20,10,34,.95));border:2px solid #ff9be6;border-radius:18px;padding:22px 26px;box-shadow:0 0 40px rgba(255,120,225,.45);animation:mcard .6s ease}
@@ -267,6 +271,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <div class="team t1"><b id="s1">0</b><span id="tn1">紅竜</span></div>
   </div>
   <div id="missionBar" hidden></div>
+  <div id="quip"></div>
   <div id="missionCard" hidden>
     <div class="mk">特別ミッション</div>
     <div class="mt">クラムに勝つ方法</div>
@@ -2413,6 +2418,7 @@ function stunByBludger(e, bl){
   if (ball.holder===e) dropBall(e, e.dir.clone().multiplyScalar(e.speed*0.3).add(new V3(rand(-3,3), 3, rand(-3,3))));
   emit(e.pos, 26, {colors:[0xffe066,0xffffff,0x9aa3b5], speed:9, life:0.7, size:0.45, drag:2});
   notify(e, 'ブラッジャーに直撃！スタン！', 1.3, 'var(--bad)', {flash:true, shake:0.6});
+  if (bl.hitter && bl.hitter.team !== e.team){ if (pickLine(bl.hitter, 'bludger')) sayEvent('bludger', bl.hitter); else sayEvent('hit', e); }
   if (bl && bl.hitter && bl.hitter.human && e.team !== bl.hitter.team){
     stat(bl.hitter, 'bhits'); notify(bl.hitter, `ブラッジャー命中！ ${ROLE_NAME[e.role]}をスタン`, 1.2, 'var(--good)', {shake:0.15});
   }
@@ -2448,7 +2454,7 @@ function updateDash(e, dt){
   if (e.dash <= 0){
     e.dash = 0; e.speed = 12; e.dashTarget = null;
     if (e.isPlayer) e.vel.copy(e.dashDir).multiplyScalar(12);
-    if (!e.dashHit){ e.recover = CFG.whiffRecover; if (e.isPlayer) toast('空振り…', 0.7, '#c9d6ea'); }
+    if (!e.dashHit){ e.recover = CFG.whiffRecover; if (e.isPlayer) toast('空振り…', 0.7, '#c9d6ea'); sayEvent('tackleFail', e); }
   }
 }
 function updateWindup(e, dt){
@@ -2478,6 +2484,7 @@ function resolveTackle(a, b){
     if (a.role!=='B' && Math.random() < CFG.tackleTakeChance){ takeBall(a); took = true; }
     else dropBall(b, a.dashDir.clone().multiplyScalar(9).add(new V3(rand(-3,3), 6, rand(-3,3))));
   }
+  if (took) sayEvent('tackleWin', a);
   const mid = a.pos.clone().add(b.pos).multiplyScalar(0.5);
   emit(mid, 34, {colors:[0xffffff,0xffe7a3, TEAM_COL[a.team]], speed:14, life:0.5, size:0.42, drag:3});
   if (a.isPlayer || b.isPlayer || mid.distanceTo(player.pos) < 35){ noise(0.22, 0.45, 220, 1.2); beep(90, 0.18, 'sine', 0.2, 0, 0.6); }
@@ -2887,13 +2894,13 @@ function updateBall(dt){
         if (k && db > 0 && k.stun<=0 && f0 && Math.abs(f0.x - sx) > 9 && Math.random() < db){   // 強化された相手キーパー：遠めのシュートを一定の確率で止める
           k.pos.copy(p).add(new V3(-Math.sign(sx)*1.2, 0, 0)); k.prevPos.copy(k.pos);
           emit(p, 30, {colors:[0xffffff, TEAM_COL[k.team]], speed:10, life:0.5, size:0.35, drag:2});
-          takeBall(k); teamToast(k.team, 'ナイスセーブ！', `${entLabel(k)}の好セーブ！ 近づいて打て！`);
+          takeBall(k); teamToast(k.team, 'ナイスセーブ！', `${entLabel(k)}の好セーブ！ 近づいて打て！`); sayEvent('save', k);
           return;
         }
         if (k && k.sk==='ron' && k.stun<=0 && ronFarShot(k, ball.vel.length())){   // 覚醒ロン：遠くからのシュートはリング前で必ず止める
           k.pos.copy(p).add(new V3(-Math.sign(sx)*1.2, 0, 0)); k.prevPos.copy(k.pos);
           emit(p, 40, {colors:[0xffffff, 0xff9be6, TEAM_COL[k.team]], speed:12, life:0.6, size:0.4, drag:2});
-          takeBall(k); teamToast(k.team, '覚醒ロン、スーパーセーブ！', '覚醒ロンに止められた！ 至近距離から打て！');
+          takeBall(k); teamToast(k.team, '覚醒ロン、スーパーセーブ！', '覚醒ロンに止められた！ 至近距離から打て！'); sayEvent('save', k);
           return;
         }
         scoreGoal(sc, i, p); return; } }
@@ -2924,7 +2931,7 @@ function updateBall(dt){
   if (best){
     const thrower = ball.lastThrower, wasShot = thrower && thrower.team!==best.team && spd>15 && now-ball.throwTime<3;
     takeBall(best);
-    if (wasShot && best.role==='K') teamToast(best.team, '味方キーパー、ナイスセーブ！', 'キーパーに止められた！');
+    if (wasShot && best.role==='K'){ teamToast(best.team, '味方キーパー、ナイスセーブ！', 'キーパーに止められた！'); sayEvent('save', best); }
     else if (wasShot && best.human){ stat(best, 'cuts'); notify(best, 'パスカット！', 1, 'var(--good)'); }
   }
 }
@@ -2932,11 +2939,84 @@ function ronFarShot(e, spd){
   const f = ball.throwFrom, th = ball.lastThrower;
   return !!(f && th && th.team!==e.team && spd > 15 && now - ball.throwTime < 3 && Math.abs(f.x + attackX(e.team)) > 7);
 }
+// =====================================================================
+//  試合中のひと言（主要キャラのみ。セリフはオリジナル）
+//  goal=自分が決めた / teamGoal=味方が決めた / conceded=決められた / tackleWin=奪った
+//  tackleFail=空振り / save=止めた / bludger=ブラッジャーを当てた / hit=当てられた / snitch=スニッチ出現 / catch=捕獲
+// =====================================================================
+const QUIPS = {
+  harry:   {goal:['……届いた。','まだだ。次も取る。','風が、こっちを向いてる。'], teamGoal:['いい流れだ。切らすな。'], conceded:['一点で止まるな。取り返す。','……まだ終わってない。'],
+            tackleWin:['道は、こじ開ける。','もらった。'], tackleFail:['……浅かった。'], hit:['っ……まだ飛べる。'], snitch:['……見えた。金色の光。']},
+  ron:     {save:['止めた……止めたぞ！','ここは通さない。','……よし。まだやれる。'], conceded:['くそっ……次は止める。','……悪い。もう入れさせない。'], teamGoal:['いいぞ……その調子だ！']},
+  ronx:    {save:['……見えてる。全部。','何本でも来い。','止まって見える。……本当に。'], conceded:['……今のは、たまたまだ。'], teamGoal:['後ろは任せろ。']},
+  ginny:   {goal:['見た？　これが答え。','次もいただく。'], teamGoal:['ナイス。もう一本いこう。'], conceded:['顔、上げて。まだいける。'], tackleWin:['甘いよ。'], tackleFail:['ちっ……もう一回。']},
+  fred:    {bludger:['命中。悪く思うなよ。','ブラッジャーは平等だ。誰にでもな。'], teamGoal:['いいぞ、新人！'], hit:['……やるじゃないか。']},
+  george:  {bludger:['相棒、今の見たか。','痛かったら、文句は箒に言ってくれ。'], teamGoal:['そのまま突っ走れ！'], hit:['……っと、油断した。']},
+  wood:    {save:['それでいい……！'], teamGoal:['その一点が、寮杯を連れてくる！'], conceded:['集中しろ！　ここからだ！']},
+  angelina:{goal:['一点ずつ。積み上げるわよ。'], teamGoal:['いいわ。焦らずにいきましょう。'], conceded:['慌てない。取り返すわよ。']},
+  katie:   {goal:['決まった……！'], teamGoal:['ナイス！']},
+  draco:   {goal:['フン。これが格の違いだ。'], conceded:['……まぐれだ。調子に乗るな。'], tackleWin:['遅いな。'], hit:['くっ……覚えていろ。'], snitch:['今度こそ、ぼくが取る。']},
+  flint:   {goal:['当然だ。'], tackleWin:['どけ。','吹っ飛べ。'], tackleFail:['ちょこまかと……！'], conceded:['……次はねじ伏せる。']},
+  cedric:  {goal:['悪いね。でも、手は抜かない。'], conceded:['いい一点だ。……次はこちらの番だ。'], snitch:['……行こう。']},
+  cho:     {goal:['ごめんね、もらったよ。'], snitch:['スニッチ……逃がさない。'], conceded:['まだ大丈夫。落ち着いて。']},
+  davies:  {goal:['計算どおりだ。'], conceded:['……修正する。']},
+  bagman:  {bludger:['ハハッ、重いだろ？','俺のブラッジャーからは逃げられないぜ。'], teamGoal:['ナイスだ！　その調子！'], hit:['おっと……やるな。']},
+  krum:    {snitch:['……来た。'], catch:['……終わりだ。'], tackleWin:['……遅い。'], hit:['……問題ない。'], goal:['……一つ。']},
+  dimitrov:{tackleWin:['どけ！'], goal:['ブルガリアをなめるな。']},
+  zograf:  {save:['通さない。','……読めている。','その距離では、入らない。']},
+  volkov:  {bludger:['倒れていろ。','次はもっと重いぞ。','……邪魔だ。']},
+  vulchanov:{bludger:['よそ見をするな。','一人ずつ落とす。']},
+  troy:    {goal:['三人なら、誰にも止められない。','今のパス、見えたか？'], teamGoal:['流れはこっちだ。']},
+  mullet:  {goal:['いただき。'], teamGoal:['このまま押し切る。']},
+  moran:   {goal:['もう一本。'], teamGoal:['いいぞ、トロイ。']},
+  lynch:   {snitch:['今度こそ……！','二度と、同じ手は食わない。']},
+  ryan:    {save:['ここは譲れない。','まだまだ。']},
+  elodie:  {goal:['簡単すぎるわ。'], conceded:['……少しは、やるのね。']},
+  klaus:   {tackleWin:['押し負けるつもりはない。'], goal:['当然の結果だ。']},
+};
+const QUIP_CHANCE = {goal:0.75, teamGoal:0.45, conceded:0.5, tackleWin:0.45, tackleFail:0.35, save:0.65, bludger:0.3, hit:0.3, snitch:1, catch:1};
+const quipState = {t:-99, last:null, lastLine:'', by:{}, used:{}};
+const quipLines = e => e && e.char && !e.human ? QUIPS[e.char.id] || (e.char.id==='ronss' ? QUIPS.ron : null) : null;
+function pickLine(e, kind){
+  const L = quipLines(e); const arr = L && L[kind]; if (!arr || !arr.length) return null;
+  const used = (quipState.used[e.id] = quipState.used[e.id] || []);
+  const opts = arr.filter(x=>x!==quipState.lastLine && !used.includes(x)); const src = opts.length ? opts : arr.filter(x=>x!==used[used.length-1]);
+  return (src.length ? src : arr)[Math.floor(Math.random()*(src.length || arr.length))];
+}
+// actor の出来事に対して、本人 → 味方 → 相手 の順でしゃべれる人を探す
+function sayEvent(kind, actor, opts={}){
+  if (net.guest) return;
+  if (game.state !== 'play') return;
+  const force = kind==='snitch' || kind==='catch';
+  if (!force && (now - quipState.t < 5 || Math.random() > (QUIP_CHANCE[kind] || 0.4))) return;
+  const tries = [];
+  if (actor) tries.push([actor, kind]);
+  if (actor && kind==='goal'){ for (const o of ents) if (o.team===actor.team && o!==actor) tries.push([o, 'teamGoal']); for (const o of ents) if (o.team!==actor.team) tries.push([o, 'conceded']); }
+  if (opts.team !== undefined && kind==='snitch') for (const o of ents) if (o.role!=='K') tries.push([o, 'snitch']);
+  const pool = tries.filter(([e, k])=>e && e !== quipState.last && (force || now - (quipState.by[e.id] ?? -99) > 15) && pickLine(e, k));
+  if (!pool.length) return;
+  // 本人のセリフを優先、なければランダム
+  const [who, k] = pool[0][0]===actor && pickLine(actor, kind) && actor !== quipState.last ? pool[0] : pool[Math.floor(Math.random()*pool.length)];
+  const line = pickLine(who, k); if (!line) return;
+  quipState.t = now; quipState.last = who; quipState.lastLine = line; quipState.by[who.id] = now;
+  { const u = (quipState.used[who.id] = quipState.used[who.id] || []); u.push(line); if (u.length > 2) u.shift(); }
+  showQuip(who.id, line);
+  if (net.host) netFx({t:'quip', id:who.id, x:line});
+}
+let quipT = 0;
+function showQuip(id, line){
+  const e = ents.find(x=>x.id===id); if (!e || !e.char) return;
+  const c = e.char, el = $('quip');
+  el.innerHTML = `<span class="qn" style="color:${TEAM_CSS[e.team]}">${escHtml(shortName(c))}</span><span class="qr" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="qt">「${escHtml(line)}」</span>`;
+  el.style.borderColor = TEAM_CSS[e.team];
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); quipT = 3.0;
+}
+function quipTick(dt){ if (quipT > 0){ quipT -= dt; if (quipT <= 0) $('quip').classList.remove('on'); } }
 function scoreGoal(team, hoopIdx, p){
   game.score[team] += CFG.goalPoints;
   stat(ball.lastThrower, 'goals');
   banner(`${TEAM_NAME[team]} ゴール！ +${CFG.goalPoints}`, 1.8, TEAM_CSS[team]);
-  sfx('goal');
+  sfx('goal'); sayEvent('goal', ball.lastThrower);
   emit(p, 140, {colors:[TEAM_COL[team], 0xffd54a, 0xffffff], speed:16, life:1.8, size:0.5, gravity:6, drag:1.2});
   const ring = hoopRings[attackX(team)>0 ? 1 : -1][hoopIdx]; ring.userData.flash = 1; netFx({t:'ring', s:attackX(team)>0 ? 1 : -1, i:hoopIdx});
   game.cheer = 2.5; game.shake = Math.max(game.shake, 0.25);
@@ -3027,6 +3107,7 @@ function updateBludgers(dt){
 }
 function spawnSnitch(){
   game.snitchSpawned = true; snitch.active = true; snitch.mesh.visible = true;
+  setTimeout(()=>{ if (snitch.active && game.state==='play') sayEvent('snitch', null, {team:0}); }, 900);
   let best = null, bd = -1;
   for (let k=0;k<12;k++){
     const a = rand(0,Math.PI*2), r = rand(0.3,0.8), c = new V3(Math.cos(a)*W.A*r, rand(15,45), Math.sin(a)*W.B*r);
@@ -3087,7 +3168,7 @@ function catchSnitch(e){
   emit(snitch.pos, 160, {colors:[0xffd54a,0xffffff,0xffb300], speed:18, life:1.8, size:0.5, gravity:4, drag:1.2});
   snitch.active = false; snitch.mesh.visible = false; stat(e, 'snitch');
   const who = (e.isPlayer && !net.active) ? (settings.name || 'あなた') : `${TEAM_NAME[e.team]}の${entLabel(e)}`;
-  sfx('catch'); game.cheer = 3;
+  sfx('catch'); game.cheer = 3; sayEvent('catch', e);
   endGame(`${who}が金のスニッチを捕獲！（+${CFG.snitchPoints}）`);
 }
 
@@ -3693,6 +3774,7 @@ function applySnap(s){
     if (f.t==='banner'){ const q = net.host; banner(f.x, f.d, f.c); }
     else if (f.t==='toast'){ if (f.to===net.myId){ toast(f.x, f.d, f.c); if (f.ex) localFx(f.ex); } }
     else if (f.t==='toastAll') toast(f.x, f.d, f.c);
+    else if (f.t==='quip') showQuip(f.id, f.x);
     else if (f.t==='teamToast') toast(f.team===player.team ? f.a : f.e, 1.1, f.team===player.team ? 'var(--blue)' : 'var(--bad)');
     else if (f.t==='emit') emit(_nv.fromArray(f.p).clone(), f.n, Object.assign({local:true}, f.o));
     else if (f.t==='sfx') sfx(f.k, false);
@@ -4450,7 +4532,7 @@ function loop(ts){
   syncVisuals(game.state==='paused' ? 0 : gdt, t);
   if (!demo) updateHUD(dt);
   else { drawSpeedLines(0); $('holdGlow').classList.remove('on'); }
-  musicTick(dt);
+  musicTick(dt); quipTick(dt);
   if (composer && settings.quality !== 'low') composer.render(); else renderer.render(scene, camera);
 }
 requestAnimationFrame(loop);
