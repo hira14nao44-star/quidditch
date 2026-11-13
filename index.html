@@ -584,7 +584,7 @@ const CFG = {
   stunTime: 2.2,            // ブラッジャースタン時間
   bludgerHitSpeed: 40, bludgerRoamSpeed: 19, beaterCooldown: 1.1,
   playerCruise: 18, playerFast: 25, playerBoost: 39,
-  snitchSpeed: 20, snitchFlee: 32, botSnitchSpeed: 22,
+  snitchSpeed: 23, snitchFlee: 35, botSnitchSpeed: 22,
   // タックル
   tackleRange: 15,          // ロックオン距離
   tackleCone: 0.5,          // ロックオン角度（ラジアン）
@@ -2835,7 +2835,7 @@ function chaserAI(e, dt){
   const h = ball.holder;
   if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && (e.sk==='krum' || snitchWorth(e.team))){   // 元シーカーはスニッチ戦に参加
     const k = e.sk==='krum', sd = e.pos.distanceTo(snitch.pos);
-    steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 0.95), k || sd < 25, dt), dt, k ? 5 : 2.5);
+    steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), Math.min(botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 0.95), k || sd < 25, dt), CFG.snitchFlee*(k ? 0.93 : 0.88)), dt, k ? 5 : 2.5);
     return;
   }
   if (h===e){
@@ -2930,7 +2930,7 @@ function beaterAI(e, dt){
   }
   let nb = null, nd = 1e9;
   for (const bl of bludgers){ if (bl.heldBy || (bl.homing>0 && bl.hitByTeam===e.team)) continue; const d = bl.pos.distanceTo(e.pos); if (d<nd){ nd = d; nb = bl; } }
-  if (snitch.active && nd > 8 && snitchWorth(e.team)){ steer(e, snitch.pos.clone().addScaledVector(snitch.vel, 0.3), botSpd(e, CFG.botSnitchSpeed, e.pos.distanceTo(snitch.pos) < 22, dt), dt, 2.5); return; }
+  if (snitch.active && nd > 8 && snitchWorth(e.team)){ steer(e, snitch.pos.clone().addScaledVector(snitch.vel, 0.3), Math.min(botSpd(e, CFG.botSnitchSpeed, e.pos.distanceTo(snitch.pos) < 22, dt), CFG.snitchFlee*0.82), dt, 2.5); return; }
   if (nb && nd < 45) steer(e, nb.pos, botSpd(e, 20, nd > 20, dt), dt, 4);
   else { const ref = ball.holder ? ball.holder.pos : ball.pos; steer(e, ref.clone().add(new V3(-sign*8, 5, 0)), 17, dt); }
 }
@@ -3199,7 +3199,7 @@ function spawnSnitch(){
     if (m > bd){ bd = m; best = c; }
   }
   snitch.pos.copy(best); snitch.vel.set(0,0,0);
-  snitch.t = 0; snitch.rest = 0; snitch.nextRest = rand(5,8); snitch.fleeing = false;
+  snitch.t = 0; snitch.rest = 0; snitch.nextRest = rand(7,11); snitch.fleeing = false; snitch.age = 0;
   emit(snitch.pos, 60, {colors:[0xffd54a,0xffffff], speed:10, life:1.2, size:0.4, drag:2});
   banner('金のスニッチが出現！', 2.4, 'var(--gold)');
   toastAll(`捕まえると +${CFG.snitchPoints}点 & 試合終了`, 2.4, '#ffe08a');
@@ -3207,6 +3207,7 @@ function spawnSnitch(){
 }
 function updateSnitch(dt){
   if (!snitch.active) return;
+  snitch.age = (snitch.age || 0) + dt;
   const krumOnly = !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission==='krum');
   if (krumOnly && game.time < 1.5){ const k = ents.find(x=>x.sk==='krum'); if (k){ k.stun = 0; k.pos.copy(snitch.pos); catchSnitch(k); return; } }   // 時間切れ直前でも最後は必ずクラムが取る
   { const w = [snitchWorth(0), snitchWorth(1)];
@@ -3217,7 +3218,7 @@ function updateSnitch(dt){
   for (const e of ents){ if (e.role==='K' || e.stun>0) continue; const d = e.pos.distanceTo(snitch.pos); if (d<nd){ nd = d; near = e; } }
   let spd = CFG.snitchSpeed;
   if (snitch.rest > 0){ snitch.rest -= dt; spd = 5; }
-  else { snitch.nextRest -= dt; if (snitch.nextRest <= 0){ snitch.rest = 1.3; snitch.nextRest = rand(5,8); } }
+  else { snitch.nextRest -= dt; if (snitch.nextRest <= 0){ snitch.rest = 0.9; snitch.nextRest = rand(7,11); } }
   snitch.t -= dt;
   if (near && nd < 12 && (snitch.rest <= 0 || nd < 4)){
     if (snitch.t <= 0 || !snitch.fleeing){ snitch.jit.set(rand(-.7,.7), rand(-.4,.4), rand(-.7,.7)); snitch.t = rand(0.3,0.7); }
@@ -3244,7 +3245,7 @@ function updateSnitch(dt){
       continue;
     }
     if (!e.human && e.sk!=='krum' && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない（クラムは別）
-    if (e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : e.sk==='krum' ? 2.2 : 1.3)){ catchSnitch(e); return; }
+    if (snitch.age > 4 && e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : e.sk==='krum' ? 1.8 : 1.0)){ catchSnitch(e); return; }   // 出現直後の4秒は捕まえられない
   }
 }
 function catchSnitch(e){
@@ -4590,7 +4591,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13c';
+const APP_VERSION = '2026-11-13d';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
