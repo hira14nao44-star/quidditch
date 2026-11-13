@@ -26,7 +26,8 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #board b{font-size:26px;font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
 #timer{background:var(--panel-solid);padding:6px 16px;font-size:24px;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-width:72px;justify-content:center}
 #timer.snitch{color:var(--gold)}
-#quip{position:absolute;left:20px;bottom:96px;max-width:min(520px,70vw);background:linear-gradient(90deg,rgba(6,10,20,.88),rgba(6,10,20,.6));border-left:4px solid #fff;border-radius:6px;padding:8px 16px 9px;font-size:16px;opacity:0;transform:translateX(-14px);transition:opacity .25s,transform .25s;pointer-events:none}
+#quip{position:absolute;left:20px;top:40%;max-width:min(460px,60vw);background:linear-gradient(90deg,rgba(6,10,20,.88),rgba(6,10,20,.55));border-left:4px solid #fff;border-radius:6px;padding:8px 16px 9px;font-size:16px;opacity:0;transform:translateX(-14px);transition:opacity .25s,transform .25s;pointer-events:none}
+#quip.right{left:auto;right:20px;border-left:0;border-right:4px solid #fff;text-align:right;background:linear-gradient(270deg,rgba(6,10,20,.88),rgba(6,10,20,.55));transform:translateX(14px)}
 #quip.on{opacity:1;transform:none}
 #quip .qn{font-weight:800;font-size:13px;margin-right:6px}#quip .qr{font-size:10px;font-weight:800;margin-right:8px}
 #quip .qt{display:block;margin-top:2px;letter-spacing:.5px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7)}
@@ -93,6 +94,8 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #cut .nx{text-align:right;font-size:12px;opacity:.55}
 @media (max-width:640px){.chap{grid-template-columns:1fr 1fr}#cut .txt{font-size:17px}}
 .cinfoWrap{display:none}
+.botSel{font:inherit;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 10px;cursor:pointer;text-align:left}
+.botSel:hover{border-color:var(--gold)}
 #updBar{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:80;background:#1d4ed8;color:#fff;font-weight:800;padding:8px 14px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 #updBar button{font:inherit;margin-left:8px;padding:4px 12px;border-radius:8px;border:0;background:#fff;color:#1d4ed8;font-weight:800;cursor:pointer}
 #ctip{position:fixed;z-index:55;width:330px;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))}
@@ -529,7 +532,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
       <div class="codebox"><span>部屋コード</span><b id="lobbyCode">----</b></div>
     </div>
     <div class="invite"><input id="lobbyLink" readonly aria-label="招待リンク"><button class="btn ghost" id="copyBtn" style="margin:0;font-size:14px;padding:8px 14px">招待リンクをコピー</button></div>
-    <p class="sub" style="font-size:13px">入りたい枠の「ここに入る」を押すと、チームと役職が決まります。空いた枠とキーパーはボットです。</p>
+    <p class="sub" style="font-size:13px">入りたい枠の「ここに入る」を押すと、チームと役職が決まります。空いた枠とキーパーはボットで、部屋を作った人がボットの選手を選べます。</p>
     <div class="teams" id="lobbyTeams"></div>
     <div class="cols" style="margin-top:4px">
       <div><h2>あなたの箒</h2><select id="lobbyBroom" aria-label="あなたの箒"></select></div>
@@ -656,7 +659,7 @@ const CHARS = {
     ['harry','ハリー・ポッター','C','SSR','seeker','black'], ['ginny','ジニー・ウィーズリー','C','SSR','','red'],
     ['angelina','アンジェリーナ・ジョンソン','C','SR','','black'], ['katie','ケイティ・ベル','C','SR','','brown'], ['alicia','アリシア・スピネット','C','R','','dark'],
     ['fred','フレッド・ウィーズリー','B','SR','','red'], ['george','ジョージ・ウィーズリー','B','SR','','red'],
-    ['ronx','ロン・ウィーズリー（覚醒）','K','UR','ron','red'], ['ronss','ロン・ウィーズリー（成長）','K','SSR','','red'], ['wood','オリバー・ウッド','K','SR','','brown'],
+    ['wood','オリバー・ウッド','K','SR','','brown'],
     ['ron','ロン・ウィーズリー','K','R','','red'], ['mclaggen','コーマック・マクラーゲン','K','R','','blond'],
   ],
   slytherin: [
@@ -704,7 +707,9 @@ const CHARS = {
 const CHAR_BY_ID = {};
 for (const t in CHARS) CHARS[t] = CHARS[t].map(([id,name,role,rar,sk,hair])=>(CHAR_BY_ID[id] = {id, name, role, rar, sk, hair:HAIR[hair], team:t}));
 // ストーリーで代表選考に勝ったあとのイギリス：グリフィンドールの仲間＋イギリス代表（覚醒ロンは準決勝専用なので除く）
-CHARS.englandwc = CHARS.gryffindor.filter(c=>c.id!=='ronx').concat(CHARS.england);
+for (const [id, name, rar, sk] of [['ronss','ロン・ウィーズリー（成長）','SSR',''], ['ronx','ロン・ウィーズリー（覚醒）','UR','ron']])
+  CHAR_BY_ID[id] = {id, name, role:'K', rar, sk, hair:HAIR.red, team:'englandwc'};
+CHARS.englandwc = CHARS.gryffindor.concat(CHARS.england, [CHAR_BY_ID.ronss, CHAR_BY_ID.ronx]);
 const HAIR_STYLE = {
   harry:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', ronss:'short', wood:'short', ron:'short', mclaggen:'curly',
   flint:'short', draco:'slick', pucey:'short', montague:'buzz', crabbe:'buzz', goyle:'buzz', bletchley:'short',
@@ -821,7 +826,7 @@ function charInfoHtml(c){
   return `<div class="cinfo"><div class="ch"><b style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</b> <span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="ctag">${T.name || ''}・${ROLE_NAME[c.role]}</span></div>
     ${c.sk ? `<div class="csk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : ''}<p>${desc}</p></div>`;
 }
-function showCharInfo(el, id){ if (el) el.innerHTML = charInfoHtml(CHAR_BY_ID[id]); }
+function showCharInfo(el, id){ if (el) el.innerHTML = id === '__auto' ? '<div class="cinfo"><p>試合開始のときに、空いている選手からランダムで選ばれます。</p></div>' : charInfoHtml(CHAR_BY_ID[id]); }
 // 選択欄にカーソルを合わせた／選んだ選手の紹介を下に出す
 // 標準のリストの代わりに、カーソルを合わせると紹介が出る選択パネルを使う
 function enhanceSelects(container){
@@ -839,14 +844,16 @@ function enhanceSelects(container){
 let pickerDone = null;
 function openPicker(anchor, ids, curId, onPick){
   const list = $('pkList'), box = document.querySelector('#picker .pkBox');
-  list.innerHTML = ids.map(id=>{ const c = CHAR_BY_ID[id]; if (!c) return '';
+  list.innerHTML = ids.map(id=>{ const c = CHAR_BY_ID[id];
+    if (id === '__auto') return `<button type="button" class="pkItem${id===curId ? ' cur' : ''}" data-id="__auto"><b>おまかせ（ランダム）</b></button>`;
+    if (!c) return '';
     return `<button type="button" class="pkItem${id===curId ? ' cur' : ''}" data-id="${id}">${svgIcon(c.role, '#ffcf4a')}<b style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</b><span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span></button>`; }).join('');
   hideTip(); const show = id => showCharInfo($('pkInfo'), id);
   list.querySelectorAll('.pkItem').forEach(it=>{
     it.addEventListener('mouseenter', ()=>show(it.dataset.id)); it.addEventListener('focus', ()=>show(it.dataset.id));
     it.onclick = ev=>{ ev.stopPropagation(); closePicker(); uiClick(); onPick(it.dataset.id); };
   });
-  show(curId || ids[0]);
+  show(curId && curId !== '__auto' ? curId : ids.find(x=>x !== '__auto'));
   $('picker').hidden = false;
   const r = anchor.getBoundingClientRect(), bw = Math.min(640, innerWidth*0.94);
   box.style.left = Math.max(8, Math.min(r.left, innerWidth - bw - 8)) + 'px';
@@ -3028,34 +3035,35 @@ function ronFarShot(e, spd){
 //  tackleFail=空振り / save=止めた / bludger=ブラッジャーを当てた / hit=当てられた / snitch=スニッチ出現 / catch=捕獲
 // =====================================================================
 const QUIPS = {
-  harry:   {goal:['……届いた。','まだだ。次も取る。','風が、こっちを向いてる。'], teamGoal:['いい流れだ。切らすな。'], conceded:['一点で止まるな。取り返す。','……まだ終わってない。'],
-            tackleWin:['道は、こじ開ける。','もらった。'], tackleFail:['……浅かった。'], hit:['っ……まだ飛べる。'], snitch:['……見えた。金色の光。']},
-  ron:     {save:['止めた……止めたぞ！','ここは通さない。','……よし。まだやれる。'], conceded:['くそっ……次は止める。','……悪い。もう入れさせない。'], teamGoal:['いいぞ……その調子だ！']},
-  ronx:    {save:['……見えてる。全部。','何本でも来い。','止まって見える。……本当に。'], conceded:['……今のは、たまたまだ。'], teamGoal:['後ろは任せろ。']},
-  ginny:   {goal:['見た？　これが答え。','次もいただく。'], teamGoal:['ナイス。もう一本いこう。'], conceded:['顔、上げて。まだいける。'], tackleWin:['甘いよ。'], tackleFail:['ちっ……もう一回。']},
-  fred:    {bludger:['命中。悪く思うなよ。','ブラッジャーは平等だ。誰にでもな。'], teamGoal:['いいぞ、新人！'], hit:['……やるじゃないか。']},
-  george:  {bludger:['相棒、今の見たか。','痛かったら、文句は箒に言ってくれ。'], teamGoal:['そのまま突っ走れ！'], hit:['……っと、油断した。']},
-  wood:    {save:['それでいい……！'], teamGoal:['その一点が、寮杯を連れてくる！'], conceded:['集中しろ！　ここからだ！']},
-  angelina:{goal:['一点ずつ。積み上げるわよ。'], teamGoal:['いいわ。焦らずにいきましょう。'], conceded:['慌てない。取り返すわよ。']},
-  katie:   {goal:['決まった……！'], teamGoal:['ナイス！']},
-  draco:   {goal:['フン。これが格の違いだ。'], conceded:['……まぐれだ。調子に乗るな。'], tackleWin:['遅いな。'], hit:['くっ……覚えていろ。'], snitch:['今度こそ、ぼくが取る。']},
-  flint:   {goal:['当然だ。'], tackleWin:['どけ。','吹っ飛べ。'], tackleFail:['ちょこまかと……！'], conceded:['……次はねじ伏せる。']},
-  cedric:  {goal:['悪いね。でも、手は抜かない。'], conceded:['いい一点だ。……次はこちらの番だ。'], snitch:['……行こう。']},
-  cho:     {goal:['ごめんね、もらったよ。'], snitch:['スニッチ……逃がさない。'], conceded:['まだ大丈夫。落ち着いて。']},
+  harry:   {goal:['……届いた。','この一点で、流れを変える。','風が、こちらを向いた。'], teamGoal:['いい。この流れを切らすな。'], conceded:['一点で止まるな。取り返す。','まだ、終わっていない。'],
+            tackleWin:['道は、こじ開ける。','――もらった。'], tackleFail:['……浅かった。'], hit:['っ……まだ、飛べる。'], snitch:['……見えた。金色の光。','あの光だけを、追う。']},
+  ron:     {save:['止めた……！','ここは、通さない。','……まだ、やれる。'], conceded:['……次は、止める。','もう一本も、入れさせない。'], teamGoal:['その調子だ。後ろは任せろ。']},
+  ronss:   {save:['……見えてきた。','ここは、通さない。','焦らなければ、止められる。'], conceded:['……次は、止める。'], teamGoal:['後ろは、任せろ。']},
+  ronx:    {save:['……見えている。全部。','何本でも、来い。','止まって見える。……本当に。'], conceded:['……今のは、忘れる。'], teamGoal:['後ろは、心配するな。']},
+  ginny:   {goal:['これが、答え。','次も、いただく。'], teamGoal:['いい。もう一本。'], conceded:['顔を上げて。まだ、いける。'], tackleWin:['甘い。'], tackleFail:['……もう一度。']},
+  fred:    {bludger:['一人、沈んだ。','ブラッジャーは、誰にでも平等だ。'], teamGoal:['いい一撃だ。'], hit:['……やるな。']},
+  george:  {bludger:['道は、空けておいた。','次は、どいつだ。'], teamGoal:['その調子だ。'], hit:['……油断した。']},
+  wood:    {save:['それでいい。'], teamGoal:['その一点が、勝利を連れてくる。'], conceded:['集中しろ。ここからだ。']},
+  angelina:{goal:['一点ずつ、積み上げる。'], teamGoal:['焦らず、確実に。'], conceded:['慌てないで。取り返す。']},
+  katie:   {goal:['……決めた。'], teamGoal:['いい流れ。']},
+  draco:   {goal:['これが、格の違いだ。'], conceded:['……まぐれだ。調子に乗るな。'], tackleWin:['遅い。'], hit:['……覚えておけ。'], snitch:['今度こそ、ぼくが取る。']},
+  flint:   {goal:['当然だ。'], tackleWin:['どけ。','邪魔だ。'], tackleFail:['ちょこまかと……。'], conceded:['次は、ねじ伏せる。']},
+  cedric:  {goal:['すまない。だが、手は抜かない。'], conceded:['いい一点だ。……次は、こちらの番だ。'], snitch:['……行こう。']},
+  cho:     {goal:['もらったよ。'], snitch:['スニッチ……逃がさない。'], conceded:['大丈夫。落ち着いて。']},
   davies:  {goal:['計算どおりだ。'], conceded:['……修正する。']},
-  bagman:  {bludger:['ハハッ、重いだろ？','俺のブラッジャーからは逃げられないぜ。'], teamGoal:['ナイスだ！　その調子！'], hit:['おっと……やるな。']},
+  bagman:  {bludger:['その程度で、逃げ切れると思うな。','俺の一打は、外れない。'], teamGoal:['いい。そのまま押し切れ。'], hit:['……効かないな。']},
   krum:    {snitch:['……来た。'], catch:['……終わりだ。'], tackleWin:['……遅い。'], hit:['……問題ない。'], goal:['……一つ。']},
-  dimitrov:{tackleWin:['どけ！'], goal:['ブルガリアをなめるな。']},
+  dimitrov:{tackleWin:['どけ。'], goal:['ブルガリアを、なめるな。']},
   zograf:  {save:['通さない。','……読めている。','その距離では、入らない。']},
-  volkov:  {bludger:['倒れていろ。','次はもっと重いぞ。','……邪魔だ。']},
-  vulchanov:{bludger:['よそ見をするな。','一人ずつ落とす。']},
-  troy:    {goal:['三人なら、誰にも止められない。','今のパス、見えたか？'], teamGoal:['流れはこっちだ。']},
-  mullet:  {goal:['いただき。'], teamGoal:['このまま押し切る。']},
-  moran:   {goal:['もう一本。'], teamGoal:['いいぞ、トロイ。']},
-  lynch:   {snitch:['今度こそ……！','二度と、同じ手は食わない。']},
-  ryan:    {save:['ここは譲れない。','まだまだ。']},
+  volkov:  {bludger:['倒れていろ。','次は、もっと重い。','……邪魔だ。']},
+  vulchanov:{bludger:['よそ見をするな。','一人ずつ、落とす。']},
+  troy:    {goal:['三人なら、誰にも止められない。','今のパス、見えたか。'], teamGoal:['流れは、こちらにある。']},
+  mullet:  {goal:['いただく。'], teamGoal:['このまま、押し切る。']},
+  moran:   {goal:['もう一本。'], teamGoal:['いい。トロイ、次だ。']},
+  lynch:   {snitch:['今度こそ……。','二度と、同じ手は食わない。']},
+  ryan:    {save:['ここは、譲らない。','まだだ。']},
   elodie:  {goal:['簡単すぎるわ。'], conceded:['……少しは、やるのね。']},
-  klaus:   {tackleWin:['押し負けるつもりはない。'], goal:['当然の結果だ。']},
+  klaus:   {tackleWin:['押し負ける気はない。'], goal:['当然の結果だ。']},
 };
 const QUIP_CHANCE = {goal:0.75, teamGoal:0.45, conceded:0.5, tackleWin:0.45, tackleFail:0.35, save:0.65, bludger:0.3, hit:0.3, snitch:1, catch:1};
 const quipState = {t:-99, last:null, lastLine:'', by:{}, used:{}};
@@ -3092,6 +3100,9 @@ function showQuip(id, line){
   const c = e.char, el = $('quip');
   el.innerHTML = `<span class="qn" style="color:${TEAM_CSS[e.team]}">${escHtml(shortName(c))}</span><span class="qr" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="qt">「${escHtml(line)}」</span>`;
   el.style.borderColor = TEAM_CSS[e.team];
+  const mine = !player || e.team === player.team, slots = ['36%','50%','64%'];
+  let k = Math.floor(Math.random()*3); if (k === quipState.slot) k = (k + 1) % 3; quipState.slot = k;
+  el.classList.toggle('right', !mine); el.style.top = slots[k];
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); quipT = 3.0;
 }
 function quipTick(dt){ if (quipT > 0){ quipT -= dt; if (quipT <= 0) $('quip').classList.remove('on'); } }
@@ -3730,7 +3741,11 @@ function hostStart(){
   L.cfg.diff = L.cfg.stage==='wc' ? 'world' : 'normal';   // ボットの強さはステージで決まる（あとはキャラのレア度）
   const setup = {cfg: Object.assign({}, L.cfg), slots: L.players.map(p=>({id:p.id, name:p.name, team:p.team, slot:p.slot, broom:p.broom, avatar:p.avatar||''}))};
   setup.chars = [];
-  for (const t of [0,1]){ const lu = randomLineup(t===0 ? L.cfg.h0 : L.cfg.h1, {C:2,B:1,K:1}); ROLES.forEach((r,i)=>{ const c = lu[r].shift(); setup.chars[t*4+i] = c ? c.id : null; }); }
+  for (const t of [0,1]){
+    const teamKey = t===0 ? L.cfg.h0 : L.cfg.h1, bots = L.cfg.bots || {}, used = new Set();
+    ROLES.forEach((r,i)=>{ const id = bots[`${t},${i}`]; if (id && CHAR_BY_ID[id] && charsOf(teamKey, r).includes(CHAR_BY_ID[id]) && !used.has(id)){ setup.chars[t*4+i] = id; used.add(id); } });
+    ROLES.forEach((r,i)=>{ if (setup.chars[t*4+i]) return; const pool = charsOf(teamKey, r).filter(c=>!used.has(c.id)); const c = pool[Math.floor(Math.random()*pool.length)]; setup.chars[t*4+i] = c ? c.id : null; if (c) used.add(c.id); });
+  }
   netBroadcast({t:'start', setup});
   startOnlineMatch(setup);
 }
@@ -3781,6 +3796,15 @@ function backToLobby(){
   if (document.pointerLockElement) document.exitPointerLock();
   startDemo(); openLobby('');
 }
+// ロビーのボット枠の表示（ホストは選べる）
+function botWho(t, sl, r, teamKey){
+  const L = net.lobby; L.cfg.bots = L.cfg.bots || {};
+  const id = L.cfg.bots[`${t},${sl}`], c = CHAR_BY_ID[id];
+  if (id && (!c || !charsOf(teamKey, r).includes(c))) delete L.cfg.bots[`${t},${sl}`];   // チームを変えたら選び直し
+  const ok = CHAR_BY_ID[L.cfg.bots[`${t},${sl}`]];
+  const label = ok ? `<span style="color:${RARITY[ok.rar].col}">${escHtml(ok.name)}</span> <b class="rar" style="color:${RARITY[ok.rar].col}">${ok.rar}</b>` : 'ボット（おまかせ）';
+  return net.host ? `<button type="button" class="who bot botSel" data-botpick="${t},${sl}">${label} ▾</button>` : `<span class="who bot">${label}</span>`;
+}
 function renderLobby(){
   const L = net.lobby;
   $('lobbyCode').textContent = net.code || '----';
@@ -3789,15 +3813,26 @@ function renderLobby(){
   const T = ALL_TEAMS();
   const roleOf = sl => sl===2 ? 'B' : 'C';
   $('lobbyTeams').innerHTML = [0,1].map(t=>{
-    const H = T[t===0 ? L.cfg.h0 : L.cfg.h1] || HOUSES.gryffindor;
+    const teamKey = t===0 ? L.cfg.h0 : L.cfg.h1, H = T[teamKey] || HOUSES.gryffindor;
     const rows = [0,1,2].map(sl=>{
       const p = L.players.find(x=>x.team===t && x.slot===sl), r = roleOf(sl);
       const who = p ? `<span class="who ${p.id===net.myId?'me':''}">${p.name.replace(/[<>&]/g,'')}${p.id===net.myId?'（あなた）':''}${p.host?'<span class="tagh">ホスト</span>':''}</span>`
-                    : `<span class="who bot">ボット</span><button data-pick="${t},${sl}">ここに入る</button>`;
+                    : botWho(t, sl, r, teamKey) + `<button data-pick="${t},${sl}">ここに入る</button>`;
       return `<div class="slot">${svgIcon(r, H.css)}<span class="rl">${ROLE_NAME[r]}</span>${who}</div>`;
-    }).join('') + `<div class="slot">${svgIcon('K', H.css)}<span class="rl">キーパー</span><span class="who bot">ボット（固定）</span></div>`;
+    }).join('') + `<div class="slot">${svgIcon('K', H.css)}<span class="rl">キーパー</span>${botWho(t, 3, 'K', teamKey)}</div>`;
     return `<div class="tcol" style="--tc:${H.css}"><h3>${t===0?'チームA':'チームB'}：${H.name}</h3>${rows}</div>`;
   }).join('');
+  document.querySelectorAll('[data-botpick]').forEach(b=>{ b.onclick = ev=>{
+    ev.stopPropagation(); uiClick();
+    const [t, sl] = b.dataset.botpick.split(',').map(Number), teamKey = t===0 ? L.cfg.h0 : L.cfg.h1, r = sl===3 ? 'K' : sl===2 ? 'B' : 'C';
+    const taken = Object.entries(L.cfg.bots || {}).filter(([k])=>k.startsWith(t + ',') && k !== `${t},${sl}`).map(([,v])=>v);
+    const ids = charsOf(teamKey, r).filter(c=>!taken.includes(c.id)).map(c=>c.id);
+    openPicker(b, ['__auto'].concat(ids), (L.cfg.bots || {})[`${t},${sl}`] || '__auto', id=>{
+      L.cfg.bots = L.cfg.bots || {};
+      if (id === '__auto') delete L.cfg.bots[`${t},${sl}`]; else L.cfg.bots[`${t},${sl}`] = id;
+      broadcastLobby();
+    });
+  }; });
   document.querySelectorAll('[data-pick]').forEach(b=>{ b.onclick = ()=>{
     uiClick(); const [t, sl] = b.dataset.pick.split(',').map(Number);
     if (net.host){ const me = L.players.find(p=>p.id==='host'); if (!L.players.some(p=>p.team===t && p.slot===sl)){ me.team = t; me.slot = sl; broadcastLobby(); } }
@@ -4591,7 +4626,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13d';
+const APP_VERSION = '2026-11-13f';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
