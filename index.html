@@ -2316,6 +2316,17 @@ function musicStinger(kind){
 }
 
 // --- 毎フレーム：状態に応じて曲を切り替え・先読みで予約 ---
+// 値が変わったときだけ予約する（毎フレーム予約すると予定がたまり続けて音がだんだん重くなる）
+const muLast = {};
+function muSet(key, param, v, now, tc){
+  const last = muLast[key];
+  if (last !== undefined && Math.abs(last - v) < Math.max(0.002, Math.abs(v)*0.01)) return;
+  muLast[key] = v;
+  try {
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else { param.cancelScheduledValues(now); param.setValueAtTime(param.value, now); }
+    param.setTargetAtTime(v, now, tc);
+  } catch(e){}
+}
 function musicTick(dt){
   if (!MU.a) return;
   const a = MU.a, now = a.currentTime, st = game.state;
@@ -2327,11 +2338,11 @@ function musicTick(dt){
   if (want !== MU.song){ MU.song = want; MU.bar = 0; MU.step = 0; MU.next = now + 0.08; }
   const paused = st==='paused';
   const vol = settings.bgm * (want==='menu' && st==='end' ? 0.6 : 1) * (paused ? 0.45 : 1);
-  MU.bus.gain.setTargetAtTime(vol*0.9, now, 0.25);
-  MU.lp.frequency.setTargetAtTime(paused ? 900 : 18000, now, 0.2);
+  muSet('bus', MU.bus.gain, vol*0.9, now, 0.25);
+  muSet('lp', MU.lp.frequency, paused ? 900 : 18000, now, 0.2);
   const crowd = (st==='play' || st==='countdown' || st==='paused') ? (0.05 + Math.min(3, game.cheer)*0.07) * (paused ? 0.4 : 1) * (stage==='wc' ? 1.4 : 1)
               : st==='end' ? 0.04 : 0;
-  MU.crowdG.gain.setTargetAtTime(crowd*settings.vol, now, 0.3);
+  muSet('crowd', MU.crowdG.gain, crowd*settings.vol, now, 0.3);
   if (!MU.song) return;
   if (MU.next < now - 0.15) MU.next = now + 0.05; // タブ非表示から戻ったとき
   const S = SONGS[MU.song];
@@ -3035,41 +3046,62 @@ function ronFarShot(e, spd){
 //  tackleFail=空振り / save=止めた / bludger=ブラッジャーを当てた / hit=当てられた / snitch=スニッチ出現 / catch=捕獲
 // =====================================================================
 const QUIPS = {
-  harry:   {goal:['……届いた。','この一点で、流れを変える。','風が、こちらを向いた。'], teamGoal:['いい。この流れを切らすな。'], conceded:['一点で止まるな。取り返す。','まだ、終わっていない。'],
-            tackleWin:['道は、こじ開ける。','――もらった。'], tackleFail:['……浅かった。'], hit:['っ……まだ、飛べる。'], snitch:['……見えた。金色の光。','あの光だけを、追う。']},
-  ron:     {save:['止めた……！','ここは、通さない。','……まだ、やれる。'], conceded:['……次は、止める。','もう一本も、入れさせない。'], teamGoal:['その調子だ。後ろは任せろ。']},
-  ronss:   {save:['……見えてきた。','ここは、通さない。','焦らなければ、止められる。'], conceded:['……次は、止める。'], teamGoal:['後ろは、任せろ。']},
-  ronx:    {save:['……見えている。全部。','何本でも、来い。','止まって見える。……本当に。'], conceded:['……今のは、忘れる。'], teamGoal:['後ろは、心配するな。']},
-  ginny:   {goal:['これが、答え。','次も、いただく。'], teamGoal:['いい。もう一本。'], conceded:['顔を上げて。まだ、いける。'], tackleWin:['甘い。'], tackleFail:['……もう一度。']},
-  fred:    {bludger:['一人、沈んだ。','ブラッジャーは、誰にでも平等だ。'], teamGoal:['いい一撃だ。'], hit:['……やるな。']},
-  george:  {bludger:['道は、空けておいた。','次は、どいつだ。'], teamGoal:['その調子だ。'], hit:['……油断した。']},
-  wood:    {save:['それでいい。'], teamGoal:['その一点が、勝利を連れてくる。'], conceded:['集中しろ。ここからだ。']},
-  angelina:{goal:['一点ずつ、積み上げる。'], teamGoal:['焦らず、確実に。'], conceded:['慌てないで。取り返す。']},
-  katie:   {goal:['……決めた。'], teamGoal:['いい流れ。']},
-  draco:   {goal:['これが、格の違いだ。'], conceded:['……まぐれだ。調子に乗るな。'], tackleWin:['遅い。'], hit:['……覚えておけ。'], snitch:['今度こそ、ぼくが取る。']},
-  flint:   {goal:['当然だ。'], tackleWin:['どけ。','邪魔だ。'], tackleFail:['ちょこまかと……。'], conceded:['次は、ねじ伏せる。']},
-  cedric:  {goal:['すまない。だが、手は抜かない。'], conceded:['いい一点だ。……次は、こちらの番だ。'], snitch:['……行こう。']},
-  cho:     {goal:['もらったよ。'], snitch:['スニッチ……逃がさない。'], conceded:['大丈夫。落ち着いて。']},
-  davies:  {goal:['計算どおりだ。'], conceded:['……修正する。']},
-  bagman:  {bludger:['その程度で、逃げ切れると思うな。','俺の一打は、外れない。'], teamGoal:['いい。そのまま押し切れ。'], hit:['……効かないな。']},
-  krum:    {snitch:['……来た。'], catch:['……終わりだ。'], tackleWin:['……遅い。'], hit:['……問題ない。'], goal:['……一つ。']},
-  dimitrov:{tackleWin:['どけ。'], goal:['ブルガリアを、なめるな。']},
-  zograf:  {save:['通さない。','……読めている。','その距離では、入らない。']},
-  volkov:  {bludger:['倒れていろ。','次は、もっと重い。','……邪魔だ。']},
+  harry:   {goal:['……届いた。','この一点で、流れを変える。','風が、こちらを向いた。','もう一本、取りにいく。'], teamGoal:['いい。この流れを切らすな。','そのまま、押し込もう。'],
+            conceded:['一点で止まるな。取り返す。','まだ、終わっていない。'], tackleWin:['道は、こじ開ける。','――もらった。'], tackleFail:['……浅かった。','次は、外さない。'],
+            hit:['っ……まだ、飛べる。'], snitch:['……見えた。金色の光。','あの光だけを、追う。'], chatter:['前を見ろ。リングは、すぐそこだ。','焦るな。チャンスは、必ず来る。','ボールを回そう。崩れるのは、向こうだ。']},
+  ron:     {save:['止めた……！','ここは、通さない。','……まだ、やれる。','よし……止まった。'], conceded:['……次は、止める。','もう一本も、入れさせない。'], teamGoal:['その調子だ。後ろは任せろ。','いいぞ……そのままだ。'],
+            chatter:['……落ち着け。ボールだけを見ろ。','来るなら来い。','前は頼んだ。後ろは、なんとかする。']},
+  ronss:   {save:['……見えてきた。','ここは、通さない。','焦らなければ、止められる。','今の、読めてた。'], conceded:['……次は、止める。','切り替える。'], teamGoal:['後ろは、任せろ。','いい流れだ。'],
+            chatter:['リングの前は、俺の場所だ。','焦るな。俺がいる。']},
+  ronx:    {save:['……見えている。全部。','何本でも、来い。','止まって見える。……本当に。','その距離じゃ、入らない。','次も、止める。'], conceded:['……今のは、忘れる。'], teamGoal:['後ろは、心配するな。','好きなだけ、攻めろ。'],
+            chatter:['……今日は、負ける気がしない。','打ってこい。全部、止める。']},
+  ginny:   {goal:['これが、答え。','次も、いただく。','もう一本、決める。'], teamGoal:['いい。もう一本。','その調子。'], conceded:['顔を上げて。まだ、いける。','すぐ取り返す。'],
+            tackleWin:['甘い。','もらうよ。'], tackleFail:['……もう一度。'], hit:['っ……平気。'], chatter:['パス、ちょうだい。決めてくる。','迷ってる暇はない。','右、空いてる。']},
+  fred:    {bludger:['一人、沈んだ。','ブラッジャーは、誰にでも平等だ。','道は、こっちで作る。'], teamGoal:['いい一撃だ。','その調子で頼む。'], hit:['……やるな。'],
+            chatter:['ジョージ、右を頼む。','守りは任せろ。好きに飛べ。']},
+  george:  {bludger:['道は、空けておいた。','次は、どいつだ。','フレッド、もう一人いくぞ。'], teamGoal:['その調子だ。','いい流れだ、続けろ。'], hit:['……油断した。'],
+            chatter:['フレッド、左は任せた。','邪魔なやつは、こっちで落とす。']},
+  wood:    {save:['それでいい。','よく見た。'], teamGoal:['その一点が、勝利を連れてくる。','いい。積み上げろ。'], conceded:['集中しろ。ここからだ。','一点は一点だ。取り返せ。'],
+            chatter:['陣形を崩すな。','一本ずつ、確実に。']},
+  angelina:{goal:['一点ずつ、積み上げるわ。','決めたわよ。'], teamGoal:['焦らず、確実にいきましょう。','いいわ、その調子。'], conceded:['慌てないで。取り返すわ。'],
+            tackleWin:['もらったわ。'], chatter:['パスを回して。相手を揺さぶるの。','落ち着いて。私たちのペースよ。']},
+  katie:   {goal:['……決めたわ。','次も、狙えるわ。'], teamGoal:['いい流れね。'], tackleWin:['いただくわ。'], chatter:['ゴール前、空いてるわ。']},
+  alicia:  {goal:['入ったわ。'], teamGoal:['ナイス。続けましょう。'], chatter:['こっち、空いてるわ。']},
+  draco:   {goal:['これが、格の違いだ。','当然の結果だ。'], conceded:['……まぐれだ。調子に乗るな。','次は、ない。'], tackleWin:['遅い。','その程度か。'], hit:['……覚えておけ。'],
+            snitch:['今度こそ、ぼくが取る。'], chatter:['せいぜい、あがいてみせろ。','グリフィンドールに、負けるわけがない。']},
+  flint:   {goal:['当然だ。','もう一本、ねじ込む。'], tackleWin:['どけ。','邪魔だ。'], tackleFail:['ちょこまかと……。'], conceded:['次は、ねじ伏せる。'], chatter:['正面から、潰してやる。']},
+  cedric:  {goal:['すまない。だが、手は抜かない。','いい流れだ。このまま行こう。'], conceded:['いい一点だ。……次は、こちらの番だ。'], snitch:['……行こう。'],
+            tackleWin:['悪いね。'], chatter:['落ち着いていこう。まだ時間はある。','最後まで、全力でいく。']},
+  cho:     {goal:['もらったわ。','うまくいったわね。'], snitch:['スニッチ……逃がさないわ。','あの光は、渡さない。'], conceded:['大丈夫。落ち着いていきましょう。'],
+            tackleWin:['ごめんなさいね。'], chatter:['焦らないで。チャンスは来るわ。']},
+  davies:  {goal:['計算どおりだ。'], conceded:['……修正する。'], chatter:['パスコースは、読めている。']},
+  bagman:  {bludger:['その程度で、逃げ切れると思うな。','俺の一打は、外れない。','次は、どこへ逃げる？'], teamGoal:['いい。そのまま押し切れ。','その調子だ。止まるな。'], hit:['……効かないな。'],
+            chatter:['背中は任せろ。前だけ見て飛べ。','この試合、もらった。']},
+  krum:    {snitch:['……来た。'], catch:['……終わりだ。'], tackleWin:['……遅い。'], hit:['……問題ない。'], goal:['……一つ。'], chatter:['……まだだ。','……見えている。']},
+  dimitrov:{tackleWin:['どけ。'], goal:['ブルガリアを、なめるな。','もう一つ。'], chatter:['押し込め。']},
+  ivanova: {goal:['いただいたわ。'], teamGoal:['いい流れね。'], chatter:['ブルガリアの守りは、崩れないわ。']},
+  zograf:  {save:['通さない。','……読めている。','その距離では、入らない。','無駄だ。'], chatter:['打ってこい。']},
+  volkov:  {bludger:['倒れていろ。','次は、もっと重い。','……邪魔だ。'], chatter:['一人ずつ、沈める。']},
   vulchanov:{bludger:['よそ見をするな。','一人ずつ、落とす。']},
-  troy:    {goal:['三人なら、誰にも止められない。','今のパス、見えたか。'], teamGoal:['流れは、こちらにある。']},
-  mullet:  {goal:['いただく。'], teamGoal:['このまま、押し切る。']},
-  moran:   {goal:['もう一本。'], teamGoal:['いい。トロイ、次だ。']},
-  lynch:   {snitch:['今度こそ……。','二度と、同じ手は食わない。']},
-  ryan:    {save:['ここは、譲らない。','まだだ。']},
-  elodie:  {goal:['簡単すぎるわ。'], conceded:['……少しは、やるのね。']},
-  klaus:   {tackleWin:['押し負ける気はない。'], goal:['当然の結果だ。']},
+  troy:    {goal:['三人なら、誰にも止められない。','今のパス、見えたか。','次も、決める。'], teamGoal:['流れは、こちらにある。','いい。このまま回せ。'], chatter:['マレット、モラン、合わせるぞ。','追いつけるものなら、追ってこい。']},
+  mullet:  {goal:['いただく。','もう一つ。'], teamGoal:['このまま、押し切る。'], chatter:['トロイ、次は左だ。']},
+  moran:   {goal:['もう一本。','決めた。'], teamGoal:['いい。トロイ、次だ。'], chatter:['三人で、崩す。']},
+  lynch:   {snitch:['今度こそ……。','二度と、同じ手は食わない。'], chatter:['……スニッチは、まだか。']},
+  ryan:    {save:['ここは、譲らない。','まだだ。','読めていた。']},
+  charlotte:{goal:['決めたわ。','イギリスの意地を、見せてあげる。'], chatter:['前に出るわ。ついてきて。']},
+  elodie:  {goal:['簡単すぎるわ。','もう一本、いかが？'], conceded:['……少しは、やるのね。'], chatter:['フランスの連携、見せてあげるわ。']},
+  klaus:   {tackleWin:['押し負ける気はない。'], goal:['当然の結果だ。'], chatter:['正面から来い。']},
+  hanna:   {goal:['決めたわ。'], chatter:['ドイツの守りは、崩させないわ。']},
 };
-const QUIP_CHANCE = {goal:0.75, teamGoal:0.45, conceded:0.5, tackleWin:0.45, tackleFail:0.35, save:0.65, bludger:0.3, hit:0.3, snitch:1, catch:1};
+const QUIP_MENTIONS = {'ジョージ':'george', 'フレッド':'fred', 'トロイ':'troy', 'マレット':'mullet', 'モラン':'moran'};
+const QUIP_CHANCE = {goal:1, teamGoal:0.75, conceded:0.75, tackleWin:0.8, tackleFail:0.55, save:0.9, bludger:0.6, hit:0.55, snitch:1, catch:1, chatter:1};
 const quipState = {t:-99, last:null, lastLine:'', by:{}, used:{}};
 const quipLines = e => e && e.char && !e.human ? QUIPS[e.char.id] || (e.char.id==='ronss' ? QUIPS.ron : null) : null;
 function pickLine(e, kind){
-  const L = quipLines(e); const arr = L && L[kind]; if (!arr || !arr.length) return null;
+  const L = quipLines(e); let arr = L && L[kind]; if (!arr || !arr.length) return null;
+  // 仲間の名前を呼ぶセリフは、その仲間が出ているときだけ
+  arr = arr.filter(x=>Object.entries(QUIP_MENTIONS).every(([nm, id])=>!x.includes(nm) || ents.some(o=>o.char && o.char.id===id && o.team===e.team)));
+  if (!arr.length) return null;
   const used = (quipState.used[e.id] = quipState.used[e.id] || []);
   const opts = arr.filter(x=>x!==quipState.lastLine && !used.includes(x)); const src = opts.length ? opts : arr.filter(x=>x!==used[used.length-1]);
   return (src.length ? src : arr)[Math.floor(Math.random()*(src.length || arr.length))];
@@ -3079,12 +3111,12 @@ function sayEvent(kind, actor, opts={}){
   if (net.guest) return;
   if (game.state !== 'play') return;
   const force = kind==='snitch' || kind==='catch';
-  if (!force && (now - quipState.t < 5 || Math.random() > (QUIP_CHANCE[kind] || 0.4))) return;
+  if (!force && (now - quipState.t < 2.5 || Math.random() > (QUIP_CHANCE[kind] || 0.4))) return;
   const tries = [];
   if (actor) tries.push([actor, kind]);
   if (actor && kind==='goal'){ for (const o of ents) if (o.team===actor.team && o!==actor) tries.push([o, 'teamGoal']); for (const o of ents) if (o.team!==actor.team) tries.push([o, 'conceded']); }
   if (opts.team !== undefined && kind==='snitch') for (const o of ents) if (o.role!=='K') tries.push([o, 'snitch']);
-  const pool = tries.filter(([e, k])=>e && e !== quipState.last && (force || now - (quipState.by[e.id] ?? -99) > 15) && pickLine(e, k));
+  const pool = tries.filter(([e, k])=>e && e !== quipState.last && (force || now - (quipState.by[e.id] ?? -99) > 8) && pickLine(e, k));
   if (!pool.length) return;
   // 本人のセリフを優先、なければランダム
   const [who, k] = pool[0][0]===actor && pickLine(actor, kind) && actor !== quipState.last ? pool[0] : pool[Math.floor(Math.random()*pool.length)];
@@ -3105,7 +3137,15 @@ function showQuip(id, line){
   el.classList.toggle('right', !mine); el.style.top = slots[k];
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); quipT = 3.0;
 }
-function quipTick(dt){ if (quipT > 0){ quipT -= dt; if (quipT <= 0) $('quip').classList.remove('on'); } }
+function quipTick(dt){
+  if (quipT > 0){ quipT -= dt; if (quipT <= 0) $('quip').classList.remove('on'); }
+  // しばらく誰も話していなければ、試合に出ている主要キャラが声をかける
+  if (game.state === 'play' && !net.guest && now - quipState.t > 6){
+    const cand = ents.filter(e=>!e.human && e.stun <= 0 && now - (quipState.by[e.id] ?? -99) > 8 && pickLine(e, 'chatter'));
+    if (cand.length) sayEvent('chatter', cand[Math.floor(Math.random()*cand.length)]);
+    else quipState.t = now - 3;   // 話せる人がいなければ少し待つ
+  }
+}
 function scoreGoal(team, hoopIdx, p){
   game.score[team] += CFG.goalPoints;
   stat(ball.lastThrower, 'goals');
@@ -4626,7 +4666,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13f';
+const APP_VERSION = '2026-11-13g';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
