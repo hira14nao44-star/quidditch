@@ -735,7 +735,10 @@ const HAIR_STYLE = {
 const PW_OVERRIDE = {troy:1.128, lynch:1.115, mullet:1.125, moran:1.125, connolly:1.125, quigley:1.125, ryan:1.13,   // アイルランド：SSRの上澄み（URの1.13にほぼ並ぶ）
   zograf:1.13, volkov:1.11, vulchanov:1.11};                                                                            // ブルガリア：守備が固い
 for (const id in PW_OVERRIDE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].pwx = PW_OVERRIDE[id];
-const KEEPER_REACH = {ryan:2.0};   // キーパーの守備範囲の上乗せ（m）：アイルランドの守護神
+const KEEPER_REACH = {ryan:2.0};
+// チームの持ち味（ボットのみ）：broom=全員の箒、drain=スタミナの減り（倍率）、regen=回復（倍率）、pass=天才的なパス回し、tackle=鋭いタックル
+const TEAM_TRAIT = {ireland:{broom:'blaze', drain:0.6, regen:1.5, pass:1, tackle:1}};
+const TT = e => (e && !e.human && e.char && TEAM_TRAIT[e.char.team]) || null;   // キーパーの守備範囲の上乗せ（m）：アイルランドの守護神
 const BIG_BUILD = ['flint','crabbe','goyle','volkov','vulchanov','bagman','lukas','connolly'];
 for (const id in HAIR_STYLE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].hs = HAIR_STYLE[id];
 for (const id of BIG_BUILD) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].big = true;
@@ -1987,7 +1990,7 @@ function nameSprite(text, color){
 }
 function makeEnt(team, role, isPlayer, i, opt={}){
   const ch = opt.char || null;
-  const broom = opt.broom || (isPlayer ? settings.broom : ch && ch.sk==='krum' ? 'blaze' : Object.keys(BROOMS)[Math.floor(Math.random()*3)]);
+  const broom = opt.broom || (isPlayer ? settings.broom : ch && TEAM_TRAIT[ch.team] && TEAM_TRAIT[ch.team].broom ? TEAM_TRAIT[ch.team].broom : ch && ch.sk==='krum' ? 'blaze' : Object.keys(BROOMS)[Math.floor(Math.random()*3)]);
   const e = {broom, char:ch, sk: ch ? ch.sk : '', pw: ch ? (ch.pwx || RARITY[ch.rar].pw) : 1,
     id: team*4+i, team, role, isPlayer, side: i===0 ? -1 : 1,
     human: isPlayer || !!opt.human, remote: !!opt.remote, peer: opt.peer || null, name: opt.name || '', stats:{}, dashId:0, lastDashId:-1, net:null, netT:null,
@@ -2506,11 +2509,12 @@ function takeBall(e){
   notify(e, 'クアッフルを確保！', 0.8, 'var(--ball)', {snd:'get'});
 }
 function pass(from, to){
-  const spd = 38, t = from.pos.distanceTo(to.pos)/spd;
+  const g = TT(from) && TT(from).pass, spd = g ? 47 : 38, t = from.pos.distanceTo(to.pos)/spd;
   const tp = to.pos.clone().addScaledVector(to.dir, to.speed*t);
   release(from, aimVel(from.pos.clone().addScaledVector(from.dir,1.4), tp, spd));
   ball.intended = to;
   if (from.human || to.human) ball.homing = 2.5;   // 人間が絡むパスは受け手を追いかける
+  else if (g) ball.homing = 2.0;                  // 天才的なパス：受け手にぴたりと届く
   if (to.human && !from.human){ from.callT = 1.3; notify(to, 'パスが来る！', 0.9, 'var(--blue)'); }
 }
 function shootAt(e, hp){
@@ -2581,9 +2585,9 @@ function updateWindup(e, dt){
   if (!t || t.stun>0 || ball.holder!==t){ e.windup = 0; e.dashTarget = null; return; }
   const pred = t.pos.clone().addScaledVector(t.dir, t.speed*0.25);
   steer(e, pred, e.speed*0.92, dt, 6);
-  if (e.windup <= 0){ e.windup = 0; startDash(e, pred.sub(e.pos), t, CFG.botDash, 3.5); }
+  if (e.windup <= 0){ e.windup = 0; const tk = TT(e) && TT(e).tackle; startDash(e, pred.sub(e.pos), t, CFG.botDash*(tk ? 1.08 : 1), tk ? 6 : 3.5); }
 }
-function beginWindup(e, target){ e.windup = D.windup; e.dashTarget = target; }
+function beginWindup(e, target){ e.windup = D.windup*(TT(e) && TT(e).tackle ? 0.65 : 1); e.dashTarget = target; }
 function sweptHit(a0, a1, b0, b1, R){
   const r0 = b0.clone().sub(a0), d = b1.clone().sub(a1).sub(r0);
   const dd = d.lengthSq(); const t = dd > 1e-8 ? clamp(-r0.dot(d)/dd, 0, 1) : 0;
@@ -2839,14 +2843,14 @@ const snitchWorth = t => lead(t) + CFG.snitchPoints > 0;          // 取れば�
 const lateGame = () => game.time < 60;
 const defBuff = t => (t===1 && game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].rivalDef) || 0;   // ストーリーの相手チームの守備強化
 function botSpd(e, base, urgent, dt){
-  const b = BROOMS[e.broom] || BROOMS.swift;
+  const b = BROOMS[e.broom] || BROOMS.swift, tr = TT(e);
   if (e.exhausted && e.stamina >= 0.35) e.exhausted = false;
   if (urgent && !e.exhausted && e.stamina > 0){
-    e.boosting = true; e.stamina = Math.max(0, e.stamina - b.drain*(e.sk==='krum' && snitch.active ? 0.4 : 1)*dt);
+    e.boosting = true; e.stamina = Math.max(0, e.stamina - b.drain*(e.sk==='krum' && snitch.active ? 0.4 : 1)*(tr ? tr.drain : 1)*dt);
     if (e.stamina <= 0) e.exhausted = true;
     return Math.max(base, b.boost*D.boost);
   }
-  e.stamina = Math.min(1, e.stamina + 0.16*dt);
+  e.stamina = Math.min(1, e.stamina + 0.16*(tr ? tr.regen : 1)*dt);
   return base;
 }
 function botDodge(e){
@@ -2861,8 +2865,8 @@ function botDodge(e){
 }
 function tryBotTackle(e, h, dt, range=10){
   if (e.dashCD>0 || e.recover>0 || h.tackleImmune>0 || h.roll>0) return;
-  const to = h.pos.clone().sub(e.pos), d = to.length();
-  if (d < range && d > 2 && e.dir.angleTo(to) < 0.6 && Math.random() < dt*2.5*D.aggr*e.pw*(lateGame() && lead(e.team) < 0 ? 1.6 : 1)) beginWindup(e, h);
+  const to = h.pos.clone().sub(e.pos), d = to.length(), tk = TT(e) && TT(e).tackle;
+  if (d < range*(tk ? 1.2 : 1) && d > 2 && e.dir.angleTo(to) < (tk ? 0.85 : 0.6) && Math.random() < dt*2.5*D.aggr*e.pw*(tk ? 1.8 : 1)*(lateGame() && lead(e.team) < 0 ? 1.6 : 1)) beginWindup(e, h);
 }
 function chaserAI(e, dt){
   const sign = e.team===0 ? 1 : -1, hx = attackX(e.team);
@@ -2879,21 +2883,29 @@ function chaserAI(e, dt){
     if (e.targetHoop===null || Math.random() < dt*0.3) e.targetHoop = pickHoop(e.team);
     const hp = hoopPos(hx, e.targetHoop);
     steer(e, new V3(hx - sign*16, hp.y, hp.z*0.5), botSpd(e, D.bot, nearestEnemyDist(e.pos, e.team) < 9, dt), dt);
+    const gp = TT(e) && TT(e).pass;   // 天才的なパス回し：タックルの寸前にかわすパス、ゴールに近いフリーの味方へのスルーパス
     const mateOpen = mate && mate.stun<=0 && nearestEnemyDist(mate.pos, e.team) > 6;
     const mateAhead = mate && (mate.pos.x - e.pos.x)*sign > 6;
     const threatened = ents.some(o=>o.dashTarget===e && (o.windup>0||o.dash>0));
     const shootRange = game.time < 20 && lead(e.team) > 0 ? 17 : 27;   // 終盤リード中は確実に決められる距離まで運ぶ
-    if (e.pos.distanceTo(hp) < shootRange && e.holdTime > 0.4) shootAt(e, hp);
+    const through = gp && mate && mate.stun<=0 && !mate.human && nearestEnemyDist(mate.pos, e.team) > 9 && mate.pos.distanceTo(hp) < e.pos.distanceTo(hp) - 10;
+    if (e.pos.distanceTo(hp) < shootRange && e.holdTime > (gp ? 0.25 : 0.4)) shootAt(e, hp);
+    else if (gp && e.holdTime > 0.15 && mate && mate.stun<=0 && threatened && nearestEnemyDist(mate.pos, e.team) > 4) pass(e, mate);
+    else if (through && e.holdTime > 0.3 && Math.random() < dt*3) pass(e, mate);
     else if (e.holdTime > 0.5 && mateOpen && (threatened || nearestEnemyDist(e.pos, e.team) < 6 || mateAhead) && Math.random() < dt*(threatened?6:(mate.human?1.2:2))) pass(e, mate);
     else if (e.holdTime > 9 && mate && mate.stun<=0) pass(e, mate);
   } else if (h && h.team===e.team){
-    const t = new V3(clamp(h.pos.x + sign*14, -W.HOOPX+4, W.HOOPX-4), clamp(h.pos.y+3, 10, 40), e.side*12);
+    const gp = TT(e) && TT(e).pass;
+    const t = new V3(clamp(h.pos.x + sign*(gp ? 17 : 14), -W.HOOPX+4, W.HOOPX-4), clamp(h.pos.y+3, 10, 40), e.side*12);
     steer(e, t, botSpd(e, D.bot+2, e.pos.distanceTo(t) > 30, dt), dt);
   } else if (h){
     let pursuer = null, pd = 1e9;
     for (const o of ents){ if (o.team!==e.team || o.role!=='C' || o.stun>0) continue; const d = o.pos.distanceTo(h.pos); if (d<pd){ pd = d; pursuer = o; } }
     if (pursuer===e){
       steer(e, h.pos.clone().addScaledVector(h.dir, h.speed*0.3), botSpd(e, D.bot+4, e.pos.distanceTo(h.pos) > 7, dt), dt, 4);
+      tryBotTackle(e, h, dt);
+    } else if (TT(e) && TT(e).tackle && e.pos.distanceTo(h.pos) < 15){
+      steer(e, h.pos.clone().addScaledVector(h.dir, h.speed*0.3), botSpd(e, D.bot+3, true, dt), dt, 4);   // 挟み込む
       tryBotTackle(e, h, dt);
     } else {
       steer(e, h.pos.clone().lerp(new V3(-hx, 20, 0), 0.35), D.bot+2, dt);
@@ -4740,7 +4752,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14a';
+const APP_VERSION = '2026-11-14b';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
