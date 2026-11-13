@@ -82,6 +82,19 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #cut .nx{text-align:right;font-size:12px;opacity:.55}
 @media (max-width:640px){.chap{grid-template-columns:1fr 1fr}#cut .txt{font-size:17px}}
 .cinfoWrap{margin-top:10px}
+.vsHead{display:flex;align-items:center;justify-content:center;gap:26px;margin:10px 0 2px;padding:14px;border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.02),rgba(255,255,255,.06))}
+.vsTeam{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:150px}.vsTeam b{font-size:18px}
+.vsMark{font-size:38px;font-weight:900;font-style:italic;color:#ffcf4a;text-shadow:0 0 18px rgba(255,190,60,.55),0 3px 0 #8a5a00;letter-spacing:2px}
+.emb{filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}.emb.flag{border-radius:3px}
+.rcards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.rcard{position:relative;border-radius:12px;padding:10px 12px;background:linear-gradient(160deg,#20283d,#121827);border:2px solid #3a4560;cursor:default;outline:none;overflow:hidden}
+.rcard:hover,.rcard:focus{transform:translateY(-2px)}
+.rcard.rSR{border-color:#4f8fd8}.rcard.rSSR{border-color:#e7b43a;box-shadow:0 0 14px rgba(231,180,58,.35)}
+.rcard.rUR{border-color:#ff5fd2;box-shadow:0 0 18px rgba(255,95,210,.5);background:linear-gradient(160deg,#3a1a3a,#151020)}
+.rcard .rtop{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.9}.rcard .rtop .ico{width:15px;height:15px}.rcard .rtop b{margin-left:auto;font-size:13px}
+.rcard .rname{font-weight:800;font-size:15px;margin:6px 0 4px;line-height:1.3}
+.rcard .rsk{font-size:11.5px;font-weight:800;min-height:15px}
+@media (max-width:640px){.rcards{grid-template-columns:1fr 1fr}.vsTeam{min-width:0}}
 .cinfo{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;font-size:13.5px;line-height:1.7}
 .cinfo .ch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.cinfo .ch b{font-size:16px}
 .cinfo .ctag{font-size:12px;opacity:.7;margin-left:auto}.cinfo .csk{font-size:12.5px;font-weight:800;margin-top:2px}
@@ -334,6 +347,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
 <div class="overlay" id="storyPrep" hidden>
   <div class="panel">
     <p class="ptitle" id="prepTitle">出場準備</p>
+    <div class="vsHead" id="prepVsHead"></div>
     <p class="sub" id="prepVs"></p>
     <p class="ptitle" style="font-size:20px;margin-top:14px">ポジション</p>
     <div class="srow"><button class="btn ghost small" data-prole="C" type="button">チェイサー</button><button class="btn ghost small" data-prole="B" type="button">ビーター</button></div>
@@ -341,6 +355,9 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <p class="sub" id="prepNote" style="margin-top:4px"></p>
     <div class="lineup" id="prepLineup"></div>
     <div class="cinfoWrap" id="prepInfo"></div>
+    <p class="ptitle" style="font-size:20px;margin-top:18px">相手の編成</p>
+    <div class="rcards" id="prepRival"></div>
+    <div class="cinfoWrap" id="prepRivalInfo"></div>
     <div class="srow" style="margin-top:14px"><span>箒</span><select id="prepBroom" aria-label="箒"></select></div>
     <div class="btns">
       <button class="btn" id="prepGo">試合開始</button>
@@ -382,7 +399,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <p class="sub" style="margin-top:4px">味方3人を選べます。選手にカーソルを合わせると紹介が出ます。</p>
     <div class="lineup" id="lineupWrap"></div>
     <div class="cinfoWrap" id="lineupInfo"></div>
-    <p class="ptitle" style="font-size:20px;margin-top:22px">相手チーム<select id="rivalSel" class="rsel" aria-label="相手チーム"></select><button class="btn ghost small" id="rivalRand" type="button">メンバーをランダム</button></p>
+    <p class="ptitle" style="font-size:20px;margin-top:22px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span id="rivalEmb"></span>相手チーム<select id="rivalSel" class="rsel" aria-label="相手チーム"></select><button class="btn ghost small" id="rivalRand" type="button">メンバーをランダム</button></p>
     <div class="lineup" id="rivalWrap"></div>
     <div class="cinfoWrap" id="rivalInfo"></div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">箒を選ぶ</p>
@@ -728,7 +745,7 @@ const PROFILE = {
   rickett:'ハッフルパフのビーター。原作では名前が出てくる程度の選手。',
   oflaherty:'ハッフルパフのビーター。原作では名前が出てくる程度の選手。',
   fleet:'ハッフルパフのキーパー。原作では名前が出てくる程度の選手で、粘り強い守りを見せる。',
-  bagman:'かつてイギリス代表で活躍した名ビーター。現役時代の豪快なスイングは今も語り草。引退後は魔法省で魔法スポーツの仕事についた、陽気で調子のいい人物。',
+  bagman:'イギリス代表で名をはせたビーターの、若き現役時代の姿。豪快なフルスイングで放つブラッジャーは重く、しつこく相手を追い回す。陽気で自信家、チームを盛り上げるムードメーカーでもある。',
   krum:'ブルガリア代表のシーカーで、世界最高と呼ばれる若き天才。地上ではぎこちないのに、箒に乗ると別人のように鋭く飛ぶ。急降下でだます大技「ウロンスキー・フェイント」の使い手。',
   dimitrov:'ブルガリア代表のチェイサー。クラムの影に隠れがちだが、ワールドカップを勝ち上がってきた実力者。荒っぽいプレーも辞さない。',
   ivanova:'ブルガリア代表のチェイサー。ワールドカップ決勝の舞台に立った実力者。',
@@ -744,6 +761,22 @@ const PROFILE = {
   quigley:'アイルランド代表のビーター。ワールドカップ優勝メンバーのひとり。',
   ryan:'アイルランド代表のキーパー。ワールドカップ優勝メンバーのひとり。',
 };
+const FLAGS = {
+  ireland:  '<rect width="30" height="20" fill="#169b62"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ff883e"/>',
+  bulgaria: '<rect width="30" height="20" fill="#fff"/><rect y="6.67" width="30" height="6.67" fill="#00966e"/><rect y="13.33" width="30" height="6.67" fill="#d62612"/>',
+  france:   '<rect width="30" height="20" fill="#0055a4"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ef4135"/>',
+  germany:  '<rect width="30" height="20" fill="#000"/><rect y="6.67" width="30" height="6.67" fill="#dd0000"/><rect y="13.33" width="30" height="6.67" fill="#ffce00"/>',
+  england:  '<rect width="30" height="20" fill="#012169"/><path d="M0,0 30,20 M30,0 0,20" stroke="#fff" stroke-width="4"/><path d="M0,0 30,20 M30,0 0,20" stroke="#c8102e" stroke-width="1.6"/><path d="M15,0 v20 M0,10 h30" stroke="#fff" stroke-width="6"/><path d="M15,0 v20 M0,10 h30" stroke="#c8102e" stroke-width="3.6"/>',
+};
+// チームのマーク：国は国旗、寮は寮の2色と頭文字のオリジナルの盾
+function emblemSvg(key, size=56){
+  if (FLAGS[key]) return `<svg class="emb flag" viewBox="0 0 30 20" width="${size*1.4}" height="${size*0.93}" aria-hidden="true">${FLAGS[key]}<rect width="30" height="20" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".6"/></svg>`;
+  const H = HOUSES[key] || ALL_TEAMS()[key] || {}, c1 = hexCss(H.col || 0x888888), c2 = H.acc || '#e8b53a';
+  return `<svg class="emb" viewBox="0 0 40 46" width="${size*0.87}" height="${size}" aria-hidden="true">
+    <path d="M20 2 L37 8 V22 C37 33 29 40 20 44 C11 40 3 33 3 22 V8 Z" fill="${c1}" stroke="${c2}" stroke-width="2.4"/>
+    <path d="M20 6 L33 10.5 V22 C33 30.5 27 36 20 39.5 C13 36 7 30.5 7 22 V10.5 Z" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+    <text x="20" y="29" text-anchor="middle" font-size="19" font-weight="800" font-family="serif" fill="${c2}">${H.letter || '?'}</text></svg>`;
+}
 function charInfoHtml(c){
   if (!c) return '';
   const T = ALL_TEAMS()[c.team] || {};
@@ -3766,6 +3799,7 @@ function renderRival(){
   const dict = settings.diff==='world' ? NATIONS : HOUSES, own = lineupTeam(), cur = rivalChoice();
   $('rivalSel').innerHTML = `<option value="random">ランダム（毎試合）</option>` + Object.entries(dict).filter(([k])=>k!==own).map(([k,H])=>`<option value="${k}">${H.name}</option>`).join('');
   $('rivalSel').value = cur;
+  $('rivalEmb').innerHTML = cur==='random' ? '' : emblemSvg(cur, 30);
   $('rivalRand').style.display = cur==='random' ? 'none' : '';
   if (cur==='random'){ $('rivalWrap').innerHTML = '<p class="sub" style="grid-column:1/-1;margin:0">相手チームもメンバーも毎試合ランダムで決まります。</p>'; $('rivalInfo').innerHTML = ''; return; }
   const lu = pickLineup(cur, {C:2, B:1, K:1}, settings.rivalLineup[cur]);
@@ -4248,7 +4282,17 @@ function renderPrep(i){
   const C = CHAPTERS[i], T = ALL_TEAMS(), pool = storyPool(i), sel = storySel(i);
   const role = game.playerRole || settings.role || 'C'; game.playerRole = role;
   $('prepTitle').textContent = `第${i+1}章　${C.title}`;
-  $('prepVs').textContent = `${T[C.own].name} 対 ${T[chRival(C)].name}（相手メンバー固定・${DIFF_LABEL[C.diff]}）`;
+  const rv = chRival(C);
+  $('prepVsHead').innerHTML = `<div class="vsTeam">${emblemSvg(C.own, 62)}<b style="color:${T[C.own].css}">${T[C.own].name}</b></div><div class="vsMark">VS</div><div class="vsTeam">${emblemSvg(rv, 62)}<b style="color:${T[rv].css}">${T[rv].name}</b></div>`;
+  $('prepVs').textContent = `相手メンバー固定・${DIFF_LABEL[C.diff]}${C.stage==='wc' ? '・W杯会場' : ''}`;
+  { const rl = chLineup(C), list = [...rl.C, ...rl.B, ...rl.K];
+    $('prepRival').innerHTML = list.map(c=>`<div class="rcard r${c.rar}" data-cid="${c.id}" tabindex="0">
+      <div class="rtop">${svgIcon(c.role, '#fff')}<span>${ROLE_NAME[c.role]}</span><b class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</b></div>
+      <div class="rname">${escHtml(c.name)}</div>
+      ${c.sk ? `<div class="rsk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : '<div class="rsk"></div>'}
+    </div>`).join('');
+    wireInfo($('prepRival'), $('prepRivalInfo'));
+    $('prepRival').querySelectorAll('.rcard').forEach(el=>el.addEventListener('focus', ()=>{ $('prepRivalInfo').dataset.id = el.dataset.cid; showCharInfo($('prepRivalInfo'), el.dataset.cid); })); }
   $('prepNote').textContent = i >= 4 ? 'グリフィンドールの仲間とイギリス代表の選手から選べます。' : 'グリフィンドールの仲間から選べます。';
   document.querySelectorAll('[data-prole]').forEach(b=>{ b.classList.toggle('sel', b.dataset.prole===role); b.onclick = ()=>{ uiClick(); selectRole(b.dataset.prole); renderPrep(i); }; });
   const [lu, mc] = chOwnLineup(i);
