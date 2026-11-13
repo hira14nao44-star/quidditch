@@ -666,7 +666,7 @@ function poolLineup(all, need, pref, exclude){
 const needFor = playerRole => ({C: playerRole==='C' ? 1 : 2, B: playerRole==='B' ? 0 : 1, K: 1});
 function randomLineup(team, need){ return pickLineup(team, need, null); }
 const shortName = c => c.name.split('・')[0].replace(/（.*）/, '') + (c.name.includes('（覚醒）') ? '（覚醒）' : '');
-const entLabel = e => e.human ? (e.isPlayer && !net.active ? 'あなた' : e.name) : e.char ? shortName(e.char) : ROLE_NAME[e.role];
+const entLabel = e => e.human ? (e.isPlayer && !net.active ? (settings.name || 'あなた') : e.name) : e.char ? shortName(e.char) : ROLE_NAME[e.role];
 const teamDict = k => HOUSES[k] ? HOUSES : NATIONS;
 const rivalOf = h => {
   const dict = teamDict(h), ks = Object.keys(dict).filter(k=>k!==h);
@@ -2357,7 +2357,7 @@ function computeMVP(){
   let best = null, bs = 0;
   for (const e of ents){ const s = e.stats || {}; let v = 0; for (const k in STAT_W) v += (s[k]||0)*STAT_W[k]; if (v > bs){ bs = v; best = e; } }
   if (!best) return null;
-  const s = best.stats, who = best.human ? (net.active ? (best.name || 'ホスト') : 'あなた') : `${TEAM_NAME[best.team]}の${entLabel(best)}`;
+  const s = best.stats, who = best.human ? (net.active ? (best.name || 'ホスト') : (settings.name || 'あなた')) : `${TEAM_NAME[best.team]}の${entLabel(best)}`;
   return {who, team:best.team, line:Object.keys(STAT_W).filter(k=>s[k]).map(k=>`${STAT_LABEL[k]}${s[k]}`).join('・')};
 }
 // 通知: 自分ならその場で表示、オンラインの他の人間なら本人に送る
@@ -2904,7 +2904,7 @@ function catchSnitch(e){
   game.score[e.team] += CFG.snitchPoints;
   emit(snitch.pos, 160, {colors:[0xffd54a,0xffffff,0xffb300], speed:18, life:1.8, size:0.5, gravity:4, drag:1.2});
   snitch.active = false; snitch.mesh.visible = false; stat(e, 'snitch');
-  const who = (e.isPlayer && !net.active) ? 'あなた' : `${TEAM_NAME[e.team]}の${entLabel(e)}`;
+  const who = (e.isPlayer && !net.active) ? (settings.name || 'あなた') : `${TEAM_NAME[e.team]}の${entLabel(e)}`;
   sfx('catch'); game.cheer = 3;
   endGame(`${who}が金のスニッチを捕獲！（+${CFG.snitchPoints}）`);
 }
@@ -3689,6 +3689,7 @@ function showResult(reason){
     : [['ゴール',v('goals')],['タックル命中',v('tackles')],['タックル奪取',v('steals')],['パスカット',v('cuts')]];
   $('endStats').innerHTML = items.map(([k,val])=>`<div class="stat"><b>${val}</b><span>${k}</span></div>`).join('');
   $('againBtn').textContent = net.active ? (net.host ? 'みんなでロビーに戻る' : 'ロビーに戻る') : 'もう一度';
+  $('changeBtn').textContent = 'ポジション変更';
   $('changeBtn').style.display = net.active ? 'none' : '';
   $('endMenuBtn').textContent = net.active ? '部屋を出る' : 'メニューへ';
   if (game.story){
