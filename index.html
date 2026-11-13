@@ -81,6 +81,12 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #cut .txt{font-size:21px;line-height:1.65;min-height:70px;color:#fff}
 #cut .nx{text-align:right;font-size:12px;opacity:.55}
 @media (max-width:640px){.chap{grid-template-columns:1fr 1fr}#cut .txt{font-size:17px}}
+.cinfoWrap{margin-top:10px}
+.cinfo{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;font-size:13.5px;line-height:1.7}
+.cinfo .ch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.cinfo .ch b{font-size:16px}
+.cinfo .ctag{font-size:12px;opacity:.7;margin-left:auto}.cinfo .csk{font-size:12.5px;font-weight:800;margin-top:2px}
+.cinfo p{margin:4px 0 0}
+.rsel{font:inherit;font-size:15px;padding:4px 8px;border-radius:8px;background:#141a2b;color:#fff;border:1px solid rgba(255,255,255,.25);margin-left:10px;vertical-align:middle}
 .lineup{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;align-items:start}
 .lslot{min-width:0}.lslot select{width:100%;min-width:0;text-overflow:ellipsis}
 .lslot.me{border-color:rgba(127,209,255,.45);background:rgba(127,209,255,.07)}
@@ -334,6 +340,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <p class="ptitle" style="font-size:20px;margin-top:14px">メンバー <button class="btn ghost small" id="prepRand" type="button">ランダム</button></p>
     <p class="sub" id="prepNote" style="margin-top:4px"></p>
     <div class="lineup" id="prepLineup"></div>
+    <div class="cinfoWrap" id="prepInfo"></div>
     <div class="srow" style="margin-top:14px"><span>箒</span><select id="prepBroom" aria-label="箒"></select></div>
     <div class="btns">
       <button class="btn" id="prepGo">試合開始</button>
@@ -372,8 +379,12 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
       </button>
     </div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">チームのメンバー <button class="btn ghost small" id="lineupRand" type="button">ランダム</button></p>
-    <p class="sub" style="margin-top:4px">自分の選手と、味方3人を選べます。相手チームのメンバーは毎試合ランダムです。</p>
+    <p class="sub" style="margin-top:4px">味方3人を選べます。選手にカーソルを合わせると紹介が出ます。</p>
     <div class="lineup" id="lineupWrap"></div>
+    <div class="cinfoWrap" id="lineupInfo"></div>
+    <p class="ptitle" style="font-size:20px;margin-top:22px">相手チーム<select id="rivalSel" class="rsel" aria-label="相手チーム"></select><button class="btn ghost small" id="rivalRand" type="button">メンバーをランダム</button></p>
+    <div class="lineup" id="rivalWrap"></div>
+    <div class="cinfoWrap" id="rivalInfo"></div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">箒を選ぶ</p>
     <div class="pick brooms" id="broomCards"></div>
     <div class="btns">
@@ -594,7 +605,7 @@ const CHARS = {
     ['harry','ハリー・ポッター','C','SSR','seeker','black'], ['ginny','ジニー・ウィーズリー','C','SSR','','red'],
     ['angelina','アンジェリーナ・ジョンソン','C','SR','','black'], ['katie','ケイティ・ベル','C','SR','','brown'], ['alicia','アリシア・スピネット','C','R','','dark'],
     ['fred','フレッド・ウィーズリー','B','SR','','red'], ['george','ジョージ・ウィーズリー','B','SR','','red'],
-    ['ronx','ロン・ウィーズリー（覚醒）','K','UR','ron','red'], ['wood','オリバー・ウッド','K','SSR','','brown'],
+    ['ronx','ロン・ウィーズリー（覚醒）','K','UR','ron','red'], ['ronss','ロン・ウィーズリー（成長）','K','SSR','','red'], ['wood','オリバー・ウッド','K','SSR','','brown'],
     ['ron','ロン・ウィーズリー','K','R','','red'], ['mclaggen','コーマック・マクラーゲン','K','R','','blond'],
   ],
   slytherin: [
@@ -619,22 +630,22 @@ const CHARS = {
     ['william','ウィリアム・クラーク','K','SR','','brown'],
   ],
   bulgaria: [
-    ['krum','ビクトール・クラム','C','UR','krum','black'], ['dimitrov','ディミトロフ','C','SR','','dark'], ['ivanova','イワノバ','C','SR','','black'], ['levski','レブスキー','C','SR','','brown'],
-    ['volkov','ボルコフ','B','SR','','dark'], ['vulchanov','バルカノフ','B','SR','','black'],
-    ['zograf','ゾグラフ','K','SR','','brown'],
+    ['krum','ビクトール・クラム','C','UR','krum','black'], ['dimitrov','ディミトロフ','C','SSR','','dark'], ['ivanova','イワノバ','C','SSR','','black'], ['levski','レブスキー','C','SSR','','brown'],
+    ['volkov','ボルコフ','B','SSR','','dark'], ['vulchanov','バルカノフ','B','SSR','','black'],
+    ['zograf','ゾグラフ','K','SSR','','brown'],
   ],
   ireland: [
-    ['troy','トロイ','C','SSR','','ginger'], ['lynch','エイダン・リンチ','C','SR','seeker','red'], ['mullet','マレット','C','SR','','brown'], ['moran','モラン','C','SR','','blond'],
-    ['connolly','コノリー','B','SR','','dark'], ['quigley','クィグリー','B','SR','','red'],
-    ['ryan','ライアン','K','SR','','brown'],
+    ['troy','トロイ','C','SSR','','ginger'], ['lynch','エイダン・リンチ','C','SSR','seeker','red'], ['mullet','マレット','C','SSR','','brown'], ['moran','モラン','C','SSR','','blond'],
+    ['connolly','コノリー','B','SSR','','dark'], ['quigley','クィグリー','B','SSR','','red'],
+    ['ryan','ライアン','K','SSR','','brown'],
   ],
   france: [    // オリジナル
-    ['elodie','エロディ・ルフェーヴル','C','SSR','','brown'], ['jeanluc','ジャン＝リュック・モロー','C','SR','','dark'], ['pierre','ピエール・ガルニエ','C','R','','black'],
+    ['elodie','エロディ・ルフェーヴル','C','SSR','','brown'], ['jeanluc','ジャン＝リュック・モロー','C','SSR','','dark'], ['pierre','ピエール・ガルニエ','C','R','','black'],
     ['antoine','アントワーヌ・ベルナール','B','SR','','brown'], ['marcel','マルセル・ルー','B','R','','gray'],
     ['louis','ルイ・デュボワ','K','SR','','dark'],
   ],
   germany: [   // オリジナル
-    ['klaus','クラウス・ヴェーバー','C','SSR','','blond'], ['hanna','ハンナ・シュミット','C','SR','','blond'], ['felix','フェリクス・ブラウン','C','R','','brown'],
+    ['klaus','クラウス・ヴェーバー','C','SSR','','blond'], ['hanna','ハンナ・シュミット','C','SSR','','blond'], ['felix','フェリクス・ブラウン','C','R','','brown'],
     ['lukas','ルーカス・ホフマン','B','SR','','dark'], ['max','マックス・クライン','B','R','','ginger'],
     ['dieter','ディーター・ヴァーグナー','K','SR','','gray'],
   ],
@@ -642,7 +653,7 @@ const CHARS = {
 const CHAR_BY_ID = {};
 for (const t in CHARS) CHARS[t] = CHARS[t].map(([id,name,role,rar,sk,hair])=>(CHAR_BY_ID[id] = {id, name, role, rar, sk, hair:HAIR[hair], team:t}));
 const HAIR_STYLE = {
-  harry:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', wood:'short', ron:'short', mclaggen:'curly',
+  harry:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', ronss:'short', wood:'short', ron:'short', mclaggen:'curly',
   flint:'short', draco:'slick', pucey:'short', montague:'buzz', crabbe:'buzz', goyle:'buzz', bletchley:'short',
   cho:'long', davies:'messy', stretton:'curly', inglebee:'short', samuels:'buzz', page:'short',
   cedric:'short', zacharias:'slick', cadwallader:'short', rickett:'short', oflaherty:'pony', fleet:'buzz',
@@ -652,6 +663,9 @@ const HAIR_STYLE = {
   elodie:'long', jeanluc:'slick', pierre:'messy', antoine:'short', marcel:'buzz', louis:'curly',
   klaus:'short', hanna:'pony', felix:'messy', lukas:'buzz', max:'spiky', dieter:'slick',
 };
+const PW_OVERRIDE = {troy:1.12, lynch:1.115, mullet:1.115, moran:1.115, connolly:1.115, quigley:1.115, ryan:1.12,   // アイルランド：SSRの上澄み
+  zograf:1.13, volkov:1.11, vulchanov:1.11};                                                                            // ブルガリア：守備が固い
+for (const id in PW_OVERRIDE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].pwx = PW_OVERRIDE[id];
 const BIG_BUILD = ['flint','crabbe','goyle','volkov','vulchanov','bagman','lukas','connolly'];
 for (const id in HAIR_STYLE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].hs = HAIR_STYLE[id];
 for (const id of BIG_BUILD) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].big = true;
@@ -681,7 +695,75 @@ function poolLineup(all, need, pref, exclude){
 }
 const needFor = playerRole => ({C: playerRole==='C' ? 1 : 2, B: playerRole==='B' ? 0 : 1, K: 1});
 function randomLineup(team, need){ return pickLineup(team, need, null); }
-const shortName = c => c.name.split('・')[0].replace(/（.*）/, '') + (c.name.includes('（覚醒）') ? '（覚醒）' : '');
+// 選手紹介（原作に登場する選手のみ。文章はオリジナルの要約）
+const PROFILE = {
+  harry:'グリフィンドールのシーカー。1年生で寮代表に選ばれた、百年ぶりともいわれる最年少選手。箒の扱いは天性のもので、とっさの判断力にすぐれる。このゲームではチェイサーとして出場し、残り1分のスニッチ戦で本領を発揮する。',
+  ginny:'ウィーズリー家の末っ子で、グリフィンドールの点取り屋。小柄だが度胸は満点で、すきを見つけると迷わずリングを狙う。兄たちに鍛えられた負けん気の強さが武器で、のちにプロの道へ進むほどの実力者。',
+  angelina:'グリフィンドールの頼れるチェイサー。のちにキャプテンも務めるリーダー格で、練習には人一倍きびしい。力強いシュートと統率力でチームを引っぱる、攻撃の柱。',
+  katie:'グリフィンドールのチェイサー。派手さはないが堅実で、パスでもシュートでも確実に仕事をこなす。長くチームを支え続けた、縁の下の力持ち。',
+  alicia:'グリフィンドールのチェイサー。アンジェリーナ、ケイティとともにチェイサー陣を組み、息の合ったパス回しで攻撃を組み立てる。',
+  fred:'ウィーズリー家の双子の兄。いたずら好きで陽気なムードメーカーだが、ビーターとしての腕は確か。相棒ジョージとの連携で、相手チームをブラッジャーでかき回す。',
+  george:'ウィーズリー家の双子の弟。フレッドと見分けがつかないほどそっくりで、ビーターとしての呼吸もぴったり。仲間をブラッジャーから守るチームの盾。',
+  ron:'ハリーの親友で、グリフィンドールのキーパー。実力はあるのに緊張に弱く、調子の波が激しい。気持ちが乗った日は別人のようにシュートを止める。',
+  ronss:'試合の場数を踏んで成長したロン。プレッシャーにも少しずつ慣れ、安定してシュートを止められるようになってきた。もう「緊張しい」とは言わせない。',
+  ronx:'何かが吹っ切れた覚醒状態のロン。どこに打たれても体が勝手に反応し、遠くからのシュートはまず決まらない。止めたいなら、リングの目の前まで運ぶしかない。',
+  wood:'グリフィンドールの元キャプテンでキーパー。クィディッチへの情熱は誰よりも熱く、作戦を語りだすと止まらない。卒業後はプロチームに入団した。',
+  mclaggen:'自信家のキーパー。実力はそれなりにあるが、ほかの選手のプレーにまで口を出すくせがあり、チームワークには少し難がある。',
+  flint:'スリザリンのキャプテンでチェイサー。体格を生かした荒っぽいプレーが持ち味で、反則すれすれのタックルも平気で仕掛けてくる。',
+  draco:'スリザリンのシーカー。名家の出身を鼻にかける自信家で、ハリーとは何かと張り合う間柄。父親がチームに贈った最新型の箒を乗りこなす。',
+  pucey:'スリザリンのチェイサー。フリントとともに攻撃を担い、素早い動きでゴール前に飛び込んでくる。',
+  montague:'スリザリンのチェイサー。勝つためには手段を選ばない、いかにもスリザリンらしい選手。',
+  crabbe:'ドラコの取り巻きのひとり。大きな体を買われてビーターに抜てきされた。技術はいまひとつだが、力任せのフルスイングはあなどれない。',
+  goyle:'クラッブと並ぶドラコの取り巻き。動きは遅いが腕力は抜群で、当たればブラッジャーはとんでもない勢いで飛んでいく。',
+  bletchley:'スリザリンのキーパー。目立つタイプではないが、ゴール前に陣取ってしぶとく守る。',
+  cho:'レイブンクローのシーカー。身軽で小回りのきく飛び方が武器で、相手シーカーにぴったりついてスニッチを横取りするのが得意。',
+  davies:'レイブンクローのキャプテンでチェイサー。人当たりがよく人気者で、冷静なゲームメイクでチームを率いる。',
+  stretton:'レイブンクローのチェイサー。原作では名前が出てくる程度の選手で、このゲームではチームの攻撃を支える役回り。',
+  inglebee:'レイブンクローのビーター。原作では名前が出てくる程度だが、頭脳派の寮らしく狙いすました一打を放つ。',
+  samuels:'レイブンクローのビーター。原作では名前が出てくる程度の選手。',
+  page:'レイブンクローのキーパー。原作では名前が出てくる程度の選手。',
+  cedric:'ハッフルパフのキャプテンでシーカー。誠実で礼儀正しく、敵味方を問わず慕われる好青年。背が高く、落ち着いた飛行で確実にスニッチを追いつめる。',
+  zacharias:'ハッフルパフのチェイサー。皮肉屋でひと言多いタイプだが、プレーは意外と堅実。',
+  cadwallader:'ハッフルパフのチェイサー。原作では名前が出てくる程度の選手。',
+  rickett:'ハッフルパフのビーター。原作では名前が出てくる程度の選手。',
+  oflaherty:'ハッフルパフのビーター。原作では名前が出てくる程度の選手。',
+  fleet:'ハッフルパフのキーパー。原作では名前が出てくる程度の選手で、粘り強い守りを見せる。',
+  bagman:'かつてイギリス代表で活躍した名ビーター。現役時代の豪快なスイングは今も語り草。引退後は魔法省で魔法スポーツの仕事についた、陽気で調子のいい人物。',
+  krum:'ブルガリア代表のシーカーで、世界最高と呼ばれる若き天才。地上ではぎこちないのに、箒に乗ると別人のように鋭く飛ぶ。急降下でだます大技「ウロンスキー・フェイント」の使い手。',
+  dimitrov:'ブルガリア代表のチェイサー。クラムの影に隠れがちだが、ワールドカップを勝ち上がってきた実力者。荒っぽいプレーも辞さない。',
+  ivanova:'ブルガリア代表のチェイサー。ワールドカップ決勝の舞台に立った実力者。',
+  levski:'ブルガリア代表のチェイサー。ワールドカップ決勝の舞台に立った実力者。',
+  volkov:'ブルガリア代表のビーター。強烈なブラッジャーで相手を容赦なく狙う。',
+  vulchanov:'ブルガリア代表のビーター。ボルコフとともに相手のチェイサーを狙い撃ちにする。',
+  zograf:'ブルガリア代表のキーパー。ワールドカップ決勝でゴールを守った守護神。',
+  troy:'アイルランド代表のチェイサー。マレット、モランとの3人の連携は世界一とも言われ、目にも止まらぬパス回しで点を重ねる。',
+  mullet:'アイルランド代表のチェイサー。3人のコンビネーションの一角を担う。',
+  moran:'アイルランド代表のチェイサー。3人のコンビネーションの一角を担う。',
+  lynch:'アイルランド代表のシーカー。実力者だが、クラムのフェイントに引っかかって地面に激突してしまったことも。',
+  connolly:'アイルランド代表のビーター。ワールドカップ優勝メンバーのひとり。',
+  quigley:'アイルランド代表のビーター。ワールドカップ優勝メンバーのひとり。',
+  ryan:'アイルランド代表のキーパー。ワールドカップ優勝メンバーのひとり。',
+};
+function charInfoHtml(c){
+  if (!c) return '';
+  const T = ALL_TEAMS()[c.team] || {};
+  const desc = PROFILE[c.id] || 'このゲームのオリジナル選手。';
+  return `<div class="cinfo"><div class="ch"><b>${escHtml(c.name)}</b> <span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="ctag">${T.name || ''}・${ROLE_NAME[c.role]}</span></div>
+    ${c.sk ? `<div class="csk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : ''}<p>${desc}</p></div>`;
+}
+function showCharInfo(el, id){ if (el) el.innerHTML = charInfoHtml(CHAR_BY_ID[id]); }
+// 選択欄にカーソルを合わせた／選んだ選手の紹介を下に出す
+function wireInfo(container, infoEl){
+  if (!container || !infoEl) return;
+  const show = id => { infoEl.dataset.id = id; showCharInfo(infoEl, id); };
+  container.querySelectorAll('[data-cid]').forEach(slot=>{
+    slot.addEventListener('mouseenter', ()=>show(slot.dataset.cid));
+    const sel = slot.querySelector('select'); if (sel) sel.addEventListener('focus', ()=>show(sel.value));
+  });
+  const ids = [...container.querySelectorAll('[data-cid]')].map(x=>x.dataset.cid);
+  show(ids.includes(infoEl.dataset.id) ? infoEl.dataset.id : ids[0]);
+}
+const shortName = c => c.name.split('・')[0].replace(/（.*）/, '') + (c.name.includes('（覚醒）') ? '（覚醒）' : c.name.includes('（成長）') ? '（成長）' : '');
 const entLabel = e => e.human ? (e.isPlayer && !net.active ? (settings.name || 'あなた') : e.name) : e.char ? shortName(e.char) : ROLE_NAME[e.role];
 const teamDict = k => HOUSES[k] ? HOUSES : NATIONS;
 const rivalOf = h => {
@@ -1732,11 +1814,11 @@ function makeRider(team, role, isPlayer, broomType='swift', look){
     for (const sx of [-1,1]){ const pad = new THREE.Mesh(new THREE.SphereGeometry(0.17,10,8), mat(0xe8b53a, {metalness:.6, roughness:.35})); pad.position.set(sx*0.3,0.42,0.12); pad.scale.set(1,0.7,1); inner.add(pad); }
   }
   // --- マント（背中に役職マーク） ---
-  const capePivot = new THREE.Group(); capePivot.position.set(0,0.47,-0.05); capePivot.rotation.x = -1.15; inner.add(capePivot);
+  const capePivot = new THREE.Group(); capePivot.position.set(0,0.47,-0.05); capePivot.rotation.x = 1.15; inner.add(capePivot);   // 後ろ（-z）へなびく
   const capeGeo = new THREE.PlaneGeometry(0.85,1.5,3,10); capeGeo.translate(0,-0.75,0);
   const cape = new THREE.Mesh(capeGeo, mat(0xffffff, {map:capeTexture(team, role), side:THREE.DoubleSide, roughness:0.8})); capePivot.add(cape);
   // --- マフラー ---
-  const scarfPivot = new THREE.Group(); scarfPivot.position.set(0.13,0.52,0.08); scarfPivot.rotation.set(-1.3, 0, 0.3); inner.add(scarfPivot);
+  const scarfPivot = new THREE.Group(); scarfPivot.position.set(0.13,0.52,0.08); scarfPivot.rotation.set(1.3, 0, -0.3); inner.add(scarfPivot);
   const scarfGeo = new THREE.PlaneGeometry(0.15,1.5,1,10); scarfGeo.translate(0,-0.75,0);
   scarfPivot.add(new THREE.Mesh(scarfGeo, mat(0xffffff, {map:scarfTexture(team), side:THREE.DoubleSide, roughness:0.9})));
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.16,0.06,6,16), mat(0xffffff, {map:scarfTexture(team), roughness:0.9})); collar.position.set(0,0.5,0.22); collar.rotation.x = Math.PI/2 - 0.3; inner.add(collar);
@@ -1765,7 +1847,7 @@ function nameSprite(text, color){
 function makeEnt(team, role, isPlayer, i, opt={}){
   const ch = opt.char || null;
   const broom = opt.broom || (isPlayer ? settings.broom : ch && ch.sk==='krum' ? 'blaze' : Object.keys(BROOMS)[Math.floor(Math.random()*3)]);
-  const e = {broom, char:ch, sk: ch ? ch.sk : '', pw: ch ? RARITY[ch.rar].pw : 1,
+  const e = {broom, char:ch, sk: ch ? ch.sk : '', pw: ch ? (ch.pwx || RARITY[ch.rar].pw) : 1,
     id: team*4+i, team, role, isPlayer, side: i===0 ? -1 : 1,
     human: isPlayer || !!opt.human, remote: !!opt.remote, peer: opt.peer || null, name: opt.name || '', stats:{}, dashId:0, lastDashId:-1, net:null, netT:null,
     pos:new V3(), prevPos:new V3(), dir:new V3(), prevDir:new V3(), speed:0,
@@ -1912,10 +1994,12 @@ const MU = {a:null, bus:null, lp:null, dry:null, wet:null, song:null, want:null,
 // --- 曲データ（すべてオリジナル） ---
 const SONGS = {
   // メニュー：夜空のワルツ（3/4・Dマイナー）
-  menu: { spb:6, bpm:150, div:2,
-    chords:['Dm','Dm','Bb','Bb','Gm','A7','Dm','A','Dm','F','Bb','Gm','Em7b5','A','A7','Dm'],
-    mel: melody(`D5:2 F5:2 A5:2 | G5:3 F5:1 E5:2 | F5:2 D5:2 Bb4:2 | C5:4 D5:2 | Bb4:2 D5:2 G5:2 | A5:3 G5:1 C#5:2 | D5:6 | E5:2 C#5:2 A4:2 |
-                 D5:2 F5:2 A5:2 | C6:3 A5:1 F5:2 | D6:2 Bb5:2 F5:2 | G5:3 A5:1 Bb5:2 | A5:2 G5:2 E5:2 | C#5:3 E5:1 A5:2 | G5:2 E5:2 C#5:2 | D5:6`) },
+  menu: { spb:6, bpm:132, div:2,
+    chords:['Dm','Dm','Gm','A7','Dm','Bb','Em7b5','A','F','C','Dm','Bb','Gm','A7','Dm','Dm'],
+    mel: melody(`A4:1 Bb4:1 A4:1 G#4:1 A4:2 | D5:3 E5:1 F5:2 | G5:2 F5:1 E5:1 D5:2 | C#5:4 A4:2 |
+                 F5:1 G5:1 F5:1 E5:1 F5:2 | D6:3 C6:1 Bb5:2 | A5:2 G5:2 E5:2 | A5:6 |
+                 C6:1 D6:1 C6:1 Bb5:1 A5:2 | G5:3 E5:1 C5:2 | F5:2 A5:2 D6:2 | Bb5:4 G5:2 |
+                 G5:1 A5:1 Bb5:1 A5:1 G5:2 | E5:3 G5:1 C#5:2 | D5:2 A4:2 F5:2 | D5:6`) },
   // 試合：勇ましい行進（4/4・Dマイナー）
   match: { spb:16, bpm:132, div:4,
     chords:['Dm','Bb','F','C','Dm','Bb','Gm','A','Gm','Bb','F','C','Gm','Bb','A7','A'],
@@ -1963,6 +2047,23 @@ const INS = {
     const g = mVoice(0.7); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.004); g.gain.exponentialRampToValueAtTime(0.0008, t+1.5);
     mOsc('sine', f, t, t+1.55, g); mOsc('sine', f*2, t, t+1.55, g, 0, 0.12);
     const h = MU.a.createGain(); h.connect(g); h.gain.setValueAtTime(0.35, t); h.gain.exponentialRampToValueAtTime(0.001, t+0.22); mOsc('sine', f*4, t, t+0.25, h);
+  },
+  bell(t, f, v){
+    const g = mVoice(0.85); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.003); g.gain.exponentialRampToValueAtTime(0.0006, t+2.2);
+    mOsc('sine', f, t, t+2.25, g); mOsc('sine', f*2, t, t+1.2, g, 0, 0.18);
+    const h = MU.a.createGain(); h.connect(g); h.gain.setValueAtTime(0.4, t); h.gain.exponentialRampToValueAtTime(0.001, t+0.35); mOsc('sine', f*2.76, t, t+0.4, h); mOsc('sine', f*5.4, t, t+0.2, h, 0, 0.25);
+  },
+  trem(t, f, d, v){
+    const g = mVoice(0.7), am = MU.a.createGain(); am.connect(g);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+Math.min(0.6, d*0.4)); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.8);
+    const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 9.5; lg.gain.value = 0.45; lfo.connect(lg); lg.connect(am.gain); am.gain.value = 0.55;
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.connect(am);
+    [-8, 0, 7].forEach(dt=>mOsc('sawtooth', f, t, t+d+0.85, lp, dt, 0.5)); lfo.start(t); lfo.stop(t+d+0.85);
+  },
+  horn(t, f, d, v){
+    const g = mVoice(0.6); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.18); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.5);
+    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(500, t); lp.frequency.linearRampToValueAtTime(1300, t+0.25); lp.connect(g);
+    mOsc('sawtooth', f, t, t+d+0.55, lp, -3, 0.6); mOsc('triangle', f, t, t+d+0.55, lp, 4); mOsc('sine', f/2, t, t+d+0.55, lp, 0, 0.4);
   },
   harp(t, f, v){
     const g = mVoice(0.45); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.003); g.gain.exponentialRampToValueAtTime(0.0008, t+1.8);
@@ -2020,14 +2121,18 @@ const INS = {
 function playStep(name, bar, s, t, sl){
   const S = SONGS[name], b = bar % S.chords.length, ch = S.chords[b], pass = Math.floor(bar / S.chords.length);
   if (name==='menu'){
+    const bar6 = sl*6;
+    // ハープ：小節ごとに2オクターブ駆け上がるアルペジオ
+    const arp = chordF(ch,3).slice(0,3).concat(chordF(ch,4).slice(0,3));
+    INS.harp(t, arp[s % arp.length] * (s===0 ? 0.5 : 1), s===0 ? 0.12 : 0.05);
     if (s===0){
-      INS.harp(t, chordF(ch,2)[0], 0.16);
-      chordF(ch,4).slice(0,3).forEach(f=>INS.pad(t, f, sl*6, 0.012));
+      chordF(ch,4).slice(0,3).forEach(f=>INS.trem(t, f, bar6, 0.006));
+      if (b % 4 === 0) INS.horn(t, chordF(ch,3)[0], bar6*2, 0.03);
+      if (b===8 || b===12) INS.horn(t, chordF(ch,3)[2], bar6*2, 0.022);
     }
-    if (s===2 || s===4) chordF(ch,4).slice(0,3).forEach((f,i)=>INS.harp(t+i*0.018, f, 0.055));
-    for (const ev of S.mel[b]) if (ev.s===s) INS.celesta(t, ev.f, 0.11);
-    if (pass % 2 === 1 && (s % 2 === 1)){ const cf = chordF(ch,6); INS.celesta(t, cf[(s>>1) % cf.length], 0.025); }
-    if (b===15 && s===0) for (let i=0;i<8;i++) INS.harp(t + sl*3 + i*0.05, chordF('Dm', 4 + (i>>2))[i%3], 0.05);
+    for (const ev of S.mel[b]) if (ev.s===s){ INS.bell(t, ev.f, 0.09); if (pass % 2 === 1) INS.bell(t, ev.f*2, 0.025); }
+    if (pass % 2 === 1 && s===5){ const cf = chordF(ch,6); INS.bell(t + sl*0.5, cf[2], 0.02); }
+    if (b===15 && s===0) for (let k=0;k<10;k++) INS.harp(t + sl*2 + k*0.06, chordF('Dm', 4 + Math.floor(k/3))[k%3], 0.045);
     return;
   }
   // match
@@ -2043,7 +2148,7 @@ function playStep(name, bar, s, t, sl){
   if (I && s%2===0) INS.tick(t, s%4===0 ? 0.05 : 0.025);
   if (I && s%2===1){ const cf = chordF(ch,5), k = [0,1,2,1][(s>>1)%4]; INS.celesta(t, cf[k]*(s%8===7?2:1), 0.03); }
   if (!intro) for (const ev of S.mel[b]) if (ev.s===s){
-    if (b < 8) INS.brass(t, ev.f, ev.l*sl*0.95, 0.075);
+    if (b < 8){ INS.horn(t, ev.f, ev.l*sl*0.95, 0.07); if (I) INS.brass(t, ev.f, ev.l*sl*0.95, 0.04); }
     else INS.strings(t, ev.f, ev.l*sl*0.95, 0.05);
     if (b >= 8 && I) INS.brass(t, ev.f/2, ev.l*sl*0.95, 0.04);
   }
@@ -2574,6 +2679,7 @@ function playerBludger(e=player){
 const lead = t => game.score[t] - game.score[1-t];
 const snitchWorth = t => lead(t) + CFG.snitchPoints > 0;          // 取れば勝ちになる（引き分け以下なら取らない）
 const lateGame = () => game.time < 60;
+const defBuff = t => (t===1 && game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].rivalDef) || 0;   // ストーリーの相手チームの守備強化
 function botSpd(e, base, urgent, dt){
   const b = BROOMS[e.broom] || BROOMS.swift;
   if (e.exhausted && e.stamina >= 0.35) e.exhausted = false;
@@ -2606,7 +2712,7 @@ function chaserAI(e, dt){
   const h = ball.holder;
   if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && (e.sk==='krum' || snitchWorth(e.team))){   // 元シーカーはスニッチ戦に参加
     const k = e.sk==='krum', sd = e.pos.distanceTo(snitch.pos);
-    steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 1.1), k || sd < 25, dt), dt, k ? 5 : 3);
+    steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 0.95), k || sd < 25, dt), dt, k ? 5 : 2.5);
     return;
   }
   if (h===e){
@@ -2744,6 +2850,13 @@ function updateBall(dt){
       const p = ball.prev.clone().lerp(ball.pos, t);
       for (let i=0;i<3;i++){ const h = HOOPS[i]; if (Math.hypot(p.y-h.y, p.z-h.z) < HOOP_R - 0.3){
         const sc = sx>0 ? 0 : 1, k = keeperOf(1-sc);
+        const db = defBuff(k ? k.team : -1), f0 = ball.throwFrom;
+        if (k && db > 0 && k.stun<=0 && f0 && Math.abs(f0.x - sx) > 9 && Math.random() < db){   // 強化された相手キーパー：遠めのシュートを一定の確率で止める
+          k.pos.copy(p).add(new V3(-Math.sign(sx)*1.2, 0, 0)); k.prevPos.copy(k.pos);
+          emit(p, 30, {colors:[0xffffff, TEAM_COL[k.team]], speed:10, life:0.5, size:0.35, drag:2});
+          takeBall(k); teamToast(k.team, 'ナイスセーブ！', `${entLabel(k)}の好セーブ！ 近づいて打て！`);
+          return;
+        }
         if (k && k.sk==='ron' && k.stun<=0 && ronFarShot(k, ball.vel.length())){   // 覚醒ロン：遠くからのシュートはリング前で必ず止める
           k.pos.copy(p).add(new V3(-Math.sign(sx)*1.2, 0, 0)); k.prevPos.copy(k.pos);
           emit(p, 40, {colors:[0xffffff, 0xff9be6, TEAM_COL[k.team]], speed:12, life:0.6, size:0.4, drag:2});
@@ -2753,12 +2866,15 @@ function updateBall(dt){
         scoreGoal(sc, i, p); return; } }
     }
   }
-  boundReflect(ball.pos, ball.vel);
+  boundReflect(ball.pos, ball.vel, 3.5);   // 選手が動ける範囲（端から3m内側）の中にとどめる
+  if (ball.pos.y < 2.4){ ball.pos.y = 2.4; if (ball.vel.y < 0) ball.vel.y = -ball.vel.y*0.35; ball.vel.x *= 0.92; ball.vel.z *= 0.92; }   // 地面すれすれで止まらないよう少し浮かせる
   const spd = ball.vel.length();
   let best = null, bd = 1e9;
   for (const e of ents){
     if (e.role==='B' || e.stun>0 || e.catchCD>0) continue;
     let r = e.role==='K' ? 3.0 : e.human ? 3.2 : 2.3;
+    if (spd < 8) r += 0.8;   // ゆっくりのボールは拾いやすく
+    if (e.role==='K') r += defBuff(e.team)*3;
     if (e.sk==='ron' && ronFarShot(e, spd)) r = 9;   // 覚醒ロン：遠くからのシュートには飛びついて止める
     if (ball.intended===e) r += 1;
     else if (ball.homing > 0 && !e.human) r = 1.8;   // 追尾パスは横取りされにくい
@@ -2767,7 +2883,7 @@ function updateBall(dt){
     if (hostile){
       if (ball.rolled.has(e)) continue;
       ball.rolled.add(e);
-      const p = e.role==='K' ? (e.sk==='ron' ? (ronFarShot(e, spd) ? 1 : 0.3) : Math.min(0.97, D.save*(1 + (e.pw-1)*2.5))) : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1)*e.pw;
+      const p = e.role==='K' ? (e.sk==='ron' ? (ronFarShot(e, spd) ? 1 : 0.3) : Math.min(0.97, D.save*(1 + (e.pw-1)*2.5) + defBuff(e.team))) : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1)*e.pw + defBuff(e.team)*0.5;
       if (Math.random() > p) continue;
     }
     if (d < bd){ bd = d; best = e; }
@@ -3636,8 +3752,39 @@ function renderHouseCards(){
   document.querySelectorAll('[data-house]').forEach(c=>{ c.onclick = ()=>{
     uiClick(); if (isW) settings.wcTeam = c.dataset.house; else settings.house = c.dataset.house;
     saveSettings(); renderHouseCards(); setHouses(c.dataset.house, isW ? wcRival() : rivalOf(c.dataset.house)); buildRoster(); }; });
-  renderLineup();
+  renderLineup(); renderRival();
 }
+// 相手チームとメンバー（ランダムも可）
+const rivalMode = () => settings.diff==='world' ? 'wc' : 'hog';
+function rivalChoice(){
+  if (!settings.rivalPick || typeof settings.rivalPick !== 'object') settings.rivalPick = {};
+  if (!settings.rivalLineup || typeof settings.rivalLineup !== 'object') settings.rivalLineup = {};
+  const dict = settings.diff==='world' ? NATIONS : HOUSES, own = lineupTeam(), cur = settings.rivalPick[rivalMode()] || 'random';
+  return (cur !== 'random' && dict[cur] && cur !== own) ? cur : 'random';
+}
+function renderRival(){
+  const dict = settings.diff==='world' ? NATIONS : HOUSES, own = lineupTeam(), cur = rivalChoice();
+  $('rivalSel').innerHTML = `<option value="random">ランダム（毎試合）</option>` + Object.entries(dict).filter(([k])=>k!==own).map(([k,H])=>`<option value="${k}">${H.name}</option>`).join('');
+  $('rivalSel').value = cur;
+  $('rivalRand').style.display = cur==='random' ? 'none' : '';
+  if (cur==='random'){ $('rivalWrap').innerHTML = '<p class="sub" style="grid-column:1/-1;margin:0">相手チームもメンバーも毎試合ランダムで決まります。</p>'; $('rivalInfo').innerHTML = ''; return; }
+  const lu = pickLineup(cur, {C:2, B:1, K:1}, settings.rivalLineup[cur]);
+  const ids = settings.rivalLineup[cur] = {C:lu.C.map(c=>c.id), B:lu.B.map(c=>c.id), K:lu.K.map(c=>c.id)}; saveSettings();
+  const slots = [['C',0],['C',1],['B',0],['K',0]];
+  $('rivalWrap').innerHTML = slots.map(([r,k])=>{
+    const c = lu[r][k]; if (!c) return '';
+    const opts = charsOf(cur, r).map(x=>`<option value="${x.id}"${x.id===c.id ? ' selected' : ''}>${escHtml(x.name)}（${x.rar}）</option>`).join('');
+    return `<div class="lslot" data-cid="${c.id}"><span class="lr">${svgIcon(r, '#ff8a8a')}${ROLE_NAME[r]} <b class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</b></span><select data-rr="${r}" data-rk="${k}" aria-label="相手の${ROLE_NAME[r]}">${opts}</select><span class="lsk">${c.sk ? `<span style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</span>` : ''}</span></div>`;
+  }).join('');
+  $('rivalWrap').querySelectorAll('select[data-rr]').forEach(sel=>{ sel.onchange = ()=>{
+    const r = sel.dataset.rr, k = +sel.dataset.rk, arr = ids[r], old = arr[k], j = arr.indexOf(sel.value);
+    if (j >= 0 && j !== k) arr[j] = old;
+    arr[k] = sel.value; saveSettings(); uiClick(); $('rivalInfo').dataset.id = sel.value; renderRival();
+  }; });
+  wireInfo($('rivalWrap'), $('rivalInfo'));
+}
+$('rivalSel').onchange = ev=>{ settings.rivalPick[rivalMode()] = ev.target.value; saveSettings(); uiClick(); renderRival(); };
+$('rivalRand').onclick = ()=>{ uiClick(); const cur = rivalChoice(); if (cur==='random') return; const r = randomLineup(cur, {C:2, B:1, K:1}); settings.rivalLineup[cur] = {C:r.C.map(c=>c.id), B:r.B.map(c=>c.id), K:r.K.map(c=>c.id)}; saveSettings(); renderRival(); };
 // 自分のチームのメンバー選択（役職に合う選手だけ選べる）
 const lineupTeam = () => settings.diff==='world' ? settings.wcTeam : settings.house;
 function myCharFor(){ return null; }   // 自分は常にオリジナル選手（名前と見た目は「あなたの選手」で設定）
@@ -3657,14 +3804,15 @@ function renderLineup(){
     const cur = CHAR_BY_ID[ids[r][k]];
     const opts = charsOf(team, r).filter(c=>!mc || c.id!==mc.id).map(c=>`<option value="${c.id}"${cur && cur.id===c.id ? ' selected' : ''}>${escHtml(c.name)}（${c.rar}）</option>`).join('');
     const sk = cur && cur.sk ? `<span style="color:${RARITY[cur.rar].col}">★ ${SKILL_TEXT[cur.sk]}</span>` : '';
-    return `<div class="lslot"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-lr="${r}" data-lk="${k}" aria-label="${ROLE_NAME[r]}を選ぶ">${opts}</select><span class="lsk">${sk}</span></div>`;
+    return `<div class="lslot" data-cid="${cur ? cur.id : ''}"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-lr="${r}" data-lk="${k}" aria-label="${ROLE_NAME[r]}を選ぶ">${opts}</select><span class="lsk">${sk}</span></div>`;
   }).join('');
   wrap.querySelector('[data-edit-me]').onclick = ()=>{ uiClick(); openProfile(()=>{ openSub('select'); renderLineup(); }); };
   wrap.querySelectorAll('select[data-lr]').forEach(sel=>{ sel.onchange = ()=>{
     const r = sel.dataset.lr, k = +sel.dataset.lk, arr = ids[r], old = arr[k], j = arr.indexOf(sel.value);
     if (j >= 0 && j !== k) arr[j] = old;   // 同じ選手を2枠に入れたら入れ替え
-    arr[k] = sel.value; saveSettings(); uiClick(); renderLineup();
+    arr[k] = sel.value; saveSettings(); uiClick(); $('lineupInfo').dataset.id = sel.value; renderLineup();
   }; });
+  wireInfo(wrap, $('lineupInfo'));
 }
 $('lineupRand').onclick = ()=>{
   uiClick(); const team = lineupTeam(), mc = myCharFor(team, game.playerRole || settings.role), r = pickLineup(team, {C:2, B:1, K:1}, null, mc && mc.id);
@@ -3686,10 +3834,12 @@ function selectRole(r){
 function startMatch(){
   game.state = 'countdown'; game.story = null; D = DIFF[settings.diff] || DIFF.normal;
   const isW = settings.diff==='world', myTeam = isW ? settings.wcTeam : settings.house;
-  setHouses(myTeam, isW ? wcRival() : rivalOf(myTeam));
+  const rc = rivalChoice(), rivalKey = rc !== 'random' ? rc : (isW ? wcRival() : rivalOf(myTeam));
+  setHouses(myTeam, rivalKey);
   setStage(settings.diff==='world' ? 'wc' : 'hog');
   const mc = myCharFor(myTeam, game.playerRole);
-  buildTeams(game.playerRole, [pickLineup(myTeam, needFor(game.playerRole), (settings.lineup||{})[myTeam], mc && mc.id), randomLineup(game.houses[1], {C:2,B:1,K:1})], mc);
+  const rivalLu = rc !== 'random' ? pickLineup(rivalKey, {C:2,B:1,K:1}, settings.rivalLineup[rivalKey]) : randomLineup(rivalKey, {C:2,B:1,K:1});
+  buildTeams(game.playerRole, [pickLineup(myTeam, needFor(game.playerRole), (settings.lineup||{})[myTeam], mc && mc.id), rivalLu], mc);
   resetGame();
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
   game.cd = 3; lastCd = 4;
@@ -3860,7 +4010,7 @@ const WC5_LINEUP = {
   germany: {C:['klaus','hanna'], B:['lukas'], K:['dieter']},
 };
 const CHAPTERS = [
-  { title:'はじめての公式戦', own:'gryffindor', rival:'ravenclaw', stage:'hog', diff:'easy',
+  { title:'はじめての公式戦', own:'gryffindor', rival:'ravenclaw', stage:'hog', diff:'easy', forceK:'ron',
     lineup:{C:['cho','davies'], B:['inglebee'], K:['page']},
     intro:[
       L_('castle', NAR, '九月。湖の向こうの古城に、今年も新しい季節がやってきた。'),
@@ -3874,7 +4024,7 @@ const CHAPTERS = [
       L_('pitch', CAP, '上出来だ。次はハッフルパフ。しぶとさなら学校一だぞ。'),
     ],
     hint:'レイブンクローはパス回しが上手い。クアッフルを持っている相手にタックルして奪い返そう。' },
-  { title:'しぶとい黄色', own:'gryffindor', rival:'hufflepuff', stage:'hog', diff:'normal',
+  { title:'しぶとい黄色', own:'gryffindor', rival:'hufflepuff', stage:'hog', diff:'normal', forceK:'ron',
     lineup:{C:['cedric','zacharias'], B:['rickett'], K:['fleet']},
     intro:[
       L_('castle', NAR, '十一月。冷たい風が吹く中、二戦目の朝が来た。'),
@@ -3887,7 +4037,7 @@ const CHAPTERS = [
       L_('castle', NAR, '次の相手はスリザリン。廊下ですれ違うたび、緑のローブが冷たく笑った。'),
     ],
     hint:'ハッフルパフはしぶとい。Q のブーストでマークを振り切ってからシュートしよう。' },
-  { title:'寮杯決勝', own:'gryffindor', rival:'slytherin', stage:'hog', diff:'hard',
+  { title:'寮杯決勝', own:'gryffindor', rival:'slytherin', stage:'hog', diff:'hard', forceK:'ron',
     lineup:{C:['flint','draco'], B:['crabbe'], K:['bletchley']},
     intro:[
       L_('sky', NAR, '寮杯決勝。城じゅうが赤と緑の二色に分かれた。'),
@@ -3901,7 +4051,7 @@ const CHAPTERS = [
       L_('sky', '？？？', '……いい動きだ。代表選考に呼んでみる価値はある。'),
     ],
     hint:'相手の頭上に「！」が出たらタックルの予備動作。Space の回避ロールでかわそう。' },
-  { title:'代表選考試合', own:'gryffindor', rival:'england', stage:'hog', diff:'hard',
+  { title:'代表選考試合', own:'gryffindor', rival:'england', stage:'hog', diff:'hard', forceK:'ronss',
     lineup:{C:['charlotte','edward'], B:['bagman'], K:['william']},
     intro:[
       L_('castle', NAR, '冬休みの前日、一通の手紙が届いた。'),
@@ -3917,7 +4067,7 @@ const CHAPTERS = [
       L_('pitch', COACH, 'W杯のメンバーは、代表の選手と君の寮の仲間から自由に選んでいい。最強のチームを作れ。'),
     ],
     hint:'バグマンが打つブラッジャーはしつこく追ってくる。ブーストで逃げるか、Space のロールでかわそう。' },
-  { title:'ワールドカップ 1回戦', own:'england', rival:'wc5', stage:'wc', diff:'hard',
+  { title:'ワールドカップ 1回戦', own:'england', rival:'wc5', stage:'wc', diff:'hard', forceK:'ronss',
     intro:[
       L_('wc', NAR, 'クィディッチ・ワールドカップ。夜空の下、満員のスタジアムが揺れていた。'),
       L_('wcLow', ANN, '1回戦、イギリス対{rival}！ イギリスには若き新星、{name}が加わっています！'),
@@ -3928,7 +4078,7 @@ const CHAPTERS = [
       L_('wcLow', COACH, 'ブルガリアにはビクトール・クラムがいる。世界最高のシーカーだ。'),
     ],
     hint:'相手は世界レベル。右クリックのパスでつないで、空いたリングを狙おう。' },
-  { title:'ワールドカップ 準決勝', own:'england', rival:'bulgaria', stage:'wc', diff:'world', forceK:'ronx', mission:'krum',
+  { title:'ワールドカップ 準決勝', own:'england', rival:'bulgaria', stage:'wc', diff:'world', forceK:'ronx', mission:'krum', rivalDef:0.35,
     lineup:{C:['krum','dimitrov'], B:['volkov'], K:['zograf']},
     intro:[
       L_('wcLow', COACH, '悪い知らせだ。正キーパーが練習中にケガをした。'),
@@ -3946,7 +4096,7 @@ const CHAPTERS = [
       L_('wcLow', COACH, 'よくやった。……あとひとつだ。'),
     ],
     hint:'守りは覚醒ロンに任せて攻めよう。クラムがスニッチを取る前に、60点以上の差をつけておくこと。' },
-  { title:'ワールドカップ 決勝', own:'england', rival:'ireland', stage:'wc', diff:'world',
+  { title:'ワールドカップ 決勝', own:'england', rival:'ireland', stage:'wc', diff:'world', forceK:'ronss',
     lineup:{C:['troy','lynch'], B:['connolly'], K:['ryan']},
     intro:[
       L_('wc', NAR, '決勝の夜。花火が上がり、緑の光がスタジアムを包んだ。'),
@@ -3965,7 +4115,7 @@ const CHAPTERS = [
 const chRival = C => C.rival==='wc5' ? (story.wc5 || (story.wc5 = Math.random() < 0.5 ? 'france' : 'germany', saveStory(), story.wc5)) : C.rival;
 const chLineup = C => { const rv = chRival(C); return pickLineup(rv, {C:2, B:1, K:1}, C.lineup || WC5_LINEUP[rv]); };
 // 章ごとに選べる味方：寮杯〜選考はグリフィンドール、W杯はグリフィンドール＋イギリス代表（覚醒ロンは準決勝だけ）
-const storyPool = i => { const g = CHARS.gryffindor.filter(c=>c.id!=='ronx'); return i >= 4 ? g.concat(CHARS.england) : g; };
+const storyPool = i => { const g = CHARS.gryffindor.filter(c=>c.id!=='ronx' && c.id!=='ronss'); return i >= 4 ? g.concat(CHARS.england) : g; };
 const storySel = i => { story.sel = story.sel || {}; const k = i >= 4 ? 'wc' : 'hog'; return story.sel[k] || (story.sel[k] = {me:'', C:[], B:[], K:[]}); };
 function chOwnLineup(i){
   const C = CHAPTERS[i], pool = storyPool(i), sel = storySel(i), role = game.playerRole || settings.role;
@@ -4112,20 +4262,21 @@ function renderPrep(i){
   for (const r of ['C','B','K']) for (let k=0;k<need[r];k++){
     const cur = lu[r][k];
     if (r==='K' && C.forceK){
-      html += `<div class="lslot"><span class="lr">${svgIcon('K', '#ffcf4a')}キーパー <b class="rar" style="color:${RARITY.UR.col}">UR</b></span><div style="font-weight:800">${escHtml(cur.name)}</div><span class="lsk" style="color:${RARITY.UR.col}">★ この試合限定で参戦（固定）</span></div>`;
+      html += `<div class="lslot" data-cid="${cur.id}"><span class="lr">${svgIcon('K', '#ffcf4a')}キーパー <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b></span><div style="font-weight:800">${escHtml(cur.name)}</div><span class="lsk" style="color:${RARITY[cur.rar].col}">${cur.rar==='UR' ? '★ 覚醒！ この試合限定' : 'キーパーはロンで固定'}</span></div>`;
       continue;
     }
     const opts = pool.filter(c=>c.role===r && (!mc || c.id!==mc.id)).map(c=>opt(c, cur)).join('');
     const sk = cur && cur.sk ? `<span style="color:${RARITY[cur.rar].col}">★ ${SKILL_TEXT[cur.sk]}</span>` : '';
-    html += `<div class="lslot"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-pr="${r}" data-pk="${k}" aria-label="${ROLE_NAME[r]}">${opts}</select><span class="lsk">${sk}</span></div>`;
+    html += `<div class="lslot" data-cid="${cur ? cur.id : ''}"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-pr="${r}" data-pk="${k}" aria-label="${ROLE_NAME[r]}">${opts}</select><span class="lsk">${sk}</span></div>`;
   }
   $('prepLineup').innerHTML = html;
   $('prepLineup').querySelector('[data-edit-me]').onclick = ()=>{ uiClick(); openProfile(()=>openPrep(i)); };
   $('prepLineup').querySelectorAll('select[data-pr]').forEach(el=>{ el.onchange = ()=>{
     const r = el.dataset.pr, k = +el.dataset.pk, arr = lu[r].map(c=>c.id), old = arr[k], j = arr.indexOf(el.value);
     if (j >= 0 && j !== k) arr[j] = old;
-    arr[k] = el.value; sel[r] = arr; saveStory(); uiClick(); renderPrep(i);
+    arr[k] = el.value; sel[r] = arr; saveStory(); uiClick(); $('prepInfo').dataset.id = el.value; renderPrep(i);
   }; });
+  wireInfo($('prepLineup'), $('prepInfo'));
   $('prepBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${settings.broom===k?' selected':''}>${b.name}（${b.tag}）</option>`).join('');
 }
 $('prepBroom').onchange = ev=>{ settings.broom = ev.target.value; saveSettings(); };
