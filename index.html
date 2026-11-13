@@ -2186,7 +2186,7 @@ function resetPositions(){
 }
 function resetGame(){
   D = DIFF[settings.diff] || DIFF.normal;
-  game.time = CFG.matchTime; game.score = [0,0]; game.snitchSpawned = false; game.shake = 0; game.slowT = 0; game.cheer = 0; game.fw = [];
+  game.time = CFG.matchTime; game.score = [0,0]; game.snWorth = null; game.snitchSpawned = false; game.shake = 0; game.slowT = 0; game.cheer = 0; game.fw = [];
   game.stats = {goals:0, tackles:0, steals:0, cuts:0, bhits:0};
   resetPositions();
 }
@@ -2554,6 +2554,10 @@ function playerBludger(e=player){
 //  ボットAI
 // =====================================================================
 // ボットのブースト（箒の性能どおりにスタミナを使う）
+// ---- 点差を見た判断 ----
+const lead = t => game.score[t] - game.score[1-t];
+const snitchWorth = t => lead(t) + CFG.snitchPoints > 0;          // 取れば勝ちになる（引き分け以下なら取らない）
+const lateGame = () => game.time < 60;
 function botSpd(e, base, urgent, dt){
   const b = BROOMS[e.broom] || BROOMS.swift;
   if (e.exhausted && e.stamina >= 0.35) e.exhausted = false;
@@ -2578,13 +2582,13 @@ function botDodge(e){
 function tryBotTackle(e, h, dt, range=10){
   if (e.dashCD>0 || e.recover>0 || h.tackleImmune>0 || h.roll>0) return;
   const to = h.pos.clone().sub(e.pos), d = to.length();
-  if (d < range && d > 2 && e.dir.angleTo(to) < 0.6 && Math.random() < dt*2.5*D.aggr*e.pw) beginWindup(e, h);
+  if (d < range && d > 2 && e.dir.angleTo(to) < 0.6 && Math.random() < dt*2.5*D.aggr*e.pw*(lateGame() && lead(e.team) < 0 ? 1.6 : 1)) beginWindup(e, h);
 }
 function chaserAI(e, dt){
   const sign = e.team===0 ? 1 : -1, hx = attackX(e.team);
   const mate = mateChaser(e);
   const h = ball.holder;
-  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e){   // 元シーカーはスニッチ戦に参加
+  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && snitchWorth(e.team)){   // 元シーカーはスニッチ戦に参加
     const k = e.sk==='krum', sd = e.pos.distanceTo(snitch.pos);
     steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 1.1), k || sd < 25, dt), dt, k ? 5 : 3);
     return;
@@ -2598,7 +2602,8 @@ function chaserAI(e, dt){
     const mateOpen = mate && mate.stun<=0 && nearestEnemyDist(mate.pos, e.team) > 6;
     const mateAhead = mate && (mate.pos.x - e.pos.x)*sign > 6;
     const threatened = ents.some(o=>o.dashTarget===e && (o.windup>0||o.dash>0));
-    if (e.pos.distanceTo(hp) < 27 && e.holdTime > 0.4) shootAt(e, hp);
+    const shootRange = game.time < 20 && lead(e.team) > 0 ? 17 : 27;   // 終盤リード中は確実に決められる距離まで運ぶ
+    if (e.pos.distanceTo(hp) < shootRange && e.holdTime > 0.4) shootAt(e, hp);
     else if (e.holdTime > 0.5 && mateOpen && (threatened || nearestEnemyDist(e.pos, e.team) < 6 || mateAhead) && Math.random() < dt*(threatened?6:(mate.human?1.2:2))) pass(e, mate);
     else if (e.holdTime > 9 && mate && mate.stun<=0) pass(e, mate);
   } else if (h && h.team===e.team){
@@ -2658,6 +2663,7 @@ function pickBludgerTarget(e){
     if (o.team===e.team || o.stun>0 || o.immune>0 || o.role==='K') continue;
     const d = o.pos.distanceTo(e.pos); if (d > 55) continue;
     let s = -d; if (ball.holder===o) s += 30; if (o.role==='C') s += 8;
+    if (snitch.active && snitchWorth(o.team) && o.pos.distanceTo(snitch.pos) < 25) s += 35;
     if (s>bs){ bs = s; best = o; }
   }
   return best;
@@ -2679,7 +2685,7 @@ function beaterAI(e, dt){
   }
   let nb = null, nd = 1e9;
   for (const bl of bludgers){ if (bl.heldBy || (bl.homing>0 && bl.hitByTeam===e.team)) continue; const d = bl.pos.distanceTo(e.pos); if (d<nd){ nd = d; nb = bl; } }
-  if (snitch.active && nd > 8){ steer(e, snitch.pos.clone().addScaledVector(snitch.vel, 0.3), botSpd(e, CFG.botSnitchSpeed, e.pos.distanceTo(snitch.pos) < 22, dt), dt, 2.5); return; }
+  if (snitch.active && nd > 8 && snitchWorth(e.team)){ steer(e, snitch.pos.clone().addScaledVector(snitch.vel, 0.3), botSpd(e, CFG.botSnitchSpeed, e.pos.distanceTo(snitch.pos) < 22, dt), dt, 2.5); return; }
   if (nb && nd < 45) steer(e, nb.pos, botSpd(e, 20, nd > 20, dt), dt, 4);
   else { const ref = ball.holder ? ball.holder.pos : ball.pos; steer(e, ref.clone().add(new V3(-sign*8, 5, 0)), 17, dt); }
 }
@@ -2871,6 +2877,10 @@ function spawnSnitch(){
 }
 function updateSnitch(dt){
   if (!snitch.active) return;
+  { const w = [snitchWorth(0), snitchWorth(1)];
+    if (!game.snWorth) game.snWorth = [true, true];
+    for (const t of [0,1]) if (game.snWorth[t] && !w[t]) toastAll(`${TEAM_NAME[t]}はスニッチを取っても勝てない！ 点を取りに行く`, 2.2, '#ffe08a');
+    game.snWorth = w; }
   let near = null, nd = 1e9;
   for (const e of ents){ if (e.role==='K' || e.stun>0) continue; const d = e.pos.distanceTo(snitch.pos); if (d<nd){ nd = d; near = e; } }
   let spd = CFG.snitchSpeed;
@@ -2897,6 +2907,7 @@ function updateSnitch(dt){
   if (Math.random() < 0.5) emit(snitch.pos, 1, {colors:[0xffe680], speed:1, life:0.6, size:0.25, drag:1});
   for (const e of ents){
     if (e.role==='K' || e.stun>0) continue;
+    if (!e.human && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない
     if (e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : e.sk==='krum' ? 2.2 : 1.3)){ catchSnitch(e); return; }
   }
 }
@@ -3891,12 +3902,12 @@ const CHAPTERS = [
       L_('sky', NAR, '青い顔で震えていたロンは、相手がクラムだと聞いた瞬間、目つきが変わった。'),
       L_('wc', 'ロン', '……クラムが相手なら、一本も入れさせない。'),
       L_('wcLow', COACH, '作戦を説明する。クラムがスニッチを見つけたら、まず止められない。'),
-      L_('ace', COACH, 'スニッチが出るのは残り1分。それまでに50点より大きくリードしろ。そうすれば、クラムに取られても勝てる。'),
+      L_('ace', COACH, 'スニッチが出るのは残り1分。それまでに50点より大きくリードしろ。そうなればクラムはスニッチを取っても勝てない。あとは守り切れ。'),
       L_('wc', NAR, 'スタンドが揺れる。「クラム！ クラム！」の大合唱が地鳴りのように響いた。'),
       L_('ace', NAR, '覚醒ロン対ビクトール・クラム。UR同士の一戦が始まる。'),
     ],
     win:[
-      L_('wc', ANN, '信じられない！ キーパーのロンが止めて、止めて、止めまくった！ イギリス、決勝進出！'),
+      L_('wc', ANN, '信じられない！ ロンが止めて、止めて、止めまくった！ クラムにスニッチを取らせないまま、イギリス決勝進出！'),
       L_('stands', 'ロン', '……オレ、いま何本止めた？ 覚えてないや。'),
       L_('wcLow', COACH, 'よくやった。……あとひとつだ。'),
     ],
