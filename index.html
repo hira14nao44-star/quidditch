@@ -732,9 +732,10 @@ const HAIR_STYLE = {
   elodie:'long', jeanluc:'slick', pierre:'messy', antoine:'short', marcel:'buzz', louis:'curly',
   klaus:'short', hanna:'pony', felix:'messy', lukas:'buzz', max:'spiky', dieter:'slick',
 };
-const PW_OVERRIDE = {troy:1.12, lynch:1.115, mullet:1.115, moran:1.115, connolly:1.115, quigley:1.115, ryan:1.12,   // アイルランド：SSRの上澄み
+const PW_OVERRIDE = {troy:1.128, lynch:1.115, mullet:1.125, moran:1.125, connolly:1.125, quigley:1.125, ryan:1.13,   // アイルランド：SSRの上澄み（URの1.13にほぼ並ぶ）
   zograf:1.13, volkov:1.11, vulchanov:1.11};                                                                            // ブルガリア：守備が固い
 for (const id in PW_OVERRIDE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].pwx = PW_OVERRIDE[id];
+const KEEPER_REACH = {ryan:2.0};   // キーパーの守備範囲の上乗せ（m）：アイルランドの守護神
 const BIG_BUILD = ['flint','crabbe','goyle','volkov','vulchanov','bagman','lukas','connolly'];
 for (const id in HAIR_STYLE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].hs = HAIR_STYLE[id];
 for (const id of BIG_BUILD) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].big = true;
@@ -3031,7 +3032,7 @@ function updateBall(dt){
     if (e.role==='B' || e.stun>0 || e.catchCD>0) continue;
     let r = e.role==='K' ? 3.0 : e.human ? 3.2 : 2.3;
     if (spd < 8) r += 0.8;   // ゆっくりのボールは拾いやすく
-    if (e.role==='K') r += defBuff(e.team)*3;
+    if (e.role==='K') r += defBuff(e.team)*3 + (e.char && KEEPER_REACH[e.char.id] || 0);
     if (e.sk==='ron' && ronFarShot(e, spd)) r = 9;   // 覚醒ロン：遠くからのシュートには飛びついて止める
     if (ball.intended===e) r += 1;
     else if (ball.homing > 0 && !e.human) r = 1.8;   // 追尾パスは横取りされにくい
@@ -4739,7 +4740,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-13i';
+const APP_VERSION = '2026-11-14a';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
