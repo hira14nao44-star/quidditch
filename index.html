@@ -38,6 +38,15 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .rrow{display:flex;align-items:center;gap:6px;height:20px}
 .rrow .ico{width:15px;height:15px;flex:none}
 .rrow .rn{min-width:110px}
+.rar{font-size:10px;font-weight:800;letter-spacing:.5px}
+.lineup{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.lslot{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.lslot .lr{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.8}
+.lslot .lr .ico{width:16px;height:16px}
+.lslot select{font:inherit;font-size:14px;padding:6px 8px;border-radius:8px;background:#141a2b;color:#fff;border:1px solid rgba(255,255,255,.2)}
+.lslot .lsk{font-size:12px;min-height:16px}
+.btn.small{font-size:13px;padding:4px 12px;margin-left:10px;vertical-align:middle}
+@media (max-width:640px){.lineup{grid-template-columns:1fr}}
 .rrow.me .rn{color:#fff;font-weight:800}
 .pill{font-size:11px;padding:0 7px;border-radius:9px;line-height:17px;font-weight:700}
 .pill.ball{background:var(--ball);color:#2a1300}
@@ -257,6 +266,9 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
         <span class="meter"><span>攻撃</span><i style="--v:30%"></i><span>妨害</span><i style="--v:95%"></i><span>難しさ</span><i style="--v:70%"></i></span>
       </button>
     </div>
+    <p class="ptitle" style="font-size:20px;margin-top:22px">チームのメンバー <button class="btn ghost small" id="lineupRand" type="button">ランダム</button></p>
+    <p class="sub" style="margin-top:4px">自分以外の3人を選べます。相手チームのメンバーは毎試合ランダムです。</p>
+    <div class="lineup" id="lineupWrap"></div>
     <p class="ptitle" style="font-size:20px;margin-top:22px">箒を選ぶ</p>
     <div class="pick brooms" id="broomCards"></div>
     <div class="btns">
@@ -432,7 +444,7 @@ const BROOMS = {
   swift: {name:'ニンバス2000',   tag:'バランス', desc:'高性能な競技用モデル。速さと持久力を両立。', boost:39.5, drain:0.33, fast:25, wood:0xa8784a, metal:0xc8ccd6, straw:'#e2c88a', trail:[0x9fd0ff,0xffffff,0x58a6ff]},
   blaze: {name:'ファイアボルト',     tag:'最速',   desc:'世界最速の国際試合用モデル。最高速だがスタミナ消費が激しい。', boost:43,   drain:0.45, fast:26, wood:0x2a1a12, metal:0xe8b53a, straw:'#8a5a2a', trail:[0xff7a2a,0xffd54a,0xff4b3a]},
 };
-const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
+const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, lineup:{}, diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
 try { Object.assign(settings, JSON.parse(localStorage.getItem('skyball-settings')||'{}')); } catch(e){}
 if (!BROOMS[settings.broom]) settings.broom = 'swift';
 const saveSettings = () => { try { localStorage.setItem('skyball-settings', JSON.stringify(settings)); } catch(e){} };
@@ -466,6 +478,81 @@ const ENGLAND = { england: {name:'イギリス', letter:'E', motto:'イギリス
 const WC_OWN = Object.assign({}, HOUSES, ENGLAND);   // 世界級で自分が選べるチーム
 if (!WC_OWN[settings.wcTeam]) settings.wcTeam = 'gryffindor';
 const wcRival = () => { const ks = Object.keys(NATIONS); return Math.random() < 0.35 ? 'bulgaria' : ks[Math.floor(Math.random()*ks.length)]; };
+
+// =====================================================================
+//  選手（チームごとのメンバー・レア度・固有能力）
+//  [id, 名前, 役職, レア, 能力, 髪色]   能力: seeker=スニッチ戦に強い / krum / ron / bagman
+// =====================================================================
+const HAIR = {red:0xa8401c, blond:0xdcc27a, black:0x1a1714, brown:0x5a3a20, dark:0x2b1d14, ginger:0xb8642e, gray:0x8a8580};
+const CHARS = {
+  gryffindor: [
+    ['harry','ハリー・ポッター','C','SSR','seeker','black'], ['ginny','ジニー・ウィーズリー','C','SSR','','red'],
+    ['angelina','アンジェリーナ・ジョンソン','C','SR','','black'], ['katie','ケイティ・ベル','C','SR','','brown'], ['alicia','アリシア・スピネット','C','R','','dark'],
+    ['fred','フレッド・ウィーズリー','B','SR','','red'], ['george','ジョージ・ウィーズリー','B','SR','','red'],
+    ['ronx','ロン・ウィーズリー（覚醒）','K','UR','ron','red'], ['wood','オリバー・ウッド','K','SSR','','brown'],
+    ['ron','ロン・ウィーズリー','K','R','','red'], ['mclaggen','コーマック・マクラーゲン','K','R','','blond'],
+  ],
+  slytherin: [
+    ['flint','マーカス・フリント','C','SSR','','dark'], ['draco','ドラコ・マルフォイ','C','SR','seeker','blond'],
+    ['pucey','エイドリアン・ピュシー','C','R','','brown'], ['montague','グラハム・モンタギュー','C','R','','dark'],
+    ['crabbe','ビンセント・クラッブ','B','R','','dark'], ['goyle','グレゴリー・ゴイル','B','R','','black'],
+    ['bletchley','マイルズ・ブレッチリー','K','SR','','brown'],
+  ],
+  ravenclaw: [
+    ['cho','チョウ・チャン','C','SSR','seeker','black'], ['davies','ロジャー・デイビース','C','SR','','brown'], ['stretton','ジェレミー・ストレットン','C','R','','ginger'],
+    ['inglebee','ダンカン・イングルビー','B','R','','dark'], ['samuels','ジェイソン・サミュエルズ','B','R','','brown'],
+    ['page','グラント・ペイジ','K','R','','blond'],
+  ],
+  hufflepuff: [
+    ['cedric','セドリック・ディゴリー','C','SSR','seeker','brown'], ['zacharias','ザカリアス・スミス','C','R','','blond'], ['cadwallader','カドワラダー','C','R','','dark'],
+    ['rickett','アンソニー・リケット','B','R','','brown'], ['oflaherty','マクシーン・オフラハーティ','B','R','','ginger'],
+    ['fleet','ハーバート・フリート','K','SR','','gray'],
+  ],
+  england: [   // 原作に代表選手がほぼいないので、バグマン以外はオリジナル
+    ['charlotte','シャーロット・グレイ','C','SSR','','blond'], ['edward','エドワード・ハリス','C','SR','','brown'], ['thomas','トーマス・ベイカー','C','R','','dark'],
+    ['bagman','ルード・バグマン（現役時代）','B','UR','bagman','blond'], ['jack','ジャック・ターナー','B','R','','ginger'],
+    ['william','ウィリアム・クラーク','K','SR','','brown'],
+  ],
+  bulgaria: [
+    ['krum','ビクトール・クラム','C','UR','krum','black'], ['dimitrov','ディミトロフ','C','SR','','dark'], ['ivanova','イワノバ','C','SR','','black'], ['levski','レブスキー','C','SR','','brown'],
+    ['volkov','ボルコフ','B','SR','','dark'], ['vulchanov','バルカノフ','B','SR','','black'],
+    ['zograf','ゾグラフ','K','SR','','brown'],
+  ],
+  ireland: [
+    ['troy','トロイ','C','SSR','','ginger'], ['lynch','エイダン・リンチ','C','SR','seeker','red'], ['mullet','マレット','C','SR','','brown'], ['moran','モラン','C','SR','','blond'],
+    ['connolly','コノリー','B','SR','','dark'], ['quigley','クィグリー','B','SR','','red'],
+    ['ryan','ライアン','K','SR','','brown'],
+  ],
+  france: [    // オリジナル
+    ['elodie','エロディ・ルフェーヴル','C','SSR','','brown'], ['jeanluc','ジャン＝リュック・モロー','C','SR','','dark'], ['pierre','ピエール・ガルニエ','C','R','','black'],
+    ['antoine','アントワーヌ・ベルナール','B','SR','','brown'], ['marcel','マルセル・ルー','B','R','','gray'],
+    ['louis','ルイ・デュボワ','K','SR','','dark'],
+  ],
+  germany: [   // オリジナル
+    ['klaus','クラウス・ヴェーバー','C','SSR','','blond'], ['hanna','ハンナ・シュミット','C','SR','','blond'], ['felix','フェリクス・ブラウン','C','R','','brown'],
+    ['lukas','ルーカス・ホフマン','B','SR','','dark'], ['max','マックス・クライン','B','R','','ginger'],
+    ['dieter','ディーター・ヴァーグナー','K','SR','','gray'],
+  ],
+};
+const CHAR_BY_ID = {};
+for (const t in CHARS) CHARS[t] = CHARS[t].map(([id,name,role,rar,sk,hair])=>(CHAR_BY_ID[id] = {id, name, role, rar, sk, hair:HAIR[hair], team:t}));
+const RARITY = {R:{pw:1.0, col:'#9aa4b2'}, SR:{pw:1.04, col:'#5fb0ff'}, SSR:{pw:1.09, col:'#e7b43a'}, UR:{pw:1.13, col:'#ff5fd2'}};
+const SKILL_TEXT = {seeker:'スニッチ戦に強い', krum:'スニッチを最短距離で奪う', ron:'至近距離以外のシュートを全部止める', bagman:'ブラッジャーが速く、強く追尾する'};
+const charsOf = (team, role) => (CHARS[team] || []).filter(c=>c.role===role);
+// 自分以外の枠（役職ごと）にメンバーを割り当てる。pref = {C:[id..], B:[id..], K:[id..]}（足りない分はランダム）
+function pickLineup(team, need, pref){
+  const out = {C:[], B:[], K:[]};
+  for (const r of ['C','B','K']){
+    const pool = charsOf(team, r).slice(), want = (pref && pref[r]) || [];
+    for (const id of want){ if (out[r].length >= need[r]) break; const c = pool.find(x=>x.id===id); if (c){ out[r].push(c); pool.splice(pool.indexOf(c), 1); } }
+    while (out[r].length < need[r] && pool.length) out[r].push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
+  }
+  return out;
+}
+const needFor = playerRole => ({C: playerRole==='C' ? 1 : 2, B: playerRole==='B' ? 0 : 1, K: 1});
+function randomLineup(team, need){ return pickLineup(team, need, null); }
+const shortName = c => c.name.split('・')[0].replace(/（.*）/, '') + (c.name.includes('（覚醒）') ? '（覚醒）' : '');
+const entLabel = e => e.human ? (e.isPlayer && !net.active ? 'あなた' : e.name) : e.char ? shortName(e.char) : ROLE_NAME[e.role];
 const teamDict = k => HOUSES[k] ? HOUSES : NATIONS;
 const rivalOf = h => {
   const dict = teamDict(h), ks = Object.keys(dict).filter(k=>k!==h);
@@ -1356,7 +1443,7 @@ function scarfTexture(team){
   if (scarfTexCache[team]) return scarfTexCache[team];
   return scarfTexCache[team] = canvasTex(32, 256, (g,w,h)=>{ for (let i=0;i<10;i++){ g.fillStyle = i%2 ? '#f2ead8' : TEAM_DEEP_CSS[team]; g.fillRect(0, i*h/10, w, h/10); } g.fillStyle = '#e8b53a'; g.fillRect(0, h-6, w, 6); });
 }
-function makeRider(team, role, isPlayer, broomType='swift'){
+function makeRider(team, role, isPlayer, broomType='swift', hairHex){
   const BR = BROOMS[broomType] || BROOMS.swift;
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const col = isPlayer ? new THREE.Color(TEAM_COL[team]).lerp(new THREE.Color(0xffffff), 0.25).getHex() : TEAM_COL[team];
@@ -1399,7 +1486,7 @@ function makeRider(team, role, isPlayer, broomType='swift'){
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.23,16,12), skin); head.position.copy(hc); inner.add(head);
   for (const sx of [-1,1]){ const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028,6,5), dark); eye.position.set(sx*0.08, 0.77, 0.535); inner.add(eye); }
   const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035,6,5), skin); nose.position.set(0,0.72,0.555); inner.add(nose);
-  const hairM = mat(HAIRS[Math.floor(Math.random()*HAIRS.length)], {roughness:0.8});
+  const hairM = mat(hairHex !== undefined ? hairHex : HAIRS[Math.floor(Math.random()*HAIRS.length)], {roughness:0.8});
   const hair = new THREE.Mesh(new THREE.SphereGeometry(0.245,16,8,0,Math.PI*2,0,Math.PI*0.55), hairM); hair.position.copy(hc); hair.rotation.x = -0.45; inner.add(hair);
   const style = Math.floor(Math.random()*3);
   if (style===1){ const pt = new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6), hairM); pt.position.set(0,0.74,0.05); pt.scale.set(0.8,0.8,1.6); inner.add(pt); }
@@ -1458,8 +1545,9 @@ function nameSprite(text, color){
   return new THREE.Sprite(new THREE.SpriteMaterial({map:t, transparent:true, depthWrite:false}));
 }
 function makeEnt(team, role, isPlayer, i, opt={}){
-  const broom = opt.broom || (isPlayer ? settings.broom : Object.keys(BROOMS)[Math.floor(Math.random()*3)]);
-  const e = {broom,
+  const ch = opt.char || null;
+  const broom = opt.broom || (isPlayer ? settings.broom : ch && ch.sk==='krum' ? 'blaze' : Object.keys(BROOMS)[Math.floor(Math.random()*3)]);
+  const e = {broom, char:ch, sk: ch ? ch.sk : '', pw: ch ? RARITY[ch.rar].pw : 1,
     id: team*4+i, team, role, isPlayer, side: i===0 ? -1 : 1,
     human: isPlayer || !!opt.human, remote: !!opt.remote, peer: opt.peer || null, name: opt.name || '', stats:{}, dashId:0, lastDashId:-1, net:null, netT:null,
     pos:new V3(), prevPos:new V3(), dir:new V3(), prevDir:new V3(), speed:0,
@@ -1467,10 +1555,11 @@ function makeEnt(team, role, isPlayer, i, opt={}){
     dash:0, dashCD:0, dashDir:new V3(), dashTarget:null, dashSpeed:0, dashHoming:0, dashHit:false, wasDashing:false, windup:0, recover:0,
     roll:0, rollCD:0, rollDir:new V3(), rollSign:1, rollSpin:0, knock:new V3(), bank:0, swing:0, callT:0, summonCD:0,
     yaw:0, pitch:0, stamina:1, turnSign:1, vel:new V3(),
-    mesh: makeRider(team, role, isPlayer, broom),
+    mesh: makeRider(team, role, isPlayer, broom, ch ? ch.hair : undefined),
     trail: new Trail(22, isPlayer?0.35:0.28, TEAM_COL[team], isPlayer?0.55:0.4),
   };
   if (opt.human && !isPlayer && opt.name){ e.mesh.nameTag = nameSprite(opt.name, TEAM_CSS[team]); scene.add(e.mesh.nameTag); }
+  else if (ch && !isPlayer){ e.mesh.nameTag = nameSprite(shortName(ch), ch.rar==='UR' ? '#ff9be6' : ch.rar==='SSR' ? '#ffd877' : '#e8ecf4'); scene.add(e.mesh.nameTag); }
   return e;
 }
 function clearEnts(){
@@ -1482,22 +1571,25 @@ function clearEnts(){
   }
   ents = [];
 }
-function buildTeams(playerRole){
+function buildTeams(playerRole, lineups){
   clearEnts();
+  lineups = lineups || [0,1].map(t=>randomLineup(game.houses ? game.houses[t] : '', {C:2,B:1,K:1}));
+  const pools = lineups.map(L=>({C:(L.C||[]).slice(), B:(L.B||[]).slice(), K:(L.K||[]).slice()}));
   for (const team of [0,1]) ROLES.forEach((r,i)=>{
     const isPlayer = team===0 && r===playerRole && !ents.some(x=>x.isPlayer);
-    ents.push(makeEnt(team, r, isPlayer, i));
+    ents.push(makeEnt(team, r, isPlayer, i, isPlayer ? {} : {char: pools[team][r].shift() || null}));
   });
   player = ents.find(e=>e.isPlayer) || ents[0];
   buildRoster();
 }
 // オンライン: ロビーの枠（slot 0,1=チェイサー / 2=ビーター）から全員同じ順番で作る
-function buildTeamsOnline(slots){
+function buildTeamsOnline(slots, chars){
   clearEnts();
   for (const team of [0,1]) ROLES.forEach((r,i)=>{
     const sl = i < 3 ? slots.find(x=>x.team===team && x.slot===i) : null;
     const isPlayer = !!sl && sl.id===net.myId;
-    ents.push(makeEnt(team, r, isPlayer, i, sl ? {human:true, remote: net.host && !isPlayer, peer:sl.id, name:sl.name, broom:sl.broom} : {}));
+    const ch = !sl && chars ? CHAR_BY_ID[chars[team*4+i]] || null : null;
+    ents.push(makeEnt(team, r, isPlayer, i, sl ? {human:true, remote: net.host && !isPlayer, peer:sl.id, name:sl.name, broom:sl.broom} : {char:ch}));
   });
   player = ents.find(e=>e.isPlayer) || ents[0];
   buildRoster();
@@ -1863,7 +1955,7 @@ const rosterState = {};
 function buildRoster(){
   for (const k in rosterState) delete rosterState[k];
   $('roster').innerHTML = [0,1].map(t=>`<div class="rteam t${t}"><div class="rt" style="color:${TEAM_CSS[t]}">${TEAM_NAME[t]}</div>${
-    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${ROLE_NAME[e.role]}${e.isPlayer?'（あなた）':(e.human?'（'+e.name+'）':'')}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
+    ents.filter(e=>e.team===t).map(e=>`<div class="rrow${e.isPlayer?' me':''}">${svgIcon(e.role, TEAM_CSS[t])}<span class="rn">${e.isPlayer ? ROLE_NAME[e.role]+'（あなた）' : e.human ? ROLE_NAME[e.role]+'（'+escHtml(e.name)+'）' : e.char ? escHtml(shortName(e.char))+` <b class="rar" style="color:${RARITY[e.char.rar].col}">${e.char.rar}</b>` : ROLE_NAME[e.role]}</span><span class="pill" id="rs${e.id}"></span></div>`).join('')
   }</div>`).join('');
 }
 
@@ -1899,6 +1991,7 @@ function resetGame(){
 //  共通ロジック
 // =====================================================================
 function steer(e, target, spd, dt, turn=3){
+  if (!e.human && e.pw) spd *= e.pw;
   const d = target.clone().sub(e.pos); const len = d.length();
   if (len < 0.001) return;
   d.divideScalar(len);
@@ -1921,7 +2014,7 @@ function release(from, vel){
   ball.holder = null;
   ball.pos.copy(from.pos).addScaledVector(from.dir, 1.4);
   ball.vel.copy(vel);
-  ball.lastThrower = from; ball.throwTime = now; ball.rolled.clear(); ball.intended = null; ball.homing = 0;
+  ball.lastThrower = from; ball.throwTime = now; ball.rolled.clear(); ball.intended = null; ball.homing = 0; ball.throwFrom = from.pos.clone();
   from.catchCD = 0.45;
 }
 function takeBall(e){
@@ -1940,7 +2033,7 @@ function pass(from, to){
   if (to.human && !from.human){ from.callT = 1.3; notify(to, 'パスが来る！', 0.9, 'var(--blue)'); }
 }
 function shootAt(e, hp){
-  const j = D.jitter, t = hp.clone().add(new V3(0, rand(-j,j), rand(-j,j)));
+  const j = D.jitter/Math.pow(e.pw||1, 3), t = hp.clone().add(new V3(0, rand(-j,j), rand(-j,j)));
   release(e, aimVel(e.pos.clone().addScaledVector(e.dir,1.4), t, 44));
 }
 function pickHoop(team){
@@ -1952,7 +2045,7 @@ function pickHoop(team){
 function dropBall(e, vel){
   ball.holder = null;
   ball.vel.copy(vel);
-  ball.lastThrower = e; ball.throwTime = now; ball.rolled.clear(); ball.intended = null; ball.homing = 0;
+  ball.lastThrower = e; ball.throwTime = now; ball.rolled.clear(); ball.intended = null; ball.homing = 0; ball.throwFrom = null;
   e.catchCD = 1.0;
 }
 function stunByBludger(e, bl){
@@ -2060,7 +2153,7 @@ function computeMVP(){
   let best = null, bs = 0;
   for (const e of ents){ const s = e.stats || {}; let v = 0; for (const k in STAT_W) v += (s[k]||0)*STAT_W[k]; if (v > bs){ bs = v; best = e; } }
   if (!best) return null;
-  const s = best.stats, who = best.human ? (net.active ? (best.name || 'ホスト') : 'あなた') : `${TEAM_NAME[best.team]}の${ROLE_NAME[best.role]}`;
+  const s = best.stats, who = best.human ? (net.active ? (best.name || 'ホスト') : 'あなた') : `${TEAM_NAME[best.team]}の${entLabel(best)}`;
   return {who, team:best.team, line:Object.keys(STAT_W).filter(k=>s[k]).map(k=>`${STAT_LABEL[k]}${s[k]}`).join('・')};
 }
 // 通知: 自分ならその場で表示、オンラインの他の人間なら本人に送る
@@ -2261,7 +2354,7 @@ function botSpd(e, base, urgent, dt){
   const b = BROOMS[e.broom] || BROOMS.swift;
   if (e.exhausted && e.stamina >= 0.35) e.exhausted = false;
   if (urgent && !e.exhausted && e.stamina > 0){
-    e.boosting = true; e.stamina = Math.max(0, e.stamina - b.drain*dt);
+    e.boosting = true; e.stamina = Math.max(0, e.stamina - b.drain*(e.sk==='krum' && snitch.active ? 0.4 : 1)*dt);
     if (e.stamina <= 0) e.exhausted = true;
     return Math.max(base, b.boost*D.boost);
   }
@@ -2281,12 +2374,17 @@ function botDodge(e){
 function tryBotTackle(e, h, dt, range=10){
   if (e.dashCD>0 || e.recover>0 || h.tackleImmune>0 || h.roll>0) return;
   const to = h.pos.clone().sub(e.pos), d = to.length();
-  if (d < range && d > 2 && e.dir.angleTo(to) < 0.6 && Math.random() < dt*2.5*D.aggr) beginWindup(e, h);
+  if (d < range && d > 2 && e.dir.angleTo(to) < 0.6 && Math.random() < dt*2.5*D.aggr*e.pw) beginWindup(e, h);
 }
 function chaserAI(e, dt){
   const sign = e.team===0 ? 1 : -1, hx = attackX(e.team);
   const mate = mateChaser(e);
   const h = ball.holder;
+  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e){   // 元シーカーはスニッチ戦に参加
+    const k = e.sk==='krum', sd = e.pos.distanceTo(snitch.pos);
+    steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 1.1), k || sd < 25, dt), dt, k ? 5 : 3);
+    return;
+  }
   if (h===e){
     e.holdTime += dt;
     botDodge(e);
@@ -2365,7 +2463,7 @@ function hitBludger(e, bl, tgt, jitter=1.5, homing=0.8, strong=false, speed=CFG.
   const tp = tgt.pos.clone().addScaledVector(tgt.dir, tgt.speed*t*0.8).add(new V3(rand(-jitter,jitter),rand(-jitter,jitter),rand(-jitter,jitter)));
   bl.vel.copy(tp.sub(bl.pos).normalize().multiplyScalar(spd));
   bl.homing = homing; bl.target = tgt; bl.hitByTeam = e.team; bl.hitter = e; bl.heldBy = null; bl.summonTo = null; bl.strong = strong; bl.dodgeChecked = false; bl.trackSpeed = spd;
-  e.hitCD = e.human ? CFG.swingCD : CFG.beaterCooldown; e.swing = 0.28;
+  e.hitCD = e.human ? CFG.swingCD : CFG.beaterCooldown/(e.sk==='bagman' ? 1.6 : e.pw); e.swing = 0.28;
   emit(bl.pos, 12, {colors:[0xffffff,0xffd27a], speed:8, life:0.3, size:0.3, drag:3});
   if (!e.isPlayer && e.pos.distanceTo(player.pos) < 40) beep(320, 0.08, 'square', 0.08);
   if (tgt.human) notify(tgt, 'ブラッジャーが飛んでくる！', 0.8, '#ffb37a');
@@ -2373,7 +2471,7 @@ function hitBludger(e, bl, tgt, jitter=1.5, homing=0.8, strong=false, speed=CFG.
 function beaterAI(e, dt){
   const sign = e.team===0 ? 1 : -1;
   if (e.hitCD <= 0) for (const bl of bludgers){
-    if (!bl.heldBy && bl.pos.distanceTo(e.pos) < 3.6){ const tgt = pickBludgerTarget(e); if (tgt){ hitBludger(e, bl, tgt); break; } }
+    if (!bl.heldBy && bl.pos.distanceTo(e.pos) < 3.6){ const tgt = pickBludgerTarget(e); if (tgt){ if (e.sk==='bagman') hitBludger(e, bl, tgt, 0, CFG.trackTime, true, 54); else hitBludger(e, bl, tgt, 1.5/e.pw, 0.8*e.pw, false, CFG.bludgerHitSpeed*e.pw); break; } }
   }
   let nb = null, nd = 1e9;
   for (const bl of bludgers){ if (bl.heldBy || (bl.homing>0 && bl.hitByTeam===e.team)) continue; const d = bl.pos.distanceTo(e.pos); if (d<nd){ nd = d; nb = bl; } }
@@ -2418,7 +2516,15 @@ function updateBall(dt){
     if ((ball.prev.x - sx)*(ball.pos.x - sx) <= 0 && ball.prev.x !== ball.pos.x && Math.sign(ball.vel.x)===Math.sign(sx)){
       const t = (sx - ball.prev.x)/(ball.pos.x - ball.prev.x);
       const p = ball.prev.clone().lerp(ball.pos, t);
-      for (let i=0;i<3;i++){ const h = HOOPS[i]; if (Math.hypot(p.y-h.y, p.z-h.z) < HOOP_R - 0.3){ scoreGoal(sx>0 ? 0 : 1, i, p); return; } }
+      for (let i=0;i<3;i++){ const h = HOOPS[i]; if (Math.hypot(p.y-h.y, p.z-h.z) < HOOP_R - 0.3){
+        const sc = sx>0 ? 0 : 1, k = keeperOf(1-sc);
+        if (k && k.sk==='ron' && k.stun<=0 && ronFarShot(k, ball.vel.length())){   // 覚醒ロン：遠くからのシュートはリング前で必ず止める
+          k.pos.copy(p).add(new V3(-Math.sign(sx)*1.2, 0, 0)); k.prevPos.copy(k.pos);
+          emit(p, 40, {colors:[0xffffff, 0xff9be6, TEAM_COL[k.team]], speed:12, life:0.6, size:0.4, drag:2});
+          takeBall(k); teamToast(k.team, '覚醒ロン、スーパーセーブ！', '覚醒ロンに止められた！ 至近距離から打て！');
+          return;
+        }
+        scoreGoal(sc, i, p); return; } }
     }
   }
   boundReflect(ball.pos, ball.vel);
@@ -2427,6 +2533,7 @@ function updateBall(dt){
   for (const e of ents){
     if (e.role==='B' || e.stun>0 || e.catchCD>0) continue;
     let r = e.role==='K' ? 3.0 : e.human ? 3.2 : 2.3;
+    if (e.sk==='ron' && ronFarShot(e, spd)) r = 9;   // 覚醒ロン：遠くからのシュートには飛びついて止める
     if (ball.intended===e) r += 1;
     else if (ball.homing > 0 && !e.human) r = 1.8;   // 追尾パスは横取りされにくい
     const d = e.pos.distanceTo(ball.pos); if (d > r) continue;
@@ -2434,7 +2541,7 @@ function updateBall(dt){
     if (hostile){
       if (ball.rolled.has(e)) continue;
       ball.rolled.add(e);
-      const p = e.role==='K' ? D.save : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1);
+      const p = e.role==='K' ? (e.sk==='ron' ? (ronFarShot(e, spd) ? 1 : 0.3) : Math.min(0.97, D.save*(1 + (e.pw-1)*2.5))) : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1)*e.pw;
       if (Math.random() > p) continue;
     }
     if (d < bd){ bd = d; best = e; }
@@ -2445,6 +2552,10 @@ function updateBall(dt){
     if (wasShot && best.role==='K') teamToast(best.team, '味方キーパー、ナイスセーブ！', 'キーパーに止められた！');
     else if (wasShot && best.human){ stat(best, 'cuts'); notify(best, 'パスカット！', 1, 'var(--good)'); }
   }
+}
+function ronFarShot(e, spd){
+  const f = ball.throwFrom, th = ball.lastThrower;
+  return !!(f && th && th.team!==e.team && spd > 15 && now - ball.throwTime < 3 && Math.abs(f.x + attackX(e.team)) > 7);
 }
 function scoreGoal(team, hoopIdx, p){
   game.score[team] += CFG.goalPoints;
@@ -2582,14 +2693,14 @@ function updateSnitch(dt){
   if (Math.random() < 0.5) emit(snitch.pos, 1, {colors:[0xffe680], speed:1, life:0.6, size:0.25, drag:1});
   for (const e of ents){
     if (e.role==='K' || e.stun>0) continue;
-    if (e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : 1.3)){ catchSnitch(e); return; }
+    if (e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : e.sk==='krum' ? 2.2 : 1.3)){ catchSnitch(e); return; }
   }
 }
 function catchSnitch(e){
   game.score[e.team] += CFG.snitchPoints;
   emit(snitch.pos, 160, {colors:[0xffd54a,0xffffff,0xffb300], speed:18, life:1.8, size:0.5, gravity:4, drag:1.2});
   snitch.active = false; snitch.mesh.visible = false; stat(e, 'snitch');
-  const who = (e.isPlayer && !net.active) ? 'あなた' : e.human ? `${TEAM_NAME[e.team]}の${e.name}` : `${TEAM_NAME[e.team]}の${ROLE_NAME[e.role]}`;
+  const who = (e.isPlayer && !net.active) ? 'あなた' : `${TEAM_NAME[e.team]}の${entLabel(e)}`;
   sfx('catch'); game.cheer = 3;
   endGame(`${who}が金のスニッチを捕獲！（+${CFG.snitchPoints}）`);
 }
@@ -3051,6 +3162,8 @@ function hostStart(){
   const L = net.lobby;
   if (L.cfg.h0 === L.cfg.h1){ lobbyStatus('チームAとチームBに別のチームを選んでください'); return; }
   const setup = {cfg: Object.assign({}, L.cfg), slots: L.players.map(p=>({id:p.id, name:p.name, team:p.team, slot:p.slot, broom:p.broom}))};
+  setup.chars = [];
+  for (const t of [0,1]){ const lu = randomLineup(t===0 ? L.cfg.h0 : L.cfg.h1, {C:2,B:1,K:1}); ROLES.forEach((r,i)=>{ const c = lu[r].shift(); setup.chars[t*4+i] = c ? c.id : null; }); }
   netBroadcast({t:'start', setup});
   startOnlineMatch(setup);
 }
@@ -3142,7 +3255,7 @@ function startOnlineMatch(setup){
   D = DIFF[setup.cfg.diff] || DIFF.normal;
   setHouses(setup.cfg.h0, setup.cfg.h1);
   setStage(setup.cfg.stage);
-  buildTeamsOnline(setup.slots);
+  buildTeamsOnline(setup.slots, setup.chars);
   resetGame();
   D = DIFF[setup.cfg.diff] || DIFF.normal;
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
@@ -3272,7 +3385,35 @@ function renderHouseCards(){
   document.querySelectorAll('[data-house]').forEach(c=>{ c.onclick = ()=>{
     uiClick(); if (isW) settings.wcTeam = c.dataset.house; else settings.house = c.dataset.house;
     saveSettings(); renderHouseCards(); setHouses(c.dataset.house, isW ? wcRival() : rivalOf(c.dataset.house)); buildRoster(); }; });
+  renderLineup();
 }
+// 自分のチームのメンバー選択（役職に合う選手だけ選べる）
+const lineupTeam = () => settings.diff==='world' ? settings.wcTeam : settings.house;
+function lineupIds(team){
+  if (!settings.lineup || typeof settings.lineup !== 'object') settings.lineup = {};
+  const cur = pickLineup(team, {C:2, B:1, K:1}, settings.lineup[team]);
+  return settings.lineup[team] = {C:cur.C.map(c=>c.id), B:cur.B.map(c=>c.id), K:cur.K.map(c=>c.id)};
+}
+function renderLineup(){
+  const wrap = $('lineupWrap'); if (!wrap) return;
+  const team = lineupTeam(), ids = lineupIds(team), need = needFor(game.playerRole || settings.role);
+  const slots = []; for (const r of ['C','B','K']) for (let k=0;k<need[r];k++) slots.push([r, k]);
+  wrap.innerHTML = slots.map(([r,k])=>{
+    const cur = CHAR_BY_ID[ids[r][k]];
+    const opts = charsOf(team, r).map(c=>`<option value="${c.id}"${cur && cur.id===c.id ? ' selected' : ''}>${escHtml(c.name)}（${c.rar}）</option>`).join('');
+    const sk = cur && cur.sk ? `<span style="color:${RARITY[cur.rar].col}">★ ${SKILL_TEXT[cur.sk]}</span>` : '';
+    return `<div class="lslot"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-lr="${r}" data-lk="${k}" aria-label="${ROLE_NAME[r]}を選ぶ">${opts}</select><span class="lsk">${sk}</span></div>`;
+  }).join('');
+  wrap.querySelectorAll('select[data-lr]').forEach(sel=>{ sel.onchange = ()=>{
+    const r = sel.dataset.lr, k = +sel.dataset.lk, arr = ids[r], old = arr[k], j = arr.indexOf(sel.value);
+    if (j >= 0 && j !== k) arr[j] = old;   // 同じ選手を2枠に入れたら入れ替え
+    arr[k] = sel.value; saveSettings(); uiClick(); renderLineup();
+  }; });
+}
+$('lineupRand').onclick = ()=>{
+  uiClick(); const team = lineupTeam(), r = randomLineup(team, {C:2, B:1, K:1});
+  settings.lineup[team] = {C:r.C.map(c=>c.id), B:r.B.map(c=>c.id), K:r.K.map(c=>c.id)}; saveSettings(); renderLineup();
+};
 function renderBroomCards(){
   const mx = {boost:[34,44], dur:[1.5,4.5]};
   $('broomCards').innerHTML = Object.entries(BROOMS).map(([k,b])=>{
@@ -3283,7 +3424,7 @@ function renderBroomCards(){
   document.querySelectorAll('[data-broom]').forEach(c=>{ c.onclick = ()=>{ uiClick(); settings.broom = c.dataset.broom; saveSettings(); renderBroomCards(); }; });
 }
 function selectRole(r){
-  game.playerRole = r; settings.role = r; saveSettings();
+  game.playerRole = r; settings.role = r; saveSettings(); renderLineup();
   document.querySelectorAll('.pcard[data-role]').forEach(c=>c.classList.toggle('sel', c.dataset.role===r));
 }
 function startMatch(){
@@ -3291,7 +3432,7 @@ function startMatch(){
   const isW = settings.diff==='world', myTeam = isW ? settings.wcTeam : settings.house;
   setHouses(myTeam, isW ? wcRival() : rivalOf(myTeam));
   setStage(settings.diff==='world' ? 'wc' : 'hog');
-  buildTeams(game.playerRole);
+  buildTeams(game.playerRole, [pickLineup(myTeam, needFor(game.playerRole), (settings.lineup||{})[myTeam]), randomLineup(game.houses[1], {C:2,B:1,K:1})]);
   resetGame();
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
   game.cd = 3; lastCd = 4;
