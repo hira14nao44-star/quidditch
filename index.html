@@ -89,6 +89,10 @@ body.incut canvas{filter:blur(1.6px) saturate(.82) sepia(.18) contrast(.96)}
 #cut .cutFx::after{content:"";position:absolute;inset:0;opacity:.13;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
 #cut .cutSil{position:absolute;right:6vw;bottom:calc(10vh + 150px);width:min(34vw,360px);opacity:0;transform:translateX(30px);transition:opacity .5s,transform .5s;pointer-events:none}
 #cut .cutSil.on{opacity:1;transform:none}#cut .silSvg{width:100%;height:auto;display:block;overflow:visible}
+#cut .cutSil.big{right:auto;left:50%;bottom:calc(10vh + 150px);width:auto;height:min(58vh,560px);transform:translate(-50%,24px)}
+#cut .cutSil.big.on{transform:translate(-50%,0)}
+#cut .cutSil.big .silImg{height:100%;width:auto;display:block;filter:brightness(0) drop-shadow(0 0 2px rgba(255,214,150,.9)) drop-shadow(0 0 18px rgba(255,190,110,.45))}
+#cut .cutSil.big .silName{position:absolute;left:0;right:0;bottom:-6px;margin:0;font-size:26px}
 #cut .silName{text-align:center;color:#ffcf4a;font-weight:800;letter-spacing:8px;margin-bottom:-18px;position:relative;text-shadow:0 2px 10px rgba(0,0,0,.8)}
 #cut .cutFlash{position:absolute;inset:0;background:#fffaf0;opacity:0;pointer-events:none;z-index:5}
 #cut .cutPlace{position:absolute;left:5vw;top:calc(10vh + 78px);color:#f3ead2;font-weight:700;letter-spacing:4px;font-size:clamp(14px,1.6vw,20px);padding:6px 16px 6px 12px;border-left:3px solid #ffcf4a;background:linear-gradient(90deg,rgba(0,0,0,.55),rgba(0,0,0,0));opacity:0;transition:opacity .6s;pointer-events:none;z-index:4}
@@ -4432,7 +4436,25 @@ const STORY_SCRIPT = [{"intro": [{"who": "", "text": "九月。湖の向こう�
 
 // ---- 台本（story_script.md から変換）と表示の設定 ----
 // 背景の一枚絵：画像ができたら BG_IMG にファイル名を入れるだけで差し替わる。なければ3Dの景色をぼかして使う
-const BG_IMG = {};
+const BG_IMG = {}, SIL_IMG = {};
+const BG_FILE = {'湖畔の古城':'castle', '朝の大食堂':'hall', '夜の談話室':'common', '夕方の練習場':'pitch_evening', '雨の練習場':'pitch_rain', '城の廊下':'corridor',
+  '手紙が届く冬の窓辺':'window_letter', '大会のキャンプ場':'camp', '夜のスタジアム（外観）':'stadium_out', '夜のスタジアム（内部）':'stadium_in', '優勝の紙吹雪':'confetti'};
+// img/list.json（画像ファイル名の一覧）があるときだけ読む。例：["bg/castle.jpg", "sil/krum.png"]
+function loadStoryImages(){
+  tryList();
+  function tryList(){
+    fetch('img/list.json', {cache:'no-cache'}).then(r=>r.ok ? r.json() : []).then(list=>{
+      const byBg = {}; for (const k in BG_FILE) byBg[BG_FILE[k]] = k;
+      for (const f of list){
+        const m = /^(bg|sil)\/([\w-]+)\.(jpg|jpeg|png|webp)$/i.exec(f); if (!m) continue;
+        const src = 'img/' + f, im = new Image();
+        im.onload = () => { if (m[1]==='bg' && byBg[m[2]]) BG_IMG[byBg[m[2]]] = src; else if (m[1]==='sil') SIL_IMG[m[2]] = src; };
+        im.src = src;
+      }
+    }).catch(()=>{});
+  }
+}
+setTimeout(loadStoryImages, 1500);
 const PLACE_NAME = {'湖畔の古城':'城', '朝の大食堂':'大食堂', '夜の談話室':'グリフィンドール談話室', '夕方の練習場':'練習場', '雨の練習場':'練習場（雨）', '城の廊下':'城の廊下',
   '手紙が届く冬の窓辺':'冬の朝', '大会のキャンプ場':'W杯 キャンプ場', '夜のスタジアム（外観）':'W杯 スタジアム', '夜のスタジアム（内部）':'W杯 スタジアム', '優勝の紙吹雪':'W杯 決勝のあと'};
 const BG_CAM = {'湖畔の古城':'castle', '朝の大食堂':'castle', '夜の談話室':'sky', '夕方の練習場':'pitch', '雨の練習場':'pitch', '城の廊下':'castle',
@@ -4541,7 +4563,8 @@ function cutNext(first){
   $('cutWho').innerHTML = cutSpeakerHtml(n.who); $('cutWho').style.visibility = n.who ? 'visible' : 'hidden';
   $('cutTxt').classList.toggle('dir', !!n.dir);
   { const img = BG_IMG[n.bg]; $('cutBg').style.backgroundImage = img ? `url("${img}")` : ''; $('cutBg').classList.toggle('on', !!img); }
-  { const sid = cutSilFor(n, C); if (sid !== cut.sil){ cut.sil = sid; $('cutSil').innerHTML = sid ? '<div class="silName">？？？</div>' + silhouetteSvg(SIL[sid]) : ''; $('cutSil').classList.toggle('on', !!sid); } }
+  { const sid = cutSilFor(n, C); if (sid !== cut.sil){ cut.sil = sid; const img = sid && SIL_IMG[sid]; $('cutSil').classList.toggle('big', !!img);
+      $('cutSil').innerHTML = !sid ? '' : img ? `<img class="silImg" src="${img}" alt=""><div class="silName">？？？</div>` : '<div class="silName">？？？</div>' + silhouetteSvg(SIL[sid]); $('cutSil').classList.toggle('on', !!sid); } }
   $('cutTxt').textContent = '';
   if (!first) uiClick();
 }
@@ -4762,7 +4785,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14d';
+const APP_VERSION = '2026-11-14f';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
