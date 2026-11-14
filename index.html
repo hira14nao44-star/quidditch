@@ -847,7 +847,7 @@ const FLAGS = {
 function emblemSvg(key, size=56){
   if (key==='englandwc') key = 'england';
   if (FLAGS[key]) return `<svg class="emb flag" viewBox="0 0 30 20" width="${size*1.4}" height="${size*0.93}" aria-hidden="true">${FLAGS[key]}<rect width="30" height="20" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".6"/></svg>`;
-  const H = HOUSES[key] || ALL_TEAMS()[key] || {}, c1 = hexCss(H.col || 0x888888), c2 = H.acc || '#e8b53a';
+  const H = HOUSES[key] || ALL_TEAMS()[key] || (typeof PRACTICE_TEAMS!=='undefined' && PRACTICE_TEAMS[key]) || {}, c1 = hexCss(H.col || 0x888888), c2 = H.acc || '#e8b53a';
   return `<svg class="emb" viewBox="0 0 40 46" width="${size*0.87}" height="${size}" aria-hidden="true">
     <path d="M20 2 L37 8 V22 C37 33 29 40 20 44 C11 40 3 33 3 22 V8 Z" fill="${c1}" stroke="${c2}" stroke-width="2.4"/>
     <path d="M20 6 L33 10.5 V22 C33 30.5 27 36 20 39.5 C13 36 7 30.5 7 22 V10.5 Z" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
@@ -1719,8 +1719,13 @@ function setStage(name){
   if (bloomPass) bloomPass.strength = L.bloom;
   applyQuality();
 }
+// 練習試合用のチーム（選択画面には出さない）
+const PRACTICE_TEAMS = {
+  teamA: {name:'Aチーム', letter:'A', motto:'', col:0xd9822b, dark:0x6b3a0c, css:'#ffb070', deep:'#9a5a1a', acc:'#ffe2b0'},
+  teamB: {name:'Bチーム', letter:'B', motto:'', col:0x2a9d8f, dark:0x0e4a43, css:'#6fe0d0', deep:'#1a6e64', acc:'#d8fff9'},
+};
 function setHouses(h0, h1){
-  [h0, h1].forEach((k,i)=>{ const H = HOUSES[k] || NATIONS[k] || ENGLAND[k]; TEAM_COL[i] = H.col; TEAM_DARK[i] = H.dark; TEAM_CSS[i] = H.css; TEAM_DEEP_CSS[i] = H.deep; TEAM_NAME[i] = H.name; TEAM_LETTER[i] = H.letter; });
+  [h0, h1].forEach((k,i)=>{ const H = HOUSES[k] || NATIONS[k] || ENGLAND[k] || PRACTICE_TEAMS[k]; TEAM_COL[i] = H.col; TEAM_DARK[i] = H.dark; TEAM_CSS[i] = H.css; TEAM_DEEP_CSS[i] = H.deep; TEAM_NAME[i] = H.name; TEAM_LETTER[i] = H.letter; });
   game.houses = [h0, h1];
   for (const c of [badgeTexCache, capeTexCache, scarfTexCache]) for (const k in c) delete c[k];
   const rs = document.documentElement.style;
@@ -4708,13 +4713,14 @@ $('practiceYes').onclick = ()=>{ uiClick(); startPractice(); };
 $('practiceNo').onclick = ()=>{ uiClick(); cut.choice = false; $('cutChoice').hidden = true; cutNext(); };
 // 練習試合：時間無制限・かんたん。Enter でスニッチを出し、捕まったら話に戻る
 function startPractice(){
-  const i = cut.ch, C = CHAPTERS[i], rv = chRival(C);
+  const i = cut.ch, C = CHAPTERS[i];
   game.practice = {ch:i, lines:cut.lines, i:cut.i, done:cut.done, kind:cut.kind, preI:cut.preI};
   cut.choice = false; $('cutChoice').hidden = true; $('cut').hidden = true; document.body.classList.remove('incut'); cut.lines = null; cut.done = null;
   game.story = null; game.state = 'countdown';
-  setHouses(C.own, rv); setStage(C.stage);
-  const [own, mc] = chOwnLineup(i);
-  buildTeams(game.playerRole || settings.role || 'C', [own, chLineup(C)], mc);
+  // 練習は A・B チームの名前なしの選手だけ
+  setHouses('teamA', 'teamB'); setStage(C.stage);
+  const mob = () => ({C:[], B:[], K:[]});
+  buildTeams(game.playerRole || settings.role || 'C', [mob(), mob()], null);
   resetGame();
   D = DIFF.easy; game.time = 1e9;
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
@@ -4761,7 +4767,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14i';
+const APP_VERSION = '2026-11-14j';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
