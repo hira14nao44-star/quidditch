@@ -59,6 +59,7 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .rrow{display:flex;align-items:center;gap:6px;height:20px}
 .rrow .ico{width:15px;height:15px;flex:none}
 .rrow .rn{min-width:110px}
+.brate{display:block;margin:4px 0 2px;font-size:15px;letter-spacing:.04em;color:#ffcf4a}
 .rar{font-size:10px;font-weight:800;letter-spacing:.5px}
 .pname{display:flex;align-items:center;gap:12px;font-weight:800;margin-top:12px}
 .pname input{font:inherit;font-size:18px;padding:8px 12px;border-radius:10px;background:#141a2b;color:#fff;border:1px solid rgba(255,255,255,.25);width:240px}
@@ -638,9 +639,9 @@ const DIFF = {
   world:  {bot:19.5, windup:0.18, save:0.80, jitter:0.6, aggr:2.0, dodge:0.75, intercept:0.60, boost:1.05},
 };
 const BROOMS = {
-  oak:   {name:'クリーンスイープ7号', tag:'標準', desc:'よく見かける量産箒。ブーストは控えめだがスタミナが長持ち。', boost:36,   drain:0.24, fast:24, wood:0x7a4b25, metal:0xb8902f, straw:'#c9a45c', trail:[0xfff1c9,0xffe39a,0xffffff]},
-  swift: {name:'ニンバス2000',   tag:'バランス', desc:'高性能な競技用モデル。速さと持久力を両立。', boost:39.5, drain:0.33, fast:25, wood:0xa8784a, metal:0xc8ccd6, straw:'#e2c88a', trail:[0x9fd0ff,0xffffff,0x58a6ff]},
-  blaze: {name:'ファイアボルト',     tag:'最速',   desc:'世界最速の国際試合用モデル。最高速だがスタミナ消費が激しい。', boost:43,   drain:0.45, fast:26, wood:0x2a1a12, metal:0xe8b53a, straw:'#8a5a2a', trail:[0xff7a2a,0xffd54a,0xff4b3a]},
+  oak:   {name:'クリーンスイープ7号', tag:'標準', rate:'スピード△ スタミナ◎', desc:'よく見かける量産箒。ブーストは控えめだがスタミナが長持ち。', boost:36,   drain:0.24, fast:24, wood:0x7a4b25, metal:0xb8902f, straw:'#c9a45c', trail:[0xfff1c9,0xffe39a,0xffffff]},
+  swift: {name:'ニンバス2000',   tag:'バランス', rate:'スピード○ スタミナ○', desc:'高性能な競技用モデル。速さと持久力を両立。', boost:39.5, drain:0.33, fast:25, wood:0xa8784a, metal:0xc8ccd6, straw:'#e2c88a', trail:[0x9fd0ff,0xffffff,0x58a6ff]},
+  blaze: {name:'ファイアボルト',     tag:'最速', rate:'スピード◎ スタミナ△',   desc:'世界最速の国際試合用モデル。最高速だがスタミナ消費が激しい。', boost:43,   drain:0.45, fast:26, wood:0x2a1a12, metal:0xe8b53a, straw:'#8a5a2a', trail:[0xff7a2a,0xffd54a,0xff4b3a]},
 };
 const settings = {sens:1, invY:false, vol:0.7, bgm:0.6, lineup:{}, myChar:{}, avatar:'', diff:'normal', role:'C', quality:'high', broom:'swift', house:'gryffindor', nation:'ireland', wcTeam:'gryffindor', name:''};
 try { Object.assign(settings, JSON.parse(localStorage.getItem('skyball-settings')||'{}')); } catch(e){}
@@ -2321,6 +2322,12 @@ function audioUnlock(){
   muInit();
 }
 addEventListener('pointerdown', audioUnlock, true);
+document.addEventListener('visibilitychange', ()=>{
+  if (!actx) return;
+  if (document.hidden){ if (actx.state==='running') actx.suspend().catch(()=>{}); }
+  else if (actx.state==='suspended') actx.resume().catch(()=>{});
+});
+addEventListener('pagehide', ()=>{ if (actx && actx.state==='running') actx.suspend().catch(()=>{}); });
 addEventListener('keydown', audioUnlock, true);
 
 const uiClick = () => { const q = game.state; game.state = 'x'; beep(660, 0.05, 'triangle', 0.06); game.state = q; };
@@ -3853,7 +3860,7 @@ function renderLobby(){
     else netSend({t:'pick', team:t, slot:sl});
   }; });
   const me = L.players.find(p=>p.id===net.myId);
-  $('lobbyBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${(me ? me.broom : settings.broom)===k?' selected':''}>${b.name}（${b.tag}）</option>`).join('');
+  $('lobbyBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${(me ? me.broom : settings.broom)===k?' selected':''}>${b.name}（${b.rate}）</option>`).join('');
   $('hostCfg').style.display = net.host ? '' : 'none';
   if (net.host){
     const opts = sel => Object.entries(T).map(([k,H])=>`<option value="${k}"${sel===k?' selected':''}>${H.name}</option>`).join('');
@@ -4075,7 +4082,7 @@ function renderBroomCards(){
   const mx = {boost:[34,44], dur:[1.5,4.5]};
   $('broomCards').innerHTML = Object.entries(BROOMS).map(([k,b])=>{
     const sp = (b.boost-mx.boost[0])/(mx.boost[1]-mx.boost[0])*100, du = (1/b.drain - mx.dur[0])/(mx.dur[1]-mx.dur[0])*100;
-    return `<button class="pcard${settings.broom===k?' sel':''}" data-broom="${k}"><span class="ph">${b.name}<span class="tag">${b.tag}</span></span><p>${b.desc}</p>
+    return `<button class="pcard${settings.broom===k?' sel':''}" data-broom="${k}"><span class="ph">${b.name}<span class="tag">${b.tag}</span></span><b class="brate">${b.rate}</b><p>${b.desc}</p>
       <span class="meter"><span>ブースト速度</span><i style="--v:${sp.toFixed(0)}%"></i><span>スタミナの持ち</span><i style="--v:${du.toFixed(0)}%"></i></span></button>`;
   }).join('');
   document.querySelectorAll('[data-broom]').forEach(c=>{ c.onclick = ()=>{ uiClick(); settings.broom = c.dataset.broom; saveSettings(); renderBroomCards(); }; });
@@ -4639,7 +4646,7 @@ function renderPrep(i){
     arr[k] = el.value; sel[r] = arr; saveStory(); uiClick(); $('prepInfo').dataset.id = el.value; renderPrep(i);
   }; });
   wireInfo($('prepLineup'));
-  $('prepBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${settings.broom===k?' selected':''}>${b.name}（${b.tag}）</option>`).join('');
+  $('prepBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${settings.broom===k?' selected':''}>${b.name}（${b.rate}）</option>`).join('');
 }
 $('prepBroom').onchange = ev=>{ settings.broom = ev.target.value; saveSettings(); };
 $('prepGo').onclick = ()=>{ uiClick(); startStoryMatch(game.prepCh); };
@@ -4773,7 +4780,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14l';
+const APP_VERSION = '2026-11-14m';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
