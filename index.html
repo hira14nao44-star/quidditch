@@ -108,6 +108,12 @@ body.incut canvas{filter:blur(1.6px) saturate(.82) sepia(.18) contrast(.96)}
 #cut .cap{position:absolute;left:50%;bottom:calc(10vh + 18px);transform:translateX(-50%);width:min(880px,92vw);box-sizing:border-box;background:rgba(6,10,20,.78);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:14px 22px 10px}
 #cut .who{color:var(--gold);font-weight:800;font-size:15px;min-height:20px}
 #cut .txt{font-size:21px;line-height:1.65;min-height:70px;color:#fff}
+#cut .cutChoice{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(520px,90vw);box-sizing:border-box;background:rgba(6,10,20,.9);border:1px solid rgba(255,207,74,.6);border-radius:14px;padding:18px 22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#cut .cutChoice p{margin:0 0 6px;font-size:20px;font-weight:800;color:#ffcf4a}
+#cut .cutChoice small{display:block;font-size:13px;opacity:.8;margin-bottom:14px;line-height:1.6}
+#cut .cutChoice .btn{margin:0 6px}
+#practiceBar{position:absolute;top:108px;left:50%;transform:translateX(-50%);background:rgba(10,24,40,.82);border:1px solid rgba(255,207,74,.55);color:#ffe7a6;border-radius:20px;padding:5px 16px;font-size:14px;font-weight:800;white-space:nowrap;transition:background .3s}
+#practiceBar.sn{background:rgba(70,52,6,.9);color:#fff;font-size:16px}
 #cut .nx{text-align:right;font-size:12px;opacity:.55}
 @media (max-width:640px){.chap{grid-template-columns:1fr 1fr}#cut .txt{font-size:17px}}
 .cinfoWrap{display:none}
@@ -314,6 +320,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <div class="team t1"><b id="s1">0</b><span id="tn1">紅竜</span></div>
   </div>
   <div id="missionBar" hidden></div>
+  <div id="practiceBar" hidden></div>
   <div id="quip"></div>
   <div id="missionCard" hidden>
     <div class="mk">特別ミッション</div>
@@ -423,6 +430,11 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   <div class="cbar top"></div><div class="cbar bot"></div>
   <div class="cutTitle" id="cutTitle"></div>
   <button class="btn ghost small" id="cutSkip" type="button">スキップ</button>
+  <div class="cutChoice" id="cutChoice" hidden>
+    <p>練習試合で操作を試しますか？</p>
+    <small>時間無制限・かんたん。好きなだけ飛んで、終わりたくなったら <kbd>Enter</kbd> でスニッチを出してください。</small>
+    <div><button class="btn" id="practiceYes" type="button">練習する</button><button class="btn ghost" id="practiceNo" type="button">しないで進む</button></div>
+  </div>
   <div class="cap"><div class="who" id="cutWho"></div><div class="txt" id="cutTxt"></div><div class="nx">クリック / Space で次へ</div></div>
 </div>
 
@@ -2103,7 +2115,7 @@ const quiet = () => ['menu','select','howto','settings','online','lobby','story'
 //  効果音
 // =====================================================================
 let actx = null, noiseBuf = null;
-function audio(){ try { if (!actx){ const AC = window.AudioContext||window.webkitAudioContext; try { actx = new AC({latencyHint:'playback'}); } catch(e){ actx = new AC(); } } } catch(e){} return actx; }
+function audio(){ try { if (!actx){ const AC = window.AudioContext||window.webkitAudioContext; try { actx = new AC({latencyHint:'interactive'}); } catch(e){ actx = new AC(); } } } catch(e){} return actx; }
 function beep(f, d, type='sine', vol=0.12, delay=0, slide=0){
   if (quiet()) return;
   const a = audio(); if (!a || settings.vol<=0) return;
@@ -2136,41 +2148,10 @@ function sfx(k, bc=true){
   else if (k==='count'){ beep(440, 0.12); }
 }
 // =====================================================================
-//  音楽（オリジナル曲を WebAudio でその場で合成。外部音源なし）
+//  音楽（開発時に録音済みのオリジナル曲。ゲーム中は読み込みとループ再生だけ）
 // =====================================================================
-const NOTE_I = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-function nf(n){ const m = /^([A-G])([#b]?)(-?\d)$/.exec(n); const k = NOTE_I[m[1]] + (m[2]==='#'?1:m[2]==='b'?-1:0) + (+m[3]+1)*12; return 440*Math.pow(2,(k-69)/12); }
-function chordF(name, oct){
-  const m = /^([A-G][b#]?)(.*)$/.exec(name), r = nf(m[1]+oct), q = m[2];
-  const iv = q==='m' ? [0,3,7] : q==='7' ? [0,4,7,10] : q==='m7b5' ? [0,3,6,10] : q==='sus' ? [0,5,7] : [0,4,7];
-  return iv.map(i=>r*Math.pow(2,i/12));
-}
-function melody(str){ // "D5:2 F5:2 | ..." → 小節ごとの [{s,f,l}]
-  return str.split('|').map(b=>{ let s = 0; return b.trim().split(/\s+/).filter(Boolean).map(tok=>{ const [n,l] = tok.split(':'); const ev = n==='-' ? null : {s, f:nf(n), l:+l}; s += +l; return ev; }).filter(Boolean); });
-}
-const MU = {a:null, bus:null, lp:null, dry:null, wet:null, song:null, want:null, next:0, step:0, bar:0, I:0, endT:0, crowdG:null};
+const MU = {a:null, bus:null, lp:null, song:null, voice:null, fading:new Set(), stingers:new Set(), endT:0, crowdG:null, warm:false};
 
-// --- 曲データ（すべてオリジナル） ---
-const SONGS = {
-  // メニュー：夜空のワルツ（3/4・Dマイナー）
-  menu: { spb:6, bpm:132, div:2,
-    chords:['Dm','Dm','Gm','A7','Dm','Bb','Em7b5','A','F','C','Dm','Bb','Gm','A7','Dm','Dm'],
-    mel: melody(`A4:1 Bb4:1 A4:1 G#4:1 A4:2 | D5:3 E5:1 F5:2 | G5:2 F5:1 E5:1 D5:2 | C#5:4 A4:2 |
-                 F5:1 G5:1 F5:1 E5:1 F5:2 | D6:3 C6:1 Bb5:2 | A5:2 G5:2 E5:2 | A5:6 |
-                 C6:1 D6:1 C6:1 Bb5:1 A5:2 | G5:3 E5:1 C5:2 | F5:2 A5:2 D6:2 | Bb5:4 G5:2 |
-                 G5:1 A5:1 Bb5:1 A5:1 G5:2 | E5:3 G5:1 C#5:2 | D5:2 A4:2 F5:2 | D5:6`) },
-  // 試合：勇ましい行進（4/4・Dマイナー）
-  match: { spb:16, bpm:132, div:4,
-    chords:['Dm','Bb','F','C','Dm','Bb','Gm','A','Gm','Bb','F','C','Gm','Bb','A7','A'],
-    mel: melody(`D4:6 A4:2 A4:8 | Bb4:4 A4:4 F4:8 | C5:6 A4:2 F4:4 A4:4 | G4:12 E4:4 | D4:6 A4:2 D5:8 | F5:4 E5:4 D5:4 Bb4:4 | G4:4 Bb4:4 D5:4 G5:4 | E5:8 C#5:8 |
-                 G5:8 D5:8 | F5:8 D5:8 | C5:4 F5:4 A5:8 | G5:16 | Bb5:8 A5:4 G5:4 | F5:8 D5:8 | E5:8 G5:8 | C#5:8 E5:4 A5:4`) },
-};
-
-function irBuf(a, sec){
-  const n = Math.floor(a.sampleRate*sec), b = a.createBuffer(2, n, a.sampleRate);
-  for (let c=0;c<2;c++){ const d = b.getChannelData(c); for (let i=0;i<n;i++){ const x = i/n; d[i] = (Math.random()*2-1)*Math.pow(1-x, 3.2)*(i < a.sampleRate*0.012 ? 0.3 : 1); } }
-  return b;
-}
 function muInit(){
   if (MU.a) return true;
   const a = audio(); if (!a) return false;
@@ -2178,11 +2159,8 @@ function muInit(){
     MU.a = a;
     MU.bus = a.createGain(); MU.bus.gain.value = 0;
     MU.lp = a.createBiquadFilter(); MU.lp.type = 'lowpass'; MU.lp.frequency.value = 18000;
-    const comp = a.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
-    MU.bus.connect(MU.lp); MU.lp.connect(comp); comp.connect(a.destination);
-    MU.dry = a.createGain(); MU.dry.connect(MU.bus);
-    const conv = a.createConvolver(); conv.buffer = irBuf(a, 1.8);
-    MU.wet = a.createGain(); MU.wet.gain.value = 0.55; MU.wet.connect(conv); conv.connect(MU.bus);
+    // 残響も録音に含める。ライブ側には音量とポーズ用フィルターだけ。
+    MU.bus.connect(MU.lp); MU.lp.connect(a.destination);
     // 観客のざわめき（ループするノイズ）
     if (!noiseBuf){ noiseBuf = a.createBuffer(1, a.sampleRate*2, a.sampleRate); const ch = noiseBuf.getChannelData(0); for (let i=0;i<ch.length;i++) ch[i] = Math.random()*2-1; }
     const cb = a.createBuffer(1, a.sampleRate*4, a.sampleRate), cd = cb.getChannelData(0);
@@ -2192,198 +2170,149 @@ function muInit(){
     MU.crowdG = a.createGain(); MU.crowdG.gain.value = 0;
     src.connect(bp); bp.connect(MU.crowdG); MU.crowdG.connect(a.destination); src.start();
   } catch(e){ MU.a = null; return false; }
+  if (settings.bgm > 0) warmMusic();
   return true;
 }
-// --- 楽器 ---
-function mVoice(wet){ const g = MU.a.createGain(); g.connect(MU.dry); if (wet){ const s = MU.a.createGain(); s.gain.value = wet; g.connect(s); s.connect(MU.wet); } return g; }
-function mOsc(type, f, t, end, dest, det=0, gain=1){
-  const o = MU.a.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (det) o.detune.value = det;
-  if (gain !== 1){ const g = MU.a.createGain(); g.gain.value = gain; o.connect(g); g.connect(dest); } else o.connect(dest);
-  o.start(t); o.stop(end); return o;
-}
-const INS = {
-  celesta(t, f, v){
-    const g = mVoice(0.7); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.004); g.gain.exponentialRampToValueAtTime(0.0008, t+1.5);
-    mOsc('sine', f, t, t+1.55, g); mOsc('sine', f*2, t, t+1.55, g, 0, 0.12);
-    const h = MU.a.createGain(); h.connect(g); h.gain.setValueAtTime(0.35, t); h.gain.exponentialRampToValueAtTime(0.001, t+0.22); mOsc('sine', f*4, t, t+0.25, h);
-  },
-  bell(t, f, v){
-    const g = mVoice(0.85); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.003); g.gain.exponentialRampToValueAtTime(0.0006, t+2.2);
-    mOsc('sine', f, t, t+2.25, g); mOsc('sine', f*2, t, t+1.2, g, 0, 0.18);
-    const h = MU.a.createGain(); h.connect(g); h.gain.setValueAtTime(0.4, t); h.gain.exponentialRampToValueAtTime(0.001, t+0.35); mOsc('sine', f*2.76, t, t+0.4, h); mOsc('sine', f*5.4, t, t+0.2, h, 0, 0.25);
-  },
-  trem(t, f, d, v){
-    const g = mVoice(0.7), am = MU.a.createGain(); am.connect(g);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+Math.min(0.6, d*0.4)); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.8);
-    const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 9.5; lg.gain.value = 0.45; lfo.connect(lg); lg.connect(am.gain); am.gain.value = 0.55;
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.connect(am);
-    [-6, 6].forEach(dt=>mOsc('sawtooth', f, t, t+d+0.85, lp, dt, 0.6)); lfo.start(t); lfo.stop(t+d+0.85);
-  },
-  horn(t, f, d, v){
-    const g = mVoice(0.6); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.18); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.5);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(500, t); lp.frequency.linearRampToValueAtTime(1300, t+0.25); lp.connect(g);
-    mOsc('sawtooth', f, t, t+d+0.55, lp, -3, 0.6); mOsc('triangle', f, t, t+d+0.55, lp, 4, 1.25);
-  },
-  harp(t, f, v){
-    const g = mVoice(0.45); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.003); g.gain.exponentialRampToValueAtTime(0.0008, t+1.8);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(Math.min(9000, f*8), t); lp.frequency.exponentialRampToValueAtTime(Math.max(300, f*1.5), t+0.6); lp.connect(g);
-    mOsc('triangle', f, t, t+1.85, lp); mOsc('sine', f*2, t, t+1.85, lp, 0, 0.3);
-  },
-  pad(t, f, d, v){
-    const g = mVoice(0.6); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+Math.min(0.5, d*0.4)); g.gain.setValueAtTime(v, t+d); g.gain.linearRampToValueAtTime(0, t+d+0.6);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 0.3; lp.connect(g);
-    mOsc('sawtooth', f, t, t+d+0.65, lp, -7); mOsc('sawtooth', f, t, t+d+0.65, lp, 7);
-  },
-  stac(t, f, v){
-    const g = mVoice(0.22); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.008); g.gain.exponentialRampToValueAtTime(0.0008, t+0.17);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2300; lp.connect(g);
-    mOsc('sawtooth', f, t, t+0.19, lp, 0, 1.4);
-  },
-  bass(t, f, d, v){
-    const g = mVoice(0.1); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.012); g.gain.setTargetAtTime(v*0.55, t+0.05, 0.12); g.gain.setTargetAtTime(0, t+d, 0.05);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.connect(g);
-    mOsc('sawtooth', f, t, t+d+0.3, lp); mOsc('sine', f, t, t+d+0.3, g, 0, 0.6);
-  },
-  brass(t, f, d, v){
-    const g = mVoice(0.4); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.035); g.gain.setTargetAtTime(v*0.75, t+0.08, 0.2); g.gain.setTargetAtTime(0, t+d, 0.07);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.2;
-    lp.frequency.setValueAtTime(450, t); lp.frequency.exponentialRampToValueAtTime(2800, t+0.06); lp.frequency.exponentialRampToValueAtTime(1600, t+0.3); lp.connect(g);
-    // ゆるいビブラート
-    const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 5.2; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f*0.006, t+Math.min(0.5, d)); lfo.connect(lg);
-    const o1 = mOsc('sawtooth', f, t, t+d+0.4, lp, -4), o2 = mOsc('sawtooth', f, t, t+d+0.4, lp, 5);
-    lg.connect(o1.frequency); lg.connect(o2.frequency); lfo.start(t); lfo.stop(t+d+0.4);
-  },
-  strings(t, f, d, v){
-    const g = mVoice(0.55); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.07); g.gain.setValueAtTime(v, t+d); g.gain.setTargetAtTime(0, t+d, 0.1);
-    const lp = MU.a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; lp.connect(g);
-    const lfo = MU.a.createOscillator(), lg = MU.a.createGain(); lfo.frequency.value = 5.6; lg.gain.value = f*0.005; lfo.connect(lg);
-    const os = [-8, 8].map(dt=>mOsc('sawtooth', f, t, t+d+0.5, lp, dt, 0.75)); os.forEach(o=>lg.connect(o.frequency)); lfo.start(t); lfo.stop(t+d+0.5);
-  },
-  timp(t, f, v){
-    const g = mVoice(0.35); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.006); g.gain.exponentialRampToValueAtTime(0.001, t+1.1);
-    const o = MU.a.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f*1.5, t); o.frequency.exponentialRampToValueAtTime(f, t+0.06); o.connect(g); o.start(t); o.stop(t+1.15);
-    mOsc('sine', f*1.51, t, t+0.5, g, 0, 0.25);
-    const s = MU.a.createBufferSource(), lp = MU.a.createBiquadFilter(), ng = MU.a.createGain(); s.buffer = noiseBuf; lp.type = 'lowpass'; lp.frequency.value = 260;
-    ng.gain.setValueAtTime(v*1.4, t); ng.gain.exponentialRampToValueAtTime(0.001, t+0.18); s.connect(lp); lp.connect(ng); ng.connect(g); s.start(t); s.stop(t+0.2);
-  },
-  tick(t, v, hp=7000, d=0.06){
-    const g = mVoice(0.15), s = MU.a.createBufferSource(), f = MU.a.createBiquadFilter(); s.buffer = noiseBuf; f.type = 'highpass'; f.frequency.value = hp;
-    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t+d); s.connect(f); f.connect(g); s.start(t, Math.random()); s.stop(t+d+0.02);
-  },
-  swell(t, d, v){
-    const g = mVoice(0.5), s = MU.a.createBufferSource(), f = MU.a.createBiquadFilter(); s.buffer = noiseBuf; s.loop = true; f.type = 'highpass'; f.frequency.value = 4500;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t+d); g.gain.exponentialRampToValueAtTime(0.0005, t+d+1.2); s.connect(f); f.connect(g); s.start(t); s.stop(t+d+1.3);
-  },
-};
-
-// --- 1ステップ分を鳴らす ---
-function playStep(name, bar, s, t, sl){
-  const S = SONGS[name], b = bar % S.chords.length, ch = S.chords[b], pass = Math.floor(bar / S.chords.length);
-  if (name==='menu'){
-    const bar6 = sl*6;
-    // ハープ：小節ごとに2オクターブ駆け上がるアルペジオ
-    const arp = chordF(ch,3).slice(0,3).concat(chordF(ch,4).slice(0,3));
-    INS.harp(t, arp[s % arp.length] * (s===0 ? 0.5 : 1), s===0 ? 0.12 : 0.05);
-    if (s===0){
-      chordF(ch,4).slice(0,3).forEach(f=>INS.trem(t, f, bar6, 0.006));
-      if (b % 4 === 0) INS.horn(t, chordF(ch,3)[0], bar6*2, 0.03);
-      if (b===8 || b===12) INS.horn(t, chordF(ch,3)[2], bar6*2, 0.022);
+// 楽譜・楽器・残響の録音処理は tools/music-score.js。ここでは合成しない。
+const MUSIC_CACHE = new Map(), MUSIC_JOBS = new Map(), MUSIC_QUEUE = [], MUSIC_RETRY = new Map();
+const STINGER_LENGTH = {goal:3.5, snitch:5, catch:5, win:7, lose:7, draw:6};
+let musicLoading = false;
+const musicYield = () => new Promise(resolve=>setTimeout(resolve,0));
+async function loadMusic(key){
+  const file = key.replace(':','-');
+  const version = key.startsWith('fx:') ? 'original-1' : 'theme-5';
+  const response = await fetch('audio/'+file+'.ogg?v='+version);
+  if (!response.ok) throw new Error('Audio HTTP '+response.status);
+  const buffer = await MU.a.decodeAudioData(await response.arrayBuffer());
+  if (!key.startsWith('fx:')){
+    // 圧縮・再サンプリング後の端点差だけを6msでなじませる（読み込み時に一度）。
+    const n = Math.min(Math.round(buffer.sampleRate*0.006),Math.floor(buffer.length/2));
+    for (let c=0;c<buffer.numberOfChannels;c++){
+      const d = buffer.getChannelData(c), last = d.length-1, start = d[0], end = d[last], join = (start+end)/2;
+      for (let i=0;i<n;i++){
+        const w = Math.pow(1-i/n,2);
+        d[i] += (join-start)*w; d[last-i] += (join-end)*w;
+      }
     }
-    for (const ev of S.mel[b]) if (ev.s===s){ INS.bell(t, ev.f, 0.09); if (pass % 2 === 1) INS.bell(t, ev.f*2, 0.025); }
-    if (pass % 2 === 1 && s===5){ const cf = chordF(ch,6); INS.bell(t + sl*0.5, cf[2], 0.02); }
-    if (b===15 && s===0) for (let k=0;k<10;k++) INS.harp(t + sl*2 + k*0.06, chordF('Dm', 4 + Math.floor(k/3))[k%3], 0.045);
-    return;
   }
-  // match
-  const intro = game.state==='countdown', I = MU.I, tri = chordF(ch,3);
-  const pat = [0,0,2,0][s%4], oct = (s%8===6) ? 2 : 1;
-  INS.stac(t, tri[pat]*oct, s%4===0 ? 0.05 : 0.032);
-  if (s%4===0) INS.bass(t, chordF(ch,2)[0], sl*3, 0.12);
-  if (s===0) chordF(ch,4).slice(0,3).forEach(f=>INS.pad(t, f, sl*16, 0.011));
-  if (s===0) INS.timp(t, chordF(ch,2)[0], 0.42);
-  if (s===8) INS.timp(t, chordF(ch,2)[2] || chordF(ch,2)[0], 0.28);
-  if (I && (s===4 || s===12)) INS.timp(t, chordF(ch,2)[0], 0.22);
-  if ((b===7 || b===15) && s>=12) INS.timp(t, chordF(ch,2)[0]*(s===15?1.5:1), 0.18 + (s-12)*0.04);
-  if (I && s%2===0) INS.tick(t, s%4===0 ? 0.05 : 0.025);
-  if (I && s%2===1){ const cf = chordF(ch,5), k = [0,1,2,1][(s>>1)%4]; INS.celesta(t, cf[k]*(s%8===7?2:1), 0.03); }
-  if (!intro) for (const ev of S.mel[b]) if (ev.s===s){
-    if (b < 8){ INS.horn(t, ev.f, ev.l*sl*0.95, 0.07); if (I) INS.brass(t, ev.f, ev.l*sl*0.95, 0.04); }
-    else INS.strings(t, ev.f, ev.l*sl*0.95, 0.05);
-    if (b >= 8 && I) INS.brass(t, ev.f/2, ev.l*sl*0.95, 0.04);
-  }
+  return buffer;
 }
-
-// --- 効果的な短いフレーズ ---
+function prepareMusic(key, priority=false){
+  if (MUSIC_CACHE.has(key)) return Promise.resolve(MUSIC_CACHE.get(key));
+  if ((MUSIC_RETRY.get(key)||0)>performance.now()) return Promise.resolve(null);
+  if (MUSIC_JOBS.has(key)){
+    if (priority){ const i = MUSIC_QUEUE.findIndex(job=>job.key===key); if (i>0) MUSIC_QUEUE.unshift(MUSIC_QUEUE.splice(i,1)[0]); }
+    return MUSIC_JOBS.get(key);
+  }
+  let finish;
+  const promise = new Promise(resolve=>{ finish = resolve; });
+  MUSIC_JOBS.set(key,promise);
+  const job = {key,finish};
+  if (priority) MUSIC_QUEUE.unshift(job); else MUSIC_QUEUE.push(job);
+  setTimeout(loadMusicQueue,0);
+  return promise;
+}
+async function loadMusicQueue(){
+  if (musicLoading) return;
+  musicLoading = true;
+  try {
+    while (MUSIC_QUEUE.length){
+      const job = MUSIC_QUEUE.shift();
+      let buffer = null;
+      try { buffer = await loadMusic(job.key); }
+      catch(e){ console.warn('BGM preparation failed:',job.key,e); }
+      if (buffer){ MUSIC_CACHE.set(job.key,buffer); MUSIC_RETRY.delete(job.key); }
+      else MUSIC_RETRY.set(job.key,performance.now()+5000);
+      MUSIC_JOBS.delete(job.key); job.finish(buffer);
+      await musicYield();
+    }
+  } finally { musicLoading = false; }
+}
+function warmMusic(){
+  if (MU.warm) return;
+  MU.warm = true;
+  for (const key of ['menu','story','prebattle','match',...Object.keys(STINGER_LENGTH).map(k=>'fx:'+k),'tension','victory']) prepareMusic(key);
+}
+function stopMusicVoice(voice, when){
+  try { voice.source.stop(when); } catch(e){}
+}
+function switchMusic(key, now){
+  if (key===MU.song) return;
+  if (key && !MUSIC_CACHE.get(key)){
+    if (!MUSIC_CACHE.has(key)) prepareMusic(key,true);
+    return; // 読み込み待ちでは直前の曲を保ち、古い非同期要求からは再生しない。
+  }
+  // 短時間に画面を切り替えても、消えかけの音源を蓄積しない。
+  for (const voice of MU.fading) stopMusicVoice(voice,now);
+  MU.fading.clear();
+  if (MU.voice){
+    const old = MU.voice;
+    old.gain.gain.cancelScheduledValues(now);
+    old.gain.gain.setValueAtTime(old.gain.gain.value,now);
+    old.gain.gain.linearRampToValueAtTime(0,now+0.22);
+    MU.fading.add(old); stopMusicVoice(old,now+0.24); MU.voice = null;
+  }
+  MU.song = key;
+  if (!key) return;
+  const source = MU.a.createBufferSource(), gain = MU.a.createGain(), voice = {source,gain};
+  source.buffer = MUSIC_CACHE.get(key); source.loop = true;
+  gain.gain.setValueAtTime(0,now); gain.gain.linearRampToValueAtTime(1,now+0.28);
+  source.connect(gain); gain.connect(MU.bus);
+  source.onended = ()=>{ source.disconnect(); gain.disconnect(); MU.fading.delete(voice); };
+  source.start(now); MU.voice = voice;
+}
 function musicStinger(kind){
-  if (!MU.a || settings.bgm <= 0) return;
-  const t = MU.a.currentTime + 0.03;
-  if (kind==='goal'){
-    INS.timp(t, nf('D2'), 0.5); INS.tick(t, 0.12, 5000, 0.6);
-    ['D4','F#4','A4','D5'].forEach(n=>INS.brass(t, nf(n), 0.14, 0.07));
-    ['E4','G#4','B4','E5'].forEach(n=>INS.brass(t+0.18, nf(n), 0.6, 0.07));
-  } else if (kind==='snitch'){
-    INS.swell(t, 1.4, 0.12);
-    ['A5','C#6','E6','A6','C#7'].forEach((n,i)=>INS.celesta(t+1.2+i*0.07, nf(n), 0.08));
-  } else if (kind==='catch'){
-    INS.timp(t, nf('D2'), 0.5); INS.tick(t, 0.15, 4000, 1.2);
-    ['D5','F#5','A5','D6','F#6','A6'].forEach((n,i)=>INS.celesta(t+i*0.06, nf(n), 0.09));
-    ['D4','F#4','A4'].forEach(n=>INS.brass(t+0.1, nf(n), 1.2, 0.06));
-  } else if (kind==='win'){
-    const seq = [['D4',0,0.16],['F#4',0.18,0.16],['A4',0.36,0.16],['D5',0.54,1.6]];
-    seq.forEach(([n,dt,d])=>{ INS.brass(t+dt, nf(n), d, 0.09); INS.brass(t+dt, nf(n)/2, d, 0.05); });
-    ['D4','F#4','A4','D5'].forEach(n=>INS.strings(t+0.54, nf(n), 2.2, 0.03));
-    for (let i=0;i<10;i++) INS.timp(t+0.54+i*0.07, nf('D2'), 0.08+i*0.025);
-    INS.tick(t+1.25, 0.18, 3500, 2.2);
-    ['D6','F#6','A6','D7'].forEach((n,i)=>INS.celesta(t+0.7+i*0.1, nf(n), 0.07));
-  } else if (kind==='lose'){
-    ['A5','F5','D5','A4'].forEach((n,i)=>INS.celesta(t+i*0.32, nf(n), 0.09));
-    ['D4','F4','A4'].forEach(n=>INS.pad(t, nf(n), 2.4, 0.02));
-    INS.bass(t, nf('D2'), 2.4, 0.1);
-  } else if (kind==='draw'){
-    ['D5','E5','A4','D5'].forEach((n,i)=>INS.celesta(t+i*0.28, nf(n), 0.09));
-    ['D4','G4','A4'].forEach(n=>INS.pad(t, nf(n), 2.0, 0.02));
-  }
+  if (!MU.a || settings.bgm<=0 || !STINGER_LENGTH[kind]) return;
+  const buffer = MUSIC_CACHE.get('fx:'+kind);
+  if (!buffer){ if (!MUSIC_CACHE.has('fx:'+kind)) prepareMusic('fx:'+kind,true); return; }
+  // 読み込み待ちの演出音は遅れて鳴らさない。通常の sfx はその場で鳴る。
+  if (MU.stingers.size>=4){ const old = MU.stingers.values().next().value; MU.stingers.delete(old); stopMusicVoice(old,MU.a.currentTime); }
+  const source = MU.a.createBufferSource(), gain = MU.a.createGain(), voice = {source,gain};
+  source.buffer = buffer; gain.gain.value = 0.85; source.connect(gain); gain.connect(MU.bus);
+  source.onended = ()=>{ source.disconnect(); gain.disconnect(); MU.stingers.delete(voice); };
+  MU.stingers.add(voice); source.start();
 }
 
-// --- 毎フレーム：状態に応じて曲を切り替え・先読みで予約 ---
-// 値が変わったときだけ予約する（毎フレーム予約すると予定がたまり続けて音がだんだん重くなる）
+// 毎フレームは状態と音量だけ確認。ノートの合成・先読み予約は行わない。
 const muLast = {};
 function muSet(key, param, v, now, tc){
   const L = muLast[key] || (muLast[key] = {v:undefined, t:-9});
-  if (L.v !== undefined && (Math.abs(L.v - v) < Math.max(0.004, Math.abs(v)*0.05) || now - L.t < 0.15)) return;
+  if (L.v===v || (v!==0 && L.v!==undefined && now-L.t<0.15)) return;
   L.v = v; L.t = now;
-  try { param.setTargetAtTime(v, now, tc); } catch(e){}
+  try {
+    param.cancelScheduledValues(now);
+    if (v===0){ param.setValueAtTime(param.value,now); param.linearRampToValueAtTime(0,now+0.012); }
+    else param.setTargetAtTime(v,now,tc);
+  } catch(e){}
 }
 function musicTick(dt){
   if (!MU.a) return;
   const a = MU.a, now = a.currentTime, st = game.state;
   let want;
-  if (quiet()) want = 'menu';
+  if (st==='cut') want = cut.kind==='win' ? 'victory' : (cut.kind==='intro' && cut.i >= cut.preI) ? 'prebattle' : 'story';   // ストーリーの場面ごと
+  else if (st==='story') want = 'story';
+  else if (st==='storyPrep') want = 'prebattle';
+  else if (quiet()) want = 'menu';
   else if (st==='end'){ MU.endT += dt; want = MU.endT > 4.5 ? 'menu' : null; }
-  else want = 'match';
+  else want = (game.snitchSpawned || game.time<=CFG.snitchAt+2) ? 'tension' : 'match';
   if (st !== 'end') MU.endT = 0;
-  if (want !== MU.song){ MU.song = want; MU.bar = 0; MU.step = 0; MU.next = now + 0.08; }
+  if (settings.bgm>0){ warmMusic(); switchMusic(want,now); }
+  else {
+    switchMusic(null,now);
+    for (const voice of MU.stingers) stopMusicVoice(voice,now);
+    MU.stingers.clear();
+  }
   const paused = st==='paused';
   const vol = settings.bgm * (want==='menu' && st==='end' ? 0.6 : 1) * (paused ? 0.45 : 1);
-  muSet('bus', MU.bus.gain, vol*0.9, now, 0.25);
+  muSet('bus', MU.bus.gain, vol*0.65, now, 0.2);
   muSet('lp', MU.lp.frequency, paused ? 900 : 18000, now, 0.2);
   const crowd = (st==='play' || st==='countdown' || st==='paused') ? (0.05 + Math.min(3, game.cheer)*0.07) * (paused ? 0.4 : 1) * (stage==='wc' ? 1.4 : 1)
               : st==='end' ? 0.04 : 0;
   muSet('crowd', MU.crowdG.gain, crowd*settings.vol, now, 0.3);
-  if (!MU.song) return;
-  if (MU.next < now - 0.15) MU.next = now + 0.05; // タブ非表示から戻ったとき
-  const S = SONGS[MU.song];
-  while (MU.next < now + 0.45){
-    if (MU.step === 0) MU.I = (MU.song==='match' && (game.snitchSpawned || game.time <= CFG.snitchAt + 2)) ? 1 : 0;
-    const sl = 60 / (S.bpm * (MU.I ? 1.09 : 1)) / S.div;
-    try { playStep(MU.song, MU.bar, MU.step, MU.next, sl); } catch(e){}
-    MU.next += sl;
-    if (++MU.step >= S.spb){ MU.step = 0; MU.bar++; }
-  }
 }
 function audioUnlock(){
   const a = audio(); if (!a) return;
-  if (a.state === 'suspended') a.resume();
+  if (a.state === 'suspended') a.resume().catch(()=>{});
   muInit();
 }
 addEventListener('pointerdown', audioUnlock, true);
@@ -3634,9 +3563,9 @@ function updateHUD(dt){
   updateMission(dt);
   setText('s0', String(game.score[0])); setText('s1', String(game.score[1]));
   const t = Math.max(0, Math.ceil(game.time));
-  setText('timer', `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`);
+  setText('timer', game.practice ? '練習' : `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`);
   $('timer').classList.toggle('snitch', game.time <= CFG.snitchAt);
-  const fin = game.state==='play' && t <= 10 && t > 0;
+  const fin = !game.practice && game.state==='play' && t <= 10 && t > 0;
   $('timer').classList.toggle('final', fin);
   if (fin && t !== hudLastSec) beep(t <= 3 ? 990 : 740, 0.07, 'square', 0.045);
   hudLastSec = t;
@@ -4054,7 +3983,7 @@ function startDemo(){
 function openMenu(){
   if (net.active) netReset();
   if (document.pointerLockElement) document.exitPointerLock();
-  game.story = null; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null; document.body.classList.remove('incut');
+  game.story = null; game.practice = null; $('practiceBar').hidden = true; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null; document.body.classList.remove('incut');
   if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
   game.state = 'menu'; showOverlay('menu');
 }
@@ -4163,6 +4092,7 @@ function startMatch(){
   lockPointer();
 }
 function pause(){
+  $('toMenuBtn').textContent = game.practice ? '練習をやめて話に戻る' : 'メニューへ';
   if (!(game.state==='play' || game.state==='countdown')) return;
   game.prevState = game.state; game.state = 'paused'; pausedAt = performance.now();
   for (const k in keys) keys[k] = false;
@@ -4191,6 +4121,7 @@ function showResult(reason){
   $('endTitle').style.color = a>b ? 'var(--good)' : a<b ? 'var(--bad)' : '#fff';
   $('endReason').textContent = reason;
   musicStinger(a>b ? 'win' : a<b ? 'lose' : 'draw');
+  if (game.practice){ setText('practiceBar', '練習おわり！'); setTimeout(()=>{ if (game.state==='end' && game.practice) endPractice(); }, 2200); return; }
   { const m = game.mvp; $('endMvp').innerHTML = m ? `MVP <b style="color:${TEAM_CSS[m.team]}">${escHtml(m.who)}</b>　${m.line}` : ''; }
   $('endScore').innerHTML = `<span class="blue">${TEAM_NAME[0]} ${game.score[0]}</span> − <span class="red">${game.score[1]} ${TEAM_NAME[1]}</span>`;
   const s = player.stats || {}, v = k => s[k] || 0;
@@ -4251,9 +4182,9 @@ document.querySelectorAll('.pcard[data-role]').forEach(c=>{
 $('goBtn').onclick = startMatch;
 $('againBtn').onclick = ()=>{ if (game.story){ const ch = game.story.ch; cut.ch = ch; storyScene(ch); openPrep(ch); return; } if (net.active){ if (net.host) hostToLobby(); else backToLobby(); } else startMatch(); };
 $('changeBtn').onclick = ()=>{ if (game.story){ storyAfterWin(game.story.ch); return; } startDemo(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
-$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else if (game.story) startStoryMatch(game.story.ch); else startMatch(); };
+$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else if (game.practice){ const P = game.practice; cut.ch = P.ch; cut.lines = P.lines; cut.i = P.i; cut.done = P.done; cut.kind = P.kind; cut.preI = P.preI; startPractice(); } else if (game.story) startStoryMatch(game.story.ch); else startMatch(); };
 $('resumeBtn').onclick = resume;
-$('toMenuBtn').onclick = openMenu;
+$('toMenuBtn').onclick = ()=>{ if (game.practice){ resume(); endPractice(); } else openMenu(); };
 $('endMenuBtn').onclick = ()=>{ if (game.story){ game.story = null; startDemo(); openStory(); } else openMenu(); };
 
 document.addEventListener('pointerlockchange', ()=>{
@@ -4289,6 +4220,7 @@ document.addEventListener('keydown', ev=>{
   if (game.state==='select' && (ev.code==='Enter' || ev.code==='Space') && !ev.target.closest('button')){ startMatch(); return; }
   if (game.state==='select' && (ev.code==='ArrowLeft' || ev.code==='ArrowRight')){ selectRole(game.playerRole==='C' ? 'B' : 'C'); return; }
   if (game.state!=='play' && game.state!=='countdown') return;
+  if (ev.code==='Enter' && game.practice && game.state==='play'){ ev.preventDefault(); practiceSnitch(); return; }
   keys[ev.code] = true;
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(ev.code)) ev.preventDefault();
   if (ev.repeat) return;
@@ -4492,6 +4424,8 @@ for (let i=0; i<CHAPTERS.length && i<STORY_SCRIPT.length; i++){
   CHAPTERS[i].intro = STORY_SCRIPT[i].intro.map(toLine);
   CHAPTERS[i].win = STORY_SCRIPT[i].win.map(toLine);
 }
+{ const L = CHAPTERS[0].intro, k = L.findIndex(l=>l.text.startsWith('中途半端な気持ちなら'));
+  if (k >= 0) L.splice(k+1, 0, {cam:L[k].cam, bg:L[k].bg, who:'ウッド', text:'口で言うより飛んだほうが早い。{name}、まずは好きに飛んでみろ。', cond:null, dir:0, practice:true}); }
 function cutSpeakerHtml(who){
   if (!who) return '';
   const sp = SPEAKER[who], c = sp && sp[0] ? CHAR_BY_ID[sp[0]] : null;
@@ -4538,15 +4472,17 @@ const cut = {lines:null, i:0, shown:0, done:null, cam:'', camT:0, ch:null};
 function playCut(lines, title, done, C){
   cut.lines = lines.filter(l=>!l.cond || (C && l.cond===chRival(C))).map(l=>Object.assign({}, l, {text: C ? chText(C, l.text) : l.text}));
   cut.sil = null; cut.bg = null; $('cutSil').classList.remove('on'); $('cutSil').innerHTML = ''; document.body.classList.add('incut');
-  cut.i = -1; cut.done = done; cut.cam = ''; cut.shown = 0;
+  cut.i = -1; cut.done = done; cut.cam = ''; cut.shown = 0; cut.asked = false; cut.choice = false; $('cutChoice').hidden = true;
   game.state = 'cut'; showOverlay(null); $('cut').hidden = false;
   if (document.pointerLockElement) document.exitPointerLock();
   const tt = $('cutTitle'); tt.textContent = title || ''; tt.classList.remove('on'); void tt.offsetWidth; if (title) tt.classList.add('on');
   cutNext(true);
 }
 function cutNext(first){
+  if (cut.choice) return;
   const L = cut.lines && cut.lines[cut.i];
   if (!first && L && cut.shown < L.text.length){ cut.shown = L.text.length; $('cutTxt').textContent = L.text; return; }
+  if (!first && L && L.practice && !cut.asked){ cut.asked = true; cut.choice = true; $('cutChoice').hidden = false; uiClick(); return; }
   cut.i++;
   if (!cut.lines || cut.i >= cut.lines.length) return cutEnd();
   const n = cut.lines[cut.i];
@@ -4569,6 +4505,7 @@ function cutNext(first){
   if (!first) uiClick();
 }
 function cutEnd(){
+  cut.choice = false; $('cutChoice').hidden = true;
   $('cut').hidden = true; document.body.classList.remove('incut'); const d = cut.done; cut.lines = null; cut.done = null;
   if (d) d();
 }
@@ -4626,7 +4563,10 @@ function openStory(){
 }
 function playChapter(i){
   cut.ch = i; storyScene(i);
+  cut.kind = 'intro';
   playCut(CHAPTERS[i].intro, `第${i+1}章　${CHAPTERS[i].title}`, ()=>openPrep(i), CHAPTERS[i]);
+  // 導入の最後の場面から「試合前」の曲にする
+  cut.preI = 0; for (let k=1; k<cut.lines.length; k++) if (cut.lines[k].bg !== cut.lines[k-1].bg) cut.preI = k;
 }
 function startStoryMatch(i){
   const C = CHAPTERS[i], rv = chRival(C);
@@ -4699,6 +4639,7 @@ $('prepRand').onclick = ()=>{ uiClick(); const sel = storySel(game.prepCh); sel.
 function storyAfterWin(i){
   game.story = null; cut.ch = i; storyScene(i);
   const last = i === CHAPTERS.length - 1;
+  cut.kind = 'win';
   playCut(CHAPTERS[i].win, last ? 'ワールドカップ優勝！' : `第${i+1}章 クリア！`, ()=>{ startDemo(); openStory(); }, CHAPTERS[i]);
 }
 $('mStory').onclick = ()=>{ uiClick(); needProfile(openStory); };
@@ -4762,6 +4703,41 @@ $('mProfile').onclick = ()=>{ uiClick(); openProfile(openMenu); };
 $('storyGo').onclick = ()=>{ uiClick(); playChapter(Math.min(story.done, CHAPTERS.length - 1)); };
 $('storyReset').onclick = ()=>{ if (!confirm('ストーリーの進み具合を最初に戻しますか？')) return; story.done = 0; story.wc5 = null; saveStory(); renderStory(); };
 $('cut').addEventListener('click', ev=>{ if (ev.target.id !== 'cutSkip') cutNext(); });
+$('cutChoice').addEventListener('click', ev=>ev.stopPropagation());
+$('practiceYes').onclick = ()=>{ uiClick(); startPractice(); };
+$('practiceNo').onclick = ()=>{ uiClick(); cut.choice = false; $('cutChoice').hidden = true; cutNext(); };
+// 練習試合：時間無制限・かんたん。Enter でスニッチを出し、捕まったら話に戻る
+function startPractice(){
+  const i = cut.ch, C = CHAPTERS[i], rv = chRival(C);
+  game.practice = {ch:i, lines:cut.lines, i:cut.i, done:cut.done, kind:cut.kind, preI:cut.preI};
+  cut.choice = false; $('cutChoice').hidden = true; $('cut').hidden = true; document.body.classList.remove('incut'); cut.lines = null; cut.done = null;
+  game.story = null; game.state = 'countdown';
+  setHouses(C.own, rv); setStage(C.stage);
+  const [own, mc] = chOwnLineup(i);
+  buildTeams(game.playerRole || settings.role || 'C', [own, chLineup(C)], mc);
+  resetGame();
+  D = DIFF.easy; game.time = 1e9;
+  camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
+  game.cd = 3; lastCd = 4;
+  setText('practiceBar', '練習試合（時間無制限）　終わるときは Enter でスニッチを出す'); $('practiceBar').classList.remove('sn'); $('practiceBar').hidden = false;
+  showOverlay(null); audio(); lockPointer();
+}
+function practiceSnitch(){
+  if (!game.practice || game.snitchSpawned) return;
+  spawnSnitch();
+  setText('practiceBar', 'スニッチはシーカーの仕事。本番では残り1分で出てくる。捕まったら練習おわり'); $('practiceBar').classList.add('sn');
+}
+function endPractice(){
+  const P = game.practice; if (!P) return;
+  game.practice = null; $('practiceBar').hidden = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  D = DIFF[settings.diff] || DIFF.normal;
+  cut.ch = P.ch; storyScene(P.ch); showOverlay(null);
+  cut.lines = P.lines; cut.done = P.done; cut.kind = P.kind; cut.preI = P.preI; cut.i = P.i; cut.shown = 1e9;
+  cut.cam = ''; cut.bg = null; cut.sil = null; cut.asked = true; cut.choice = false;
+  game.state = 'cut'; $('cut').hidden = false; document.body.classList.add('incut');
+  cutNext();
+}
 $('cutSkip').onclick = ev=>{ ev.stopPropagation(); uiClick(); cutEnd(); };
 addEventListener('keydown', ev=>{
   if (game.state !== 'cut') return;
@@ -4785,7 +4761,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14h';
+const APP_VERSION = '2026-11-14i';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
