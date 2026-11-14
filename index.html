@@ -3220,7 +3220,7 @@ function spawnSnitch(){
     if (m > bd){ bd = m; best = c; }
   }
   snitch.pos.copy(best); snitch.vel.set(0,0,0);
-  snitch.t = 0; snitch.rest = 0; snitch.nextRest = rand(7,11); snitch.fleeing = false; snitch.age = 0;
+  snitch.t = 0; snitch.rest = 0; snitch.nextRest = rand(7,11); snitch.fleeing = false; snitch.age = 0; snitch.tiredNote = false;
   emit(snitch.pos, 60, {colors:[0xffd54a,0xffffff], speed:10, life:1.2, size:0.4, drag:2});
   banner('金のスニッチが出現！', 2.4, 'var(--gold)');
   toastAll(`捕まえると +${CFG.snitchPoints}点 & 試合終了`, 2.4, '#ffe08a');
@@ -3237,15 +3237,18 @@ function updateSnitch(dt){
     game.snWorth = w; }
   let near = null, nd = 1e9;
   for (const e of ents){ if (e.role==='K' || e.stun>0) continue; const d = e.pos.distanceTo(snitch.pos); if (d<nd){ nd = d; near = e; } }
-  let spd = CFG.snitchSpeed;
-  if (snitch.rest > 0){ snitch.rest -= dt; spd = 5; }
-  else { snitch.nextRest -= dt; if (snitch.nextRest <= 0){ snitch.rest = 0.9; snitch.nextRest = rand(7,11); } }
+  // 出現から時間がたつほど疲れて捕まえやすくなる（約55秒で最大：遅く・逃げ出しが遅く・よく休む・手が届きやすい）
+  const tire = Math.max(0, Math.min(1, (snitch.age - 4) / 50)), slow = 1 - 0.35*tire;
+  if (tire >= 0.45 && !snitch.tiredNote){ snitch.tiredNote = true; toastAll('スニッチの動きが鈍ってきた！ 今がチャンス', 2.4, '#ffe08a'); }
+  let spd = CFG.snitchSpeed * slow;
+  if (snitch.rest > 0){ snitch.rest -= dt; spd = 5 * slow; }
+  else { snitch.nextRest -= dt; if (snitch.nextRest <= 0){ snitch.rest = 0.9 + 1.6*tire; snitch.nextRest = rand(7,11) * (1 - 0.55*tire); } }
   snitch.t -= dt;
-  if (near && nd < 12 && (snitch.rest <= 0 || nd < 4)){
+  if (near && nd < 12 - 5*tire && (snitch.rest <= 0 || nd < 4)){
     if (snitch.t <= 0 || !snitch.fleeing){ snitch.jit.set(rand(-.7,.7), rand(-.4,.4), rand(-.7,.7)); snitch.t = rand(0.3,0.7); }
     snitch.fleeing = true;
     snitch.wander.copy(snitch.pos.clone().sub(near.pos).normalize().add(snitch.jit).normalize());
-    spd = CFG.snitchFlee;
+    spd = CFG.snitchFlee * slow;
   } else if (snitch.t <= 0 || snitch.fleeing){
     snitch.fleeing = false;
     const a = rand(0, Math.PI*2), r = Math.sqrt(Math.random())*0.8;
@@ -3266,7 +3269,7 @@ function updateSnitch(dt){
       continue;
     }
     if (!e.human && e.sk!=='krum' && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない（クラムは別）
-    if (snitch.age > 4 && e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 : e.sk==='krum' ? 1.8 : 1.0)){ catchSnitch(e); return; }   // 出現直後の4秒は捕まえられない
+    if (snitch.age > 4 && e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 + 1.7*tire : e.sk==='krum' ? 1.8 : 1.0)){ catchSnitch(e); return; }   // 出現直後の4秒は捕まえられない
   }
 }
 function catchSnitch(e){
@@ -4767,7 +4770,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14j';
+const APP_VERSION = '2026-11-14k';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
