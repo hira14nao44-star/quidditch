@@ -3788,10 +3788,13 @@ function updateDementors(dt){
     d.ph += dt;
     if (DEM.pat) continue;   // 守護霊が来たら襲わない
     d.cd -= dt;
-    // 一度狙ったらしつこく追う（狙いを変えるのはまれ）。半分以上はあなたを狙う
-    if (!d.tgt || d.tgt.stun > 0 || d.tgt.immune > 0 || Math.random() < dt*0.04){
-      const cand = ents.filter(e=>e.stun <= 0 && !(e.immune > 0)), pl = cand.find(e=>e.isPlayer);
-      d.tgt = pl && Math.random() < 0.6 ? pl : cand[Math.floor(Math.random()*cand.length)] || null;
+    // 狙いは全員平等：ほかのディメンターが狙っていない選手から選び、6〜9秒ごとに狙い直す
+    d.tgtT = (d.tgtT || 0) - dt;
+    if (!d.tgt || d.tgt.stun > 0 || d.tgt.immune > 0 || d.tgtT <= 0){
+      const cand = ents.filter(e=>e.stun <= 0 && !(e.immune > 0) && e !== d.tgt);
+      const taken = e => DEM.list.filter(o=>o !== d && o.tgt === e).length;
+      const least = Math.min(...cand.map(taken)), pool = cand.filter(e=>taken(e) === least);
+      d.tgt = pool.length ? pool[Math.floor(Math.random()*pool.length)] : null; d.tgtT = rand(6, 9);
     }
     const hunt = d.tgt && d.cd <= 0;
     d.surge = Math.max(0, (d.surge || 0) - dt); d.surgeCD = Math.max(0, (d.surgeCD || 0) - dt);
@@ -5234,7 +5237,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15h';
+const APP_VERSION = '2026-11-15i';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
