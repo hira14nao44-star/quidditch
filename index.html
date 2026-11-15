@@ -144,6 +144,7 @@ body.incut canvas{filter:blur(1.6px) saturate(.82) sepia(.18) contrast(.96)}
 .rcard{position:relative;border-radius:12px;padding:10px 12px;background:linear-gradient(160deg,#20283d,#121827);border:2px solid #3a4560;cursor:default;outline:none;overflow:hidden}
 .rcard:hover,.rcard:focus{transform:translateY(-2px)}
 .rcard.rSR{border-color:#9aa6b8}.rcard.rR{border-color:#9a6a42}.rcard.rSSR{border-color:#e7b43a;box-shadow:0 0 14px rgba(231,180,58,.35)}
+.rcard.rSSRp{border-color:#ffd54a;box-shadow:0 0 18px rgba(255,213,74,.6);background:linear-gradient(160deg,#3a2c08,#18130a)}
 .rcard.rUR{border-color:#b98aff;box-shadow:0 0 18px rgba(185,138,255,.5);background:linear-gradient(160deg,#2a1a40,#151020)}
 .rcard .rtop{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.9}.rcard .rtop .ico{width:15px;height:15px}.rcard .rtop b{margin-left:auto;font-size:13px}
 .rcard .rname{font-weight:800;font-size:15px;margin:6px 0 4px;line-height:1.3}
@@ -715,19 +716,19 @@ const CHARS = {
     ['william','ウィリアム・クラーク','K','SR','','brown'],
   ],
   bulgaria: [
-    ['krum','ビクトール・クラム','C','UR','krum','black'], ['dimitrov','ディミトロフ','C','SSR','','dark'], ['ivanova','イワノバ','C','SSR','','black'], ['levski','レブスキー','C','SSR','','brown'],
-    ['volkov','ボルコフ','B','SSR','','dark'], ['vulchanov','バルカノフ','B','SSR','','black'],
-    ['zograf','ゾグラフ','K','SSR','','brown'],
+    ['krum','ビクトール・クラム','C','UR','krum','black'], ['dimitrov','ディミトロフ','C','SSR+','','dark'], ['ivanova','イワノバ','C','SSR+','','black'], ['levski','レブスキー','C','SSR+','','brown'],
+    ['volkov','ボルコフ','B','SSR+','','dark'], ['vulchanov','バルカノフ','B','SSR+','','black'],
+    ['zograf','ゾグラフ','K','SSR+','','brown'],
   ],
   ireland: [
-    ['troy','トロイ','C','SSR','','ginger'], ['lynch','エイダン・リンチ','C','SSR','seeker','red'], ['mullet','マレット','C','SSR','','brown'], ['moran','モラン','C','SSR','','blond'],
-    ['connolly','コノリー','B','SSR','','dark'], ['quigley','クィグリー','B','SSR','','red'],
-    ['ryan','ライアン','K','SSR','','brown'],
+    ['troy','トロイ','C','SSR+','','ginger'], ['lynch','エイダン・リンチ','C','SSR+','seeker','red'], ['mullet','マレット','C','SSR+','','brown'], ['moran','モラン','C','SSR+','','blond'],
+    ['connolly','コノリー','B','SSR+','','dark'], ['quigley','クィグリー','B','SSR+','','red'],
+    ['ryan','ライアン','K','SSR+','','brown'],
   ],
   france: [    // オリジナル
-    ['elodie','エロディ・ルフェーヴル','C','SSR','','brown'], ['jeanluc','ジャン＝リュック・モロー','C','SSR','','dark'], ['pierre','ピエール・ガルニエ','C','R','','black'],
-    ['antoine','アントワーヌ・ベルナール','B','SR','','brown'], ['marcel','マルセル・ルー','B','R','','gray'],
-    ['louis','ルイ・デュボワ','K','SR','','dark'],
+    ['elodie','エロディ・ルフェーヴル','C','SSR','','brown'], ['jeanluc','ジャン＝リュック・モロー','C','SSR','','dark'], ['pierre','ピエール・ガルニエ','C','SSR','','black'],
+    ['antoine','アントワーヌ・ベルナール','B','SSR','','brown'], ['marcel','マルセル・ルー','B','SSR','','gray'],
+    ['louis','ルイ・デュボワ','K','SSR','','dark'],
   ],
   germany: [   // オリジナル
     ['klaus','クラウス・ヴェーバー','C','SSR','','blond'], ['hanna','ハンナ・シュミット','C','SSR','','blond'], ['felix','フェリクス・ブラウン','C','R','','brown'],
@@ -752,8 +753,8 @@ const HAIR_STYLE = {
   elodie:'long', jeanluc:'slick', pierre:'messy', antoine:'short', marcel:'buzz', louis:'curly',
   klaus:'short', hanna:'pony', felix:'messy', lukas:'buzz', max:'spiky', dieter:'slick',
 };
-const PW_OVERRIDE = {troy:1.128, lynch:1.115, mullet:1.125, moran:1.125, connolly:1.125, quigley:1.125, ryan:1.13,   // アイルランド：SSRの上澄み（URの1.13にほぼ並ぶ）
-  zograf:1.13, volkov:1.11, vulchanov:1.11};                                                                            // ブルガリア：守備が固い
+const PW_OVERRIDE = {troy:1.128, mullet:1.125, moran:1.125, connolly:1.125, quigley:1.125, ryan:1.13,   // アイルランド：SSR+の中でもさらに上（URの1.13にほぼ並ぶ）
+  zograf:1.13};                                                                                        // ブルガリア：守護神
 for (const id in PW_OVERRIDE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].pwx = PW_OVERRIDE[id];
 const KEEPER_REACH = {ryan:2.0};
 // チームの持ち味（ボットのみ）：broom=全員の箒、drain=スタミナの減り（倍率）、regen=回復（倍率）、pass=天才的なパス回し、tackle=鋭いタックル
@@ -772,7 +773,7 @@ const AVATARS = [
 ];
 const AV_BY_ID = Object.fromEntries(AVATARS.map(a=>[a.id, a]));
 const avatarLook = id => { const a = AV_BY_ID[id] || AVATARS[0]; return {hair:a.hair, hs:a.hs, skin:a.skin, sex:a.sex}; };
-const RARITY = {R:{pw:1.0, col:'#d08b52'}, SR:{pw:1.04, col:'#cfd6e2'}, SSR:{pw:1.09, col:'#f4c34a'}, UR:{pw:1.13, col:'#b98aff'}};
+const RARITY = {R:{pw:1.0, col:'#d08b52'}, SR:{pw:1.04, col:'#cfd6e2'}, SSR:{pw:1.09, col:'#f4c34a'}, 'SSR+':{pw:1.12, col:'#ffd54a'}, UR:{pw:1.13, col:'#b98aff'}};
 const SKILL_TEXT = {seeker:'スニッチ戦に強い', krum:'スニッチを最短距離で奪う', ron:'至近距離以外のシュートを全部止める', bagman:'ブラッジャーが速く、強く追尾する'};
 const charsOf = (team, role) => (CHARS[team] || []).filter(c=>c.role===role);
 // 自分以外の枠（役職ごと）にメンバーを割り当てる。pref = {C:[id..], B:[id..], K:[id..]}（足りない分はランダム）
@@ -4611,7 +4612,7 @@ function renderPrep(i){
   $('prepVsHead').innerHTML = `<div class="vsTeam">${emblemSvg(C.own, 62)}<b style="color:${T[C.own].css}">${T[C.own].name}</b></div><div class="vsMark">VS</div><div class="vsTeam">${emblemSvg(rv, 62)}<b style="color:${T[rv].css}">${T[rv].name}</b></div>`;
   $('prepVs').textContent = `相手メンバー固定・${DIFF_LABEL[C.diff]}${C.stage==='wc' ? '・W杯会場' : ''}`;
   { const rl = chLineup(C), list = [...rl.C, ...rl.B, ...rl.K];
-    $('prepRival').innerHTML = list.map(c=>`<div class="rcard r${c.rar}" data-cid="${c.id}" tabindex="0">
+    $('prepRival').innerHTML = list.map(c=>`<div class="rcard r${c.rar.replace('+', 'p')}" data-cid="${c.id}" tabindex="0">
       <div class="rtop">${svgIcon(c.role, '#fff')}<span>${ROLE_NAME[c.role]}</span><b class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</b></div>
       <div class="rname" style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</div>
       ${c.sk ? `<div class="rsk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : '<div class="rsk"></div>'}
@@ -4765,7 +4766,7 @@ addEventListener('keydown', ev=>{
 });
 
 // --- 各チームのエース（いちばんレア度の高い選手）を目立たせる ---
-const RANK = {R:0, SR:1, SSR:2, UR:3}, auraTex = {};
+const RANK = {R:0, SR:1, SSR:2, 'SSR+':2.5, UR:3}, auraTex = {};
 function markAces(){
   for (const t of [0,1]){
     let best = null;
@@ -4780,7 +4781,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-14m';
+const APP_VERSION = '2026-11-15a';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
