@@ -38,6 +38,8 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #missionCard .mt{font-size:30px;font-weight:800;margin:10px 0 6px;color:#fff}
 #missionCard .mb{font-size:19px;line-height:1.6;color:#fff}
 #missionCard .mb b{color:#ffd877}#missionCard .mb .big{font-size:26px}
+#missionCard .mgo{display:inline-block;margin-top:14px;padding:8px 22px;border-radius:24px;background:#ff5fd2;color:#fff;font-weight:800;font-size:16px;animation:mgo 1.2s ease-in-out infinite}
+@keyframes mgo{50%{transform:scale(1.06);box-shadow:0 0 18px rgba(255,95,210,.7)}}
 #missionCard .ms{font-size:13.5px;opacity:.85;margin-top:10px;line-height:1.6}
 @keyframes mcard{from{opacity:0;transform:translate(-50%,-50%) scale(.85)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 #timer.final{color:#ff7a7a;animation:tpulse .5s ease-in-out infinite alternate}
@@ -77,6 +79,8 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .chap[disabled]{opacity:.45;cursor:default}
 .chap .cn{font-size:12px;opacity:.7}.chap .ct{font-weight:800}.chap .cv{font-size:14px}.chap .cd{font-size:12px;opacity:.75}
 .chap .cs{font-size:12px;font-weight:800;text-align:center;border-radius:20px;padding:2px 0}
+.chap.boss{margin-top:6px;background:linear-gradient(100deg,rgba(90,58,138,.55),rgba(42,26,64,.6));border-color:#ffd54a;box-shadow:0 0 18px rgba(185,138,255,.4)}
+.chap.boss .ct{color:#ffe08a;font-size:18px}.chap.boss .cn{color:#d2b0ff;opacity:1}.chap.boss .cs{color:#1a1030;background:#ffd54a}
 .chap .cs.clear{color:#7ee2a8}.chap .cs.now{color:var(--gold)}.chap.now{border-color:rgba(255,207,74,.6)}
 .srow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
 .srow button.sel{border-color:var(--gold);color:var(--gold)}
@@ -330,6 +334,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <div class="mt">クラムに勝つ方法</div>
     <div class="mb">クラムがスニッチを取るまでに<br><b class="big">51点以上リード</b> せよ</div>
     <div class="ms">スニッチが出るのは残り1:00。出たらクラムはすぐに取りに来る。<br>取られた瞬間に51点以上リードしていれば勝ち。守りは覚醒ロンに任せて、とにかく攻めろ！</div>
+    <div class="mgo">クリック または Enter で試合開始</div>
   </div>
   <div id="snitchInfo"></div>
   <div id="lockHint">画面をクリックするとマウス操作に戻ります</div>
@@ -2330,7 +2335,7 @@ function musicTick(dt){
   else if (st==='storyPrep' || st==='boss') want = 'prebattle';
   else if (quiet()) want = 'menu';
   else if (st==='end'){ MU.endT += dt; want = MU.endT > 4.5 ? 'menu' : null; }
-  else want = (game.snitchSpawned || game.time<=CFG.snitchAt+2) ? 'tension' : 'match';
+  else want = game.snitchSpawned ? 'tension' : 'match';
   if (st !== 'end') MU.endT = 0;
   if (settings.bgm>0){ warmMusic(); switchMusic(want,now); }
   else {
@@ -2444,6 +2449,7 @@ function resetPositions(){
 }
 function resetGame(){
   D = DIFF[settings.diff] || DIFF.normal;
+  game.missionWait = false;
   game.time = CFG.matchTime; game.score = [0,0]; game.goalLog = []; game.snWorth = null; game.snitchSpawned = false; game.shake = 0; game.slowT = 0; game.cheer = 0; game.fw = [];
   game.stats = {goals:0, tackles:0, steals:0, cuts:0, bhits:0};
   resetPositions();
@@ -3267,7 +3273,7 @@ function updateSnitch(dt){
   if (!snitch.active) return;
   snitch.age = (snitch.age || 0) + dt;
   const krumOnly = !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission==='krum');
-  if (krumOnly && game.time < 1.5){ const k = ents.find(x=>x.sk==='krum'); if (k){ k.stun = 0; k.pos.copy(snitch.pos); catchSnitch(k); return; } }   // 時間切れ直前でも最後は必ずクラムが取る
+  if (krumOnly && (game.time < 1.5 || snitch.age > 9.5)){ const k = ents.find(x=>x.sk==='krum'); if (k){ k.stun = 0; k.pos.copy(snitch.pos); catchSnitch(k); return; } }   // 出現から10秒以内（時間切れ直前でも）必ずクラムが取る
   { const w = [snitchWorth(0), snitchWorth(1)];
     if (!game.snWorth) game.snWorth = [true, true];
     for (const t of [0,1]) if (game.snWorth[t] && !w[t] && !ents.some(x=>x.team===t && x.sk==='krum' && !x.human)) toastAll(`${TEAM_NAME[t]}はスニッチを取っても勝てない！ 点を取りに行く`, 2.2, '#ffe08a');
@@ -3594,6 +3600,10 @@ function placeLock(tgt, label, dim, id='lock'){
   lock.querySelector('span').textContent = label;
 }
 let hudLastSec = -1;
+function missionGo(){
+  if (!game.missionWait) return;
+  game.missionWait = false; game.missionCardT = 0; game.cd = 3; lastCd = 4; uiClick();
+}
 function updateMission(dt){
   const M = game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission;
   if (game.state !== 'paused') game.missionCardT = Math.max(0, (game.missionCardT || 0) - dt);
@@ -4192,7 +4202,7 @@ function showResult(reason){
     $('endMenuBtn').textContent = 'ストーリーへ';
     if (!won) $('endReason').textContent = reason + '　ヒント：' + CHAPTERS[ch].hint;
   }
-  if (game.boss){ $('againBtn').textContent = a > b ? 'もう一度' : '再挑戦'; $('changeBtn').textContent = '編成を変える'; }
+  if (game.boss){ $('againBtn').textContent = a > b ? 'もう一度' : '再挑戦'; $('changeBtn').textContent = '編成を変える'; if (game.bossFrom==='story') $('endMenuBtn').textContent = 'ストーリーへ'; }
   setTimeout(()=>{ if (game.state==='end'){ showOverlay('end'); if (document.pointerLockElement) document.exitPointerLock(); } }, 1100);
 }
 function lockPointer(){
@@ -4232,7 +4242,7 @@ $('changeBtn').onclick = ()=>{ if (game.boss){ openBoss(); return; } if (game.st
 $('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else if (game.practice){ const P = game.practice; cut.ch = P.ch; cut.lines = P.lines; cut.i = P.i; cut.done = P.done; cut.kind = P.kind; cut.preI = P.preI; startPractice(); } else if (game.boss) startBoss(); else if (game.story) startStoryMatch(game.story.ch); else startMatch(); };
 $('resumeBtn').onclick = resume;
 $('toMenuBtn').onclick = ()=>{ if (game.practice){ resume(); endPractice(); } else openMenu(); };
-$('endMenuBtn').onclick = ()=>{ if (game.story){ game.story = null; startDemo(); openStory(); } else openMenu(); };
+$('endMenuBtn').onclick = ()=>{ if (game.boss && game.bossFrom==='story'){ game.boss = false; startDemo(); openStory(); return; } if (game.story){ game.story = null; startDemo(); openStory(); } else openMenu(); };
 
 document.addEventListener('pointerlockchange', ()=>{
   if (document.pointerLockElement===canvas){ lockFailed = false; $('lockHint').style.display = 'none'; }
@@ -4250,6 +4260,7 @@ document.addEventListener('mouseleave', ()=>{ mouseIn = false; });
 document.addEventListener('mousedown', ev=>{
   if (ev.target.closest && ev.target.closest('.overlay')) return;
   if (game.state!=='play' && game.state!=='countdown') return;
+  if (game.missionWait && game.state==='countdown'){ missionGo(); if (document.pointerLockElement!==canvas) lockPointer(); return; }
   if (document.pointerLockElement!==canvas){ lockPointer(); if (!lockFailed) return; }
   if (ev.button===0) playerPrimary(); else if (ev.button===2) playerSecondary();
 });
@@ -4267,6 +4278,7 @@ document.addEventListener('keydown', ev=>{
   if (game.state==='select' && (ev.code==='Enter' || ev.code==='Space') && !ev.target.closest('button')){ startMatch(); return; }
   if (game.state==='select' && (ev.code==='ArrowLeft' || ev.code==='ArrowRight')){ selectRole(game.playerRole==='C' ? 'B' : 'C'); return; }
   if (game.state!=='play' && game.state!=='countdown') return;
+  if ((ev.code==='Enter' || ev.code==='Space') && game.missionWait && game.state==='countdown'){ ev.preventDefault(); missionGo(); return; }
   if (ev.code==='Enter' && game.practice && game.state==='play'){ ev.preventDefault(); practiceSnitch(); return; }
   keys[ev.code] = true;
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(ev.code)) ev.preventDefault();
@@ -4596,8 +4608,10 @@ function renderStory(){
     const tag = st==='clear' ? 'クリア' : st==='now' ? '挑戦中' : '未開放';
     const vs = st==='lock' && i > story.done ? '？？？' : `${own} 対 ${name}`;
     return `<button class="chap ${st}" data-ch="${i}" ${st==='lock' ? 'disabled' : ''}><span class="cn">第${i+1}章</span><span class="ct">${C.title}</span><span class="cv">${vs}</span><span class="cd">${DIFF_LABEL[C.diff]}${C.stage==='wc' ? '・W杯会場' : ''}</span><span class="cs ${st}">${tag}</span></button>`;
-  }).join('') + (story.done >= CHAPTERS.length ? `<p class="sub" style="color:var(--gold);margin:8px 0 0">全章クリア！ おめでとう。好きな章をもう一度遊べます。</p>` : '');
+  }).join('') + (story.done >= CHAPTERS.length ? `<button class="chap boss" id="chBoss" type="button"><span class="cn">クリア特典</span><span class="ct">最強に挑む</span><span class="cv">好きなチーム 対 最強選抜（全員UR）</span><span class="cd">世界級・W杯会場</span><span class="cs">挑戦</span></button>
+    <p class="sub" style="color:var(--gold);margin:8px 0 0">全章クリア！ おめでとう。最強選抜への挑戦が解放されました。好きな章をもう一度遊ぶこともできます。</p>` : '');
   document.querySelectorAll('.chap[data-ch]').forEach(b=>{ b.onclick = ()=>{ uiClick(); playChapter(+b.dataset.ch); }; });
+  if ($('chBoss')) $('chBoss').onclick = ()=>{ uiClick(); game.bossFrom = 'story'; openBoss(); };
   $('storyGo').textContent = story.done >= CHAPTERS.length ? '最終章をもう一度' : story.done === 0 ? 'はじめから' : `つづきから（第${story.done+1}章）`;
 }
 function openStory(){
@@ -4627,7 +4641,7 @@ function startStoryMatch(i){
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
   game.cd = 3; lastCd = 4;
   game.missionShown = false; game.missionCardT = 0; game.krumNote = false;
-  if (C.mission){ game.cd = 6; lastCd = 7; game.missionCardT = 6.5; musicStinger('snitch'); }
+  if (C.mission){ game.missionWait = true; game.missionCardT = 1e9; musicStinger('snitch'); }   // 読んで押したらカウントダウン開始
   showOverlay(null); audio(); lockPointer();
 }
 function openPrep(i){
@@ -4713,6 +4727,7 @@ function openBoss(){
   if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
   if (!bossTeams().includes(settings.bossTeam)) settings.bossTeam = 'ireland';
   game.playerRole = game.playerRole || settings.role || 'C';
+  $('bossBack').textContent = game.bossFrom==='story' ? 'ストーリーへ戻る' : 'メニューへ';
   game.state = 'boss'; renderBoss(); showOverlay('boss');
 }
 function renderBoss(){
@@ -4759,12 +4774,12 @@ function startBoss(){
   game.cd = 3; lastCd = 4;
   showOverlay(null); audio(); lockPointer();
 }
-$('mBoss').onclick = ()=>{ uiClick(); needProfile(openBoss); };
+$('mBoss').onclick = ()=>{ uiClick(); game.bossFrom = 'menu'; needProfile(openBoss); };
 $('bossTeam').onchange = ev=>{ settings.bossTeam = ev.target.value; saveSettings(); uiClick(); renderBoss(); };
 $('bossBest').onclick = ()=>{ uiClick(); if (settings.bossLineup) delete settings.bossLineup[settings.bossTeam]; renderBoss(); };
 $('bossBroom').onchange = ev=>{ settings.broom = ev.target.value; saveSettings(); };
 $('bossGo').onclick = ()=>{ uiClick(); startBoss(); };
-$('bossBack').onclick = ()=>{ uiClick(); openMenu(); };
+$('bossBack').onclick = ()=>{ uiClick(); if (game.bossFrom==='story') openStory(); else openMenu(); };
 refreshBossBtn();
 // ---------- あなたの選手 ----------
 function meSlotHtml(role){
@@ -4887,7 +4902,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15b';
+const APP_VERSION = '2026-11-15c';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
@@ -4925,8 +4940,8 @@ function loop(ts){
   if (net.guest && inMatch) guestUpdate(gdt);
   else if (game.state==='play' || demo || (net.host && game.state==='paused' && game.prevState==='play')) step(gdt);
   else if (game.state==='countdown' || (net.host && game.state==='paused' && game.prevState==='countdown')){
-    game.cd -= dt;
-    const c = Math.ceil(game.cd);
+    if (!game.missionWait) game.cd -= dt;
+    const c = game.missionWait ? lastCd : Math.ceil(game.cd);
     if (c !== lastCd){ lastCd = c; if (c > 0){ banner(String(c), 0.9); sfx('count'); } }
     if (game.cd <= 0){ if (game.state==='paused') game.prevState = 'play'; else game.state = 'play'; banner('スタート！', 1.0, '#ffe08a'); sfx('start'); game.cheer = 1.5; }
     for (const e of ents){ e.prevDir.copy(e.dir); e.prevPos.copy(e.pos); }
