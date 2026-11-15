@@ -44,7 +44,7 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 @keyframes patf{0%{opacity:0}8%{opacity:1}100%{opacity:0}}
 #bigCenter{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;white-space:nowrap}
 #bigCenter.on{animation:bigc 4.6s ease forwards}
-#bigCenter b{display:block;font-size:58px;font-weight:800;color:#f2f9ff;letter-spacing:.06em;text-shadow:0 0 14px #bfe4ff,0 0 36px #6ab4ff,0 0 70px #3a7fe0,0 4px 12px rgba(0,0,0,.6)}
+#bigCenter b{display:block;font-size:clamp(24px,3.7vw,50px);font-weight:800;color:#f2f9ff;letter-spacing:.06em;text-shadow:0 0 14px #bfe4ff,0 0 36px #6ab4ff,0 0 70px #3a7fe0,0 4px 12px rgba(0,0,0,.6)}
 #bigCenter span{display:block;margin-top:10px;font-size:21px;font-weight:700;color:#e4f3ff;text-shadow:0 2px 10px rgba(0,0,0,.85)}
 @keyframes bigc{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}22%{transform:translate(-50%,-50%) scale(1)}82%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.04)}}
 #eventCard{position:absolute;top:56%;left:50%;transform:translate(-50%,-50%);width:min(540px,90vw);text-align:center;background:linear-gradient(180deg,rgba(16,24,44,.97),rgba(5,7,15,.97));border:2px solid #8fb8ff;border-radius:18px;padding:22px 26px;box-shadow:0 0 50px rgba(110,150,255,.45);animation:mcard .6s ease}
@@ -345,7 +345,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   <div id="missionBar" hidden></div>
   <div id="practiceBar" hidden></div>
   <div id="quip"></div>
-  <div id="bigCenter"><b>ダンブルドアの守護霊！</b><span>銀色の光が、ディメンターを追い払っていく</span></div>
+  <div id="bigCenter"><b>ダンブルドア「エクスペクト・パトローナム！」</b></div>
   <div id="eventCard" hidden>
     <div class="mk">緊急事態</div>
     <div class="mt">ディメンターが現れた！</div>
@@ -3139,7 +3139,7 @@ function quipLines(e){
   const base = QUIPS[e.char.id] || (e.char.id==='ronss' ? QUIPS.ron : null), m = typeof demQuipMode === 'function' ? demQuipMode() : null;
   const X = m && DEM_QUIPS[e.char.id==='ronss' ? 'ron' : e.char.id];
   if (!X) return base;
-  if (m==='relief') return X.relief ? Object.assign({}, base, {chatter:X.relief}) : base;
+  if (m==='relief'){ const R = DEM_RELIEF[e.char.id==='ronss' ? 'ron' : e.char.id]; return R ? Object.assign({}, base, R) : base; }
   return Object.assign({}, base, X);   // ディメンターがいる間はこの試合だけのセリフ
 }
 function pickLine(e, kind){
@@ -3647,14 +3647,14 @@ function demGlow(){
   g.fillStyle = gr; g.fillRect(0,0,128,128); demGlowC = new THREE.CanvasTexture(c); return demGlowC;
 }
 // 空と光を暗くする（k=0 で元どおり）
-const DK = {bg:new THREE.Color(0x3a4354), top:new THREE.Color(0x1c2638), hor:new THREE.Color(0x4a5468), sun:new THREE.Color(0xa8b4d0), hemi:new THREE.Color(0x7a849a)};
+const DK = {bg:new THREE.Color(0x262e3e), top:new THREE.Color(0x0f1626), hor:new THREE.Color(0x353f52), sun:new THREE.Color(0x98a6c8), hemi:new THREE.Color(0x667089)};
 function applyDark(k){
   const L = STAGE_LIGHT[stage];
   scene.background.setHex(L.bg).lerp(DK.bg, k); scene.fog.color.copy(scene.background);
-  scene.fog.near = L.fogNear*(1 - 0.4*k); scene.fog.far = L.fogFar*(1 - 0.4*k);
+  scene.fog.near = L.fogNear*(1 - 0.5*k); scene.fog.far = L.fogFar*(1 - 0.5*k);
   skyUniforms.top.value.setHex(L.top).lerp(DK.top, k); skyUniforms.hor.value.setHex(L.hor).lerp(DK.hor, k);
-  sun.color.setHex(L.sunCol).lerp(DK.sun, k); sun.intensity = L.sunI*(1 - 0.38*k);
-  hemi.color.setHex(L.hemiSky).lerp(DK.hemi, k); hemi.intensity = L.hemiI*(1 - 0.25*k);
+  sun.color.setHex(L.sunCol).lerp(DK.sun, k); sun.intensity = L.sunI*(1 - 0.5*k);
+  hemi.color.setHex(L.hemiSky).lerp(DK.hemi, k); hemi.intensity = L.hemiI*(1 - 0.36*k);
   DEM.darkK = k;
 }
 // ぼろ布のテクスチャ（下のほうがギザギザに裂けている）と、黒い煙
@@ -3763,7 +3763,7 @@ function demCatch(e, d){
   notify(e, 'ディメンターに捕まった！ スタン！', 1.6, '#9fc4ff', {shake:0.4});
   if (e.isPlayer) DEM.hit = 1;
   sayEvent('demHit', e);
-  d.cd = 8; d.tgt = null;
+  d.cd = 5; d.tgt = null; d.surge = 0;
 }
 function patronus(){
   const s = new THREE.Sprite(new THREE.SpriteMaterial({map:demGlow(), color:0xe6f4ff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
@@ -3776,7 +3776,7 @@ function patronus(){
   $('banner').classList.remove('on'); bannerT = 0;   // 真ん中の文字と重ねない
   if (player) emit(player.pos.clone().add(new V3(0, 5, 0)), 90, {colors:[0xffffff,0xdff2ff,0xa8d8ff], speed:16, life:1.6, size:0.9, drag:1.6, local:true});
   if (bloomPass) DEM.bloom0 = bloomPass.strength;
-  quipState.t = now - 3.8;   // 少しして、ほっとした声
+  quipState.t = now - 3.8; quipState.by = {};   // 少しして、ほっとした声
 }
 function updateDementors(dt){
   if (!demEvent() || DEM.done) return;
@@ -3788,14 +3788,21 @@ function updateDementors(dt){
     d.ph += dt;
     if (DEM.pat) continue;   // 守護霊が来たら襲わない
     d.cd -= dt;
-    if (!d.tgt || d.tgt.stun > 0 || Math.random() < dt*0.12){
-      const cand = ents.filter(e=>e.stun <= 0), pl = cand.find(e=>e.isPlayer);
-      d.tgt = pl && Math.random() < 0.45 ? pl : cand[Math.floor(Math.random()*cand.length)] || null;
+    // 一度狙ったらしつこく追う（狙いを変えるのはまれ）。半分以上はあなたを狙う
+    if (!d.tgt || d.tgt.stun > 0 || d.tgt.immune > 0 || Math.random() < dt*0.04){
+      const cand = ents.filter(e=>e.stun <= 0 && !(e.immune > 0)), pl = cand.find(e=>e.isPlayer);
+      d.tgt = pl && Math.random() < 0.6 ? pl : cand[Math.floor(Math.random()*cand.length)] || null;
     }
     const hunt = d.tgt && d.cd <= 0;
-    const goal = hunt ? d.tgt.pos.clone() : new V3(Math.cos(d.ph*0.3)*W.A*0.5, 14 + Math.sin(d.ph*0.7)*5, Math.sin(d.ph*0.23)*W.B*0.5);
-    const to = goal.sub(d.pos), l = to.length(), spd = hunt ? 15.5 : DEM.spawnT < 2.5 ? 16 : 10;
-    d.vel.lerp(to.multiplyScalar(spd/Math.max(l, 0.001)), Math.min(1, dt*1.5));
+    d.surge = Math.max(0, (d.surge || 0) - dt); d.surgeCD = Math.max(0, (d.surgeCD || 0) - dt);
+    if (hunt && !d.surge && !d.surgeCD && d.pos.distanceTo(d.tgt.pos) < 30){
+      d.surge = 1.6; d.surgeCD = 4.5;   // ブースト並みに一気に詰め寄る
+      if (d.tgt.isPlayer) notify(d.tgt, 'ディメンターが迫ってくる！', 1.0, '#9fc4ff');
+    }
+    const lead = hunt && d.tgt.vel ? d.tgt.vel.clone().multiplyScalar(0.35) : new V3();   // 少し先回りする
+    const goal = hunt ? d.tgt.pos.clone().add(lead) : new V3(Math.cos(d.ph*0.3)*W.A*0.5, 14 + Math.sin(d.ph*0.7)*5, Math.sin(d.ph*0.23)*W.B*0.5);
+    const to = goal.sub(d.pos), l = to.length(), spd = hunt ? (d.surge ? 34 : 17.5) : DEM.spawnT < 2.5 ? 16 : 11;
+    d.vel.lerp(to.multiplyScalar(spd/Math.max(l, 0.001)), Math.min(1, dt*(d.surge ? 4 : 2)));
     d.pos.addScaledVector(d.vel, dt);
     if (d.cd <= 0) for (const e of ents){ if (e.stun > 0 || e.immune > 0) continue; if (e.pos.distanceTo(d.pos) < 2.6){ demCatch(e, d); break; } }
   }
@@ -3878,29 +3885,47 @@ function updateDementorFx(dt){
 function demQuipMode(){
   if (!demEvent()) return null;
   const el = demElapsed();
-  if (DEM.pat || (DEM.done && el < DEM_OUT + 25)) return 'relief';
-  if (DEM.on || el >= DEM_DARK + 4) return 'dem';
+  if (DEM.pat || DEM.done) return el < DEM_OUT + 45 ? 'relief' : null;   // 守護霊のあと45秒は「ほっとした」セリフ、そのあとはいつもどおり
+  if (DEM.on || (el >= DEM_DARK + 4 && el < DEM_OUT)) return 'dem';
   return null;
 }
+const DEM_RELIEF = {
+  harry:   {chatter:['……あったかい。指先まで戻ってきた。','ダンブルドアが来てくれた。もう大丈夫だ！','さあ、ここからが本番だ！'], goal:['よし！ 体が軽い！','これがいつもの調子だ！'], teamGoal:['いいぞ、流れはこっちだ！']},
+  ron:     {chatter:['……ああ、あったかい。生き返った……','さっきのは夢だったことにしよう。','よーし、リングはぼくが守る！'], save:['止めた！ 手もちゃんと動く！'], teamGoal:['いいぞ！ 寒さも吹っ飛んだ！']},
+  ginny:   {chatter:['見て、空が明るくなってきた！','もう怖くない。反撃だよ！','さっきの分、取り返そう！'], goal:['ほら、取り返したよ！'], teamGoal:['ナイス！ 一気にいこう！']},
+  fred:    {chatter:['さすがダンブルドア。拍手しとくか！','やっと冗談が言える空気になったな。','さて、ブラッジャー配達を再開しますか。'], bludger:['調子が戻ってきたぞ！']},
+  george:  {chatter:['寒さも晴れた。仕事に戻るか！','フレッド、さっき震えてただろ。','ディメンターより、こっちのほうが楽しいな。'], bludger:['腕が軽い軽い！']},
+  wood:    {chatter:['よし、仕切り直しだ！ 一気にいくぞ！','落ち着いたな。作戦どおりに戻せ！','ここからだ！ 寮杯を取りに行くぞ！'], teamGoal:['それだ！ その調子で押し切れ！'], save:['よし、止めた！ 集中は切れてない！']},
+  angelina:{chatter:['光が……！ さあ、取り返しましょう！','もう大丈夫。いつものパスを回して！'], goal:['決めたわ！ 震えももう止まった。']},
+  katie:   {chatter:['あったかい……！ もう大丈夫ね！','さあ、続きよ！']},
+  alicia:  {chatter:['よかった……さあ、続けましょ！','ゴール前、今度こそ空いてるわ！']},
+  draco:   {chatter:['……ふ、ふん。最初から平気だったさ。','い、今のはちょっと驚いただけだ！','さっさと試合を終わらせるぞ。'], goal:['見たか、これが本当の実力だ！']},
+  flint:   {chatter:['……ふん、続きだ。叩きつぶしてやる。','邪魔者は消えた。ここからが本番だ！'], tackleWin:['調子が戻ってきたぜ、どけ！']},
+  crabbe:  {chatter:['……あったかくなった。','……腹へった。']},
+  goyle:   {chatter:['……もう、いない？','……よかった。']},
+  pucey:   {chatter:['よし、見える！ 攻めるぞ！']},
+  montague:{chatter:['……やっと消えたか。','仕切り直しだ。']},
+  bletchley:{chatter:['……助かった。','リングの前は、もう怖くない。']},
+};
 const DEM_QUIPS = {
   harry:   {chatter:['寒い……でも、手は動く。','あいつらに近づくな！ 回り込もう！','怖くても、飛ぶのはやめない。','ボールだけ見ろ！ 影は見なくていい！'], goal:['入った……！ まだ戦える！','こんな寒さに負けるか！'], teamGoal:['いいぞ！ この中でも決められる！'],
-            demHit:['……っ、声が……聞こえる……','体が……動かない……'], relief:['銀色の……ダンブルドアだ！','助かった……さあ、続きだ！']},
+            demHit:['……っ、声が……聞こえる……','体が……動かない……']},
   ron:     {chatter:['な、なんでここにいるんだよ！ 入れないって話だろ！','寒い寒い寒い……リングから離れたくない……','来るな来るな……ボールは来ていいけど！'], save:['止めた！ ……手、凍えてるけど！','こ、怖くても止める！'],
-            demHit:['うわあっ……さ、寒い……！'], relief:['……ああ、あったかい。生き返った……']},
-  ginny:   {chatter:['何なの、あれ……！ でも試合は止まってない！','怖がってる暇はないよ、点を取ろう！','あいつらの下は通らないで！'], goal:['こんな中でも決めたよ！','どう、まだ飛べるでしょ！'], demHit:['……っ、寒い……！'], relief:['見て、銀色の光……！ よし、反撃だよ！']},
-  fred:    {chatter:['おいおい、招待状を出した覚えはないぞ。','ジョージ、あいつらにもブラッジャー効くと思うか？','冗談でも言ってないと、凍えそうだ。'], bludger:['……震えてても、狙いは外さないさ。'], demHit:['……っ、笑えない寒さだ……'], relief:['さすがダンブルドア。拍手しとくか！']},
-  george:  {chatter:['効かないだろうな、たぶん。','フレッド、今日のジョークは三割増しで頼む。','ブラッジャーより厄介な客が来たな。'], bludger:['寒くても、腕はなまってないぞ。'], demHit:['……ぐっ、なんだこれ……'], relief:['寒さも晴れた。さあ、仕事に戻るか！']},
-  wood:    {chatter:['ひるむな！ 試合はまだ続いてる！','あいつらから離れて飛べ！ 陣形は崩すな！','寮杯がかかってるんだ、ここで止まるな！'], teamGoal:['それだ！ こんな中でもやれるぞ！'], save:['……止めた！ 寒さなんか関係ない！'], relief:['よし、仕切り直しだ！ 一気にいくぞ！']},
-  angelina:{chatter:['落ち着いて！ 近づかれる前に離れるのよ！','怖いのは向こうも同じ。今がチャンスよ！'], goal:['決めたわ。……震えは止まらないけど。'], relief:['光が……！ さあ、取り返しましょう！']},
-  katie:   {chatter:['寒っ……でも、手は止めないわ！'], relief:['あったかい……！ もう大丈夫ね！']},
-  alicia:  {chatter:['ゴール前、空いてる！ ……あいつらがいない方よ！'], relief:['よかった……さあ、続けましょ！']},
-  draco:   {chatter:['な、なんだあれは……！ 聞いてないぞ！','ち、父上に言いつけてやる……！','こ、こんなもの、怖くなんか……ない！'], goal:['見たか！ ……震えてなんかいない！'], demHit:['ひっ……！ 来るな、来るなぁ！'], relief:['……ふ、ふん。最初から平気だったさ。']},
-  flint:   {chatter:['ちっ、邪魔な連中だ……どけ！','あんなもんにビビるな、ぶつかっていけ！'], tackleWin:['寒さなんか関係ねえ、どけ！'], demHit:['ぐっ……離れろ……！'], relief:['……ふん、続きだ。叩きつぶしてやる。']},
-  crabbe:  {chatter:['う、うう……寒い……'], relief:['……あったかくなった。']},
-  goyle:   {chatter:['ど、どこに逃げれば……'], relief:['……もう、いない？']},
-  pucey:   {chatter:['くそっ、視界が悪い……！'], relief:['よし、見える！']},
-  montague:{chatter:['冗談じゃない、こんな試合……！'], relief:['……やっと消えたか。']},
-  bletchley:{chatter:['リングの前に来るなよ……頼むから……'], save:['と、止めたぞ……！'], relief:['……助かった。']},
+            demHit:['うわあっ……さ、寒い……！']},
+  ginny:   {chatter:['何なの、あれ……！ でも試合は止まってない！','怖がってる暇はないよ、点を取ろう！','あいつらの下は通らないで！'], goal:['こんな中でも決めたよ！','どう、まだ飛べるでしょ！'], demHit:['……っ、寒い……！']},
+  fred:    {chatter:['おいおい、招待状を出した覚えはないぞ。','ジョージ、あいつらにもブラッジャー効くと思うか？','冗談でも言ってないと、凍えそうだ。'], bludger:['……震えてても、狙いは外さないさ。'], demHit:['……っ、笑えない寒さだ……']},
+  george:  {chatter:['効かないだろうな、たぶん。','フレッド、今日のジョークは三割増しで頼む。','ブラッジャーより厄介な客が来たな。'], bludger:['寒くても、腕はなまってないぞ。'], demHit:['……ぐっ、なんだこれ……']},
+  wood:    {chatter:['ひるむな！ 試合はまだ続いてる！','あいつらから離れて飛べ！ 陣形は崩すな！','寮杯がかかってるんだ、ここで止まるな！'], teamGoal:['それだ！ こんな中でもやれるぞ！'], save:['……止めた！ 寒さなんか関係ない！']},
+  angelina:{chatter:['落ち着いて！ 近づかれる前に離れるのよ！','怖いのは向こうも同じ。今がチャンスよ！'], goal:['決めたわ。……震えは止まらないけど。']},
+  katie:   {chatter:['寒っ……でも、手は止めないわ！']},
+  alicia:  {chatter:['ゴール前、空いてる！ ……あいつらがいない方よ！']},
+  draco:   {chatter:['な、なんだあれは……！ 聞いてないぞ！','ち、父上に言いつけてやる……！','こ、こんなもの、怖くなんか……ない！'], goal:['見たか！ ……震えてなんかいない！'], demHit:['ひっ……！ 来るな、来るなぁ！']},
+  flint:   {chatter:['ちっ、邪魔な連中だ……どけ！','あんなもんにビビるな、ぶつかっていけ！'], tackleWin:['寒さなんか関係ねえ、どけ！'], demHit:['ぐっ……離れろ……！']},
+  crabbe:  {chatter:['う、うう……寒い……']},
+  goyle:   {chatter:['ど、どこに逃げれば……']},
+  pucey:   {chatter:['くそっ、視界が悪い……！']},
+  montague:{chatter:['冗談じゃない、こんな試合……！']},
+  bletchley:{chatter:['リングの前に来るなよ……頼むから……'], save:['と、止めたぞ……！']},
 };
 function missionGo(){
   if (!game.missionWait) return;
@@ -5209,7 +5234,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15g';
+const APP_VERSION = '2026-11-15h';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
