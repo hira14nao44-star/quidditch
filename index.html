@@ -38,6 +38,21 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #missionCard .mt{font-size:30px;font-weight:800;margin:10px 0 6px;color:#fff}
 #missionCard .mb{font-size:19px;line-height:1.6;color:#fff}
 #missionCard .mb b{color:#ffd877}#missionCard .mb .big{font-size:26px}
+#dementorFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(12,20,40,.5) 15%,rgba(6,10,22,.86) 62%,rgba(2,4,10,.99) 100%)}
+#patFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 40%,#fff 0%,rgba(225,242,255,.92) 32%,rgba(160,210,255,0) 78%)}
+#patFlash.on{animation:patf 1.8s ease-out}
+@keyframes patf{0%{opacity:0}8%{opacity:1}100%{opacity:0}}
+#bigCenter{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;white-space:nowrap}
+#bigCenter.on{animation:bigc 4.6s ease forwards}
+#bigCenter b{display:block;font-size:58px;font-weight:800;color:#f2f9ff;letter-spacing:.06em;text-shadow:0 0 14px #bfe4ff,0 0 36px #6ab4ff,0 0 70px #3a7fe0,0 4px 12px rgba(0,0,0,.6)}
+#bigCenter span{display:block;margin-top:10px;font-size:21px;font-weight:700;color:#e4f3ff;text-shadow:0 2px 10px rgba(0,0,0,.85)}
+@keyframes bigc{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}22%{transform:translate(-50%,-50%) scale(1)}82%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.04)}}
+#eventCard{position:absolute;top:56%;left:50%;transform:translate(-50%,-50%);width:min(540px,90vw);text-align:center;background:linear-gradient(180deg,rgba(16,24,44,.97),rgba(5,7,15,.97));border:2px solid #8fb8ff;border-radius:18px;padding:22px 26px;box-shadow:0 0 50px rgba(110,150,255,.45);animation:mcard .6s ease}
+#eventCard .mk{display:inline-block;background:#3d5fa8;color:#fff;font-weight:800;font-size:13px;letter-spacing:2px;padding:3px 14px;border-radius:20px}
+#eventCard .mt{font-size:30px;font-weight:800;margin:10px 0 6px;color:#fff}
+#eventCard .mb{font-size:21px;line-height:1.6;color:#fff}#eventCard .mb b{color:#9fd0ff}
+#eventCard .ms{font-size:13.5px;opacity:.85;margin-top:10px;line-height:1.6}
+#eventCard .mgo{display:inline-block;margin-top:14px;padding:8px 22px;border-radius:24px;background:#3d5fa8;color:#fff;font-weight:800;font-size:16px;animation:mgo 1.2s ease-in-out infinite}
 #missionCard .mgo{display:inline-block;margin-top:14px;padding:8px 22px;border-radius:24px;background:#ff5fd2;color:#fff;font-weight:800;font-size:16px;animation:mgo 1.2s ease-in-out infinite}
 @keyframes mgo{50%{transform:scale(1.06);box-shadow:0 0 18px rgba(255,95,210,.7)}}
 #missionCard .ms{font-size:13.5px;opacity:.85;margin-top:10px;line-height:1.6}
@@ -321,6 +336,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
 <div id="flash"></div>
 
 <div id="hud" class="off">
+  <div id="dementorFx"></div><div id="patFlash"></div>
   <div id="board">
     <div class="team t0"><span id="tn0">蒼鷹</span><b id="s0">0</b></div>
     <div id="timer">4:00</div>
@@ -329,6 +345,14 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   <div id="missionBar" hidden></div>
   <div id="practiceBar" hidden></div>
   <div id="quip"></div>
+  <div id="bigCenter"><b>ダンブルドアの守護霊！</b><span>銀色の光が、ディメンターを追い払っていく</span></div>
+  <div id="eventCard" hidden>
+    <div class="mk">緊急事態</div>
+    <div class="mt">ディメンターが現れた！</div>
+    <div class="mb">黒い影に<b>捕まるとスタン</b>して、<br><b>画面が暗くなる</b></div>
+    <div class="ms">近づいてきたら全力で逃げろ。クアッフルを持っていたら落としてしまう。<br>ディメンターは敵も味方も関係なく襲ってくる。</div>
+    <div class="mgo">クリック または Enter で再開</div>
+  </div>
   <div id="missionCard" hidden>
     <div class="mk">特別ミッション</div>
     <div class="mt">クラムに勝つ方法</div>
@@ -2346,7 +2370,7 @@ function musicTick(dt){
   const paused = st==='paused';
   const vol = settings.bgm * (want==='menu' && st==='end' ? 0.6 : 1) * (paused ? 0.45 : 1);
   muSet('bus', MU.bus.gain, vol*0.65, now, 0.2);
-  muSet('lp', MU.lp.frequency, paused ? 900 : 18000, now, 0.2);
+  muSet('lp', MU.lp.frequency, paused ? 900 : (DEM.on && !DEM.pat && st==='play') ? 1600 : 18000, now, 0.2);
   const crowd = (st==='play' || st==='countdown' || st==='paused') ? (0.05 + Math.min(3, game.cheer)*0.07) * (paused ? 0.4 : 1) * (stage==='wc' ? 1.4 : 1)
               : st==='end' ? 0.04 : 0;
   muSet('crowd', MU.crowdG.gain, crowd*settings.vol, now, 0.3);
@@ -2449,7 +2473,7 @@ function resetPositions(){
 }
 function resetGame(){
   D = DIFF[settings.diff] || DIFF.normal;
-  game.missionWait = false;
+  game.missionWait = false; demReset();
   game.time = CFG.matchTime; game.score = [0,0]; game.goalLog = []; game.snWorth = null; game.snitchSpawned = false; game.shake = 0; game.slowT = 0; game.cheer = 0; game.fw = [];
   game.stats = {goals:0, tackles:0, steals:0, cuts:0, bhits:0};
   resetPositions();
@@ -3398,6 +3422,7 @@ function step(dt){
   updateBall(dt);
   updateBludgers(dt);
   updateSnitch(dt);
+  updateDementors(dt);
   if (game.time <= 0 && game.state==='play'){ game.time = 0; endGame('タイムアップ'); }
 }
 
@@ -3601,11 +3626,137 @@ function placeLock(tgt, label, dim, id='lock'){
   lock.querySelector('span').textContent = label;
 }
 let hudLastSec = -1;
+// ---------- 寮杯決勝：開始1分でディメンター乱入 → 3分40秒でダンブルドアの守護霊 ----------
+const DEM = {list:[], on:false, done:false, pat:null, fx:0, hit:0};
+const DEM_IN = 60, DEM_OUT = 220;
+const demEvent = () => !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].event==='dementor');
+let demGlowC = null;
+function demGlow(){
+  if (demGlowC) return demGlowC;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.22,'rgba(225,242,255,.9)'); gr.addColorStop(0.55,'rgba(160,210,255,.3)'); gr.addColorStop(1,'rgba(160,210,255,0)');
+  g.fillStyle = gr; g.fillRect(0,0,128,128); demGlowC = new THREE.CanvasTexture(c); return demGlowC;
+}
+function makeDementor(){
+  const g = new THREE.Group(), m = new THREE.MeshLambertMaterial({color:0x14161e, transparent:true, opacity:0.96, side:THREE.DoubleSide});
+  const fm = new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:1});
+  const cloak = new THREE.Mesh(new THREE.ConeGeometry(1.3, 4.4, 12, 4, true), m); cloak.position.y = -1.3; g.add(cloak);
+  for (let i=0;i<10;i++){ const a = i/10*Math.PI*2, h = rand(1.2, 2.6), st = new THREE.Mesh(new THREE.PlaneGeometry(0.55, h), m); st.position.set(Math.cos(a)*1.25, -3.5 - h*0.4, Math.sin(a)*1.25); st.rotation.y = -a + Math.PI/2; g.add(st); }   // ぼろぼろの裾
+  const hood = new THREE.Mesh(new THREE.SphereGeometry(0.78, 12, 10, 0, Math.PI*2, 0, Math.PI*0.72), m); hood.position.y = 1.05; g.add(hood);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.3, 10, 1, true), m); tip.position.set(0, 2.05, -0.15); tip.rotation.x = -0.25; g.add(tip);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), fm); face.position.set(0, 0.85, 0.34); g.add(face);
+  for (const sx of [-1,1]){ const arm = new THREE.Mesh(new THREE.ConeGeometry(0.28, 2.3, 6, 1, true), m); arm.position.set(sx*0.95, 0, 0.7); arm.rotation.set(1.25, 0, sx*0.35); g.add(arm); }
+  g.scale.setScalar(1.6);
+  return {g, mats:[m, fm], pos:new V3(), vel:new V3(), cd:0, tgt:null, ph:Math.random()*9, flee:-1, fleeAt:0};
+}
+function demReset(){
+  for (const d of DEM.list){ scene.remove(d.g); disposeTree(d.g); }
+  if (DEM.pat){ scene.remove(DEM.pat.s); DEM.pat.s.material.dispose(); }
+  DEM.list = []; DEM.on = false; DEM.done = false; DEM.pat = null; DEM.fx = 0; DEM.hit = 0;
+  game.cardHold = false; $('eventCard').hidden = true; $('dementorFx').style.opacity = 0; $('bigCenter').classList.remove('on');
+}
+function demStart(){
+  DEM.on = true;
+  for (let i=0;i<4;i++){
+    const d = makeDementor(), a = i/4*Math.PI*2;
+    d.pos.set(Math.cos(a)*W.A*0.45, 65 + rand(0,15), Math.sin(a)*W.B*0.45); d.g.position.copy(d.pos); d.cd = 2.5 + i*0.7;
+    scene.add(d.g); DEM.list.push(d);
+  }
+  game.shake = 0.4; musicStinger('snitch');
+  for (const k in keys) keys[k] = false;
+  if (player){ player.charging = false; player.charge = 0; }
+  game.cardHold = true; $('eventCard').hidden = false;   // 読んで押したら再開
+}
+function demGo(){ if (!game.cardHold) return; game.cardHold = false; $('eventCard').hidden = true; uiClick(); }
+function demCatch(e, d){
+  if (e.isPlayer) e.vel.set(0,0,0);
+  e.stun = 3.0; e.stunKind = 'dementor'; e.immune = 4.5;
+  e.dash = 0; e.windup = 0; e.dashTarget = null;
+  if (ball.holder===e) dropBall(e, new V3(rand(-3,3), -2, rand(-3,3)));
+  emit(e.pos, 30, {colors:[0x5a6a8a,0x9fb3d9,0x2a3348], speed:6, life:1.0, size:0.5, drag:2});
+  notify(e, 'ディメンターに捕まった！ スタン！', 1.6, '#9fc4ff', {shake:0.4});
+  if (e.isPlayer) DEM.hit = 1;
+  d.cd = 8; d.tgt = null;
+}
+function patronus(){
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:demGlow(), color:0xe6f4ff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
+  s.scale.setScalar(24); s.position.set(0, 70, 0); scene.add(s);
+  DEM.pat = {s, t:0};
+  DEM.list.forEach((d, i)=>{ d.fleeAt = 0.9 + i*0.3; d.tgt = null; });
+  const f = $('patFlash'), c = $('bigCenter');
+  for (const el of [f, c]){ el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
+  game.shake = 0.6; game.cheer = 3; musicStinger('goal'); sfx('snitch');
+  $('banner').classList.remove('on'); bannerT = 0;   // 真ん中の文字と重ねない
+  if (player) emit(player.pos.clone().add(new V3(0, 5, 0)), 90, {colors:[0xffffff,0xdff2ff,0xa8d8ff], speed:16, life:1.6, size:0.9, drag:1.6, local:true});
+  if (bloomPass) DEM.bloom0 = bloomPass.strength;
+}
+function updateDementors(dt){
+  if (!demEvent() || DEM.done) return;
+  const el = CFG.matchTime - game.time;
+  if (!DEM.on){ if (el >= DEM_IN) demStart(); return; }
+  if (!DEM.pat && el >= DEM_OUT) patronus();
+  for (const d of DEM.list){
+    d.ph += dt;
+    if (DEM.pat) continue;   // 守護霊が来たら襲わない
+    d.cd -= dt;
+    if (!d.tgt || d.tgt.stun > 0 || Math.random() < dt*0.12){
+      const cand = ents.filter(e=>e.stun <= 0), pl = cand.find(e=>e.isPlayer);
+      d.tgt = pl && Math.random() < 0.45 ? pl : cand[Math.floor(Math.random()*cand.length)] || null;
+    }
+    const hunt = d.tgt && d.cd <= 0;
+    const goal = hunt ? d.tgt.pos.clone() : new V3(Math.cos(d.ph*0.3)*W.A*0.5, 16 + Math.sin(d.ph*0.7)*5, Math.sin(d.ph*0.23)*W.B*0.5);
+    const to = goal.sub(d.pos), l = to.length(), spd = hunt ? 12 : 8;
+    d.vel.lerp(to.multiplyScalar(spd/Math.max(l, 0.001)), Math.min(1, dt*1.5));
+    d.pos.addScaledVector(d.vel, dt);
+    if (d.cd <= 0) for (const e of ents){ if (e.stun > 0 || e.immune > 0) continue; if (e.pos.distanceTo(d.pos) < 3.4){ demCatch(e, d); break; } }
+  }
+}
+// 見た目（毎フレーム）：ゆらゆら、冷たい霧、画面の暗さ、守護霊の飛行
+function updateDementorFx(dt){
+  const run = game.state==='play' && !game.cardHold;
+  let near = 0;
+  for (let i=DEM.list.length-1; i>=0; i--){
+    const d = DEM.list[i];
+    if (DEM.pat && run && DEM.pat.t > d.fleeAt){
+      if (d.flee < 0) d.flee = 0;
+      d.flee += dt;
+      const away = d.pos.clone().sub(DEM.pat.s.position).setY(0); if (away.lengthSq() < 1) away.set(1,0,0);
+      d.pos.addScaledVector(away.normalize(), (8 + d.flee*16)*dt); d.pos.y += (6 + d.flee*22)*dt;
+      const o = Math.max(0, 1 - d.flee/2.4); d.mats[0].opacity = 0.96*o; d.mats[1].opacity = o;
+      if (d.flee > 2.4){ scene.remove(d.g); disposeTree(d.g); DEM.list.splice(i, 1); continue; }
+    }
+    d.g.position.copy(d.pos); d.g.position.y += Math.sin(d.ph*1.7)*0.45;
+    if (d.vel.lengthSq() > 0.5) d.g.rotation.y = Math.atan2(d.vel.x, d.vel.z);
+    d.g.rotation.z = Math.sin(d.ph*2.1)*0.08;
+    if (d.flee < 0){
+      if (player) near = Math.max(near, 1 - player.pos.distanceTo(d.pos)/28);
+      if (run && Math.random() < dt*1.5) emit(d.pos.clone().add(new V3(rand(-1,1), -5, rand(-1,1))), 1, {colors:[0x55627d,0x3a4258], speed:1, life:1.2, size:0.6, drag:1, local:true});
+    }
+  }
+  if (DEM.pat && run){
+    const P = DEM.pat; P.t += dt;
+    const a = P.t*1.5, tgt = new V3(Math.cos(a)*W.A*0.55, 18 + Math.sin(P.t*3)*3, Math.sin(a)*W.B*0.55);
+    if (P.t < 0.9) P.s.position.lerpVectors(new V3(0, 70, 0), tgt, P.t/0.9); else P.s.position.copy(tgt);
+    P.s.scale.setScalar(24 + Math.sin(P.t*9)*4);
+    emit(P.s.position, 7, {colors:[0xffffff,0xd8efff,0x9fd4ff], speed:5, life:1.4, size:0.8, drag:1.4, local:true});
+    if (bloomPass) bloomPass.strength = (DEM.bloom0 || 0.6) + Math.max(0, 1.6 - P.t*0.4);
+    if (P.t > 4.5) P.s.material.opacity = Math.max(0, 1 - (P.t - 4.5)/1.5);
+    if (P.t > 6){ scene.remove(P.s); P.s.material.dispose(); DEM.pat = null; DEM.done = true; DEM.on = false; if (bloomPass) bloomPass.strength = DEM.bloom0 || bloomPass.strength; for (const d of DEM.list){ scene.remove(d.g); disposeTree(d.g); } DEM.list = []; }
+  }
+  DEM.hit = Math.max(0, DEM.hit - dt*0.3);
+  const caught = player && player.stun > 0 && player.stunKind==='dementor';
+  const on = DEM.on && !DEM.pat && ['play','paused','countdown'].includes(game.state);
+  const target = on ? (caught ? 1 : Math.min(0.75, 0.18 + Math.max(0, near)*0.35 + DEM.hit*0.5)) : 0;
+  DEM.fx += (target - DEM.fx)*Math.min(1, dt*(caught ? 6 : 2.5));
+  $('dementorFx').style.opacity = DEM.fx.toFixed(3);
+}
 function missionGo(){
   if (!game.missionWait) return;
   game.missionWait = false; game.missionCardT = 0; game.cd = 3; lastCd = 4; uiClick();
 }
 function updateMission(dt){
+  updateDementorFx(dt);
   const M = game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission;
   if (game.state !== 'paused') game.missionCardT = Math.max(0, (game.missionCardT || 0) - dt);
   $('missionCard').hidden = !(M && game.missionCardT > 0);
@@ -4262,6 +4413,7 @@ document.addEventListener('mousedown', ev=>{
   if (ev.target.closest && ev.target.closest('.overlay')) return;
   if (game.state!=='play' && game.state!=='countdown') return;
   if (game.missionWait && game.state==='countdown'){ missionGo(); if (document.pointerLockElement!==canvas) lockPointer(); return; }
+  if (game.cardHold && game.state==='play'){ demGo(); if (document.pointerLockElement!==canvas) lockPointer(); return; }
   if (document.pointerLockElement!==canvas){ lockPointer(); if (!lockFailed) return; }
   if (ev.button===0) playerPrimary(); else if (ev.button===2) playerSecondary();
 });
@@ -4280,6 +4432,7 @@ document.addEventListener('keydown', ev=>{
   if (game.state==='select' && (ev.code==='ArrowLeft' || ev.code==='ArrowRight')){ selectRole(game.playerRole==='C' ? 'B' : 'C'); return; }
   if (game.state!=='play' && game.state!=='countdown') return;
   if ((ev.code==='Enter' || ev.code==='Space') && game.missionWait && game.state==='countdown'){ ev.preventDefault(); missionGo(); return; }
+  if ((ev.code==='Enter' || ev.code==='Space') && game.cardHold && game.state==='play'){ ev.preventDefault(); demGo(); return; }
   if (ev.code==='Enter' && game.practice && game.state==='play'){ ev.preventDefault(); practiceSnitch(); return; }
   keys[ev.code] = true;
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(ev.code)) ev.preventDefault();
@@ -4362,7 +4515,8 @@ const CHAPTERS = [
       L_('stands', NAR, '歓声の中、スタンドの最上段で、見知らぬ大人がこちらをじっと見ていた。'),
       L_('sky', '？？？', '……いい動きだ。代表選考に呼んでみる価値はある。'),
     ],
-    hint:'相手の頭上に「！」が出たらタックルの予備動作。Space の回避ロールでかわそう。' },
+    event:'dementor',
+    hint:'相手の頭上に「！」が出たらタックルの予備動作。Space の回避ロールでかわそう。ディメンターは近づかれる前に逃げよう。' },
   { title:'代表選考試合', own:'gryffindor', rival:'england', stage:'hog', diff:'hard',
     lineup:{C:['charlotte','edward'], B:['bagman'], K:['william']},
     intro:[
@@ -4424,7 +4578,7 @@ const CHAPTERS = [
     ],
     hint:'アイルランドはパスが速い。パスカットとタックルで流れを断ち切ろう。' },
 ];
-const STORY_SCRIPT = [{"intro": [{"who": "", "text": "九月。湖の向こうの古い城に、新しい一年が始まった。", "bg": "湖畔の古城"}, {"who": "ロン", "text": "……今日だろ、クィディッチの入団テスト。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "ああ。ウッドが一人だけ新しい選手を取るって言ってた。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "一人だけかよ。去年、何十人も受けて全員落とされたって聞いたぞ。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "（向かいの席の{name}に気づいて）きみも受けるのか。", "bg": "朝の大食堂"}, {"who": "", "text": "{name}、うなずく", "dir": 1, "bg": "朝の大食堂"}, {"who": "ハリー", "text": "……そうか。ハリーだ。テストで会おう。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "ロンだ。……まあ、がんばれよ。ウッドのテストは、見てるだけで胃が痛くなる。", "bg": "朝の大食堂"}, {"who": "ウッド", "text": "いいか。グリフィンドールは、もう何年も寮杯から遠ざかっている。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "今年こそ取る。そのために、足りないピースを一つ埋める。", "bg": "夕方の練習場"}, {"who": "アンジェリーナ", "text": "中途半端な気持ちなら、今のうちに帰って。ウッドの練習は、本気で毎日だから。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "……{name}。お前に決めた。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "明日の朝六時、ここに来い。遅れたら外す。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "おめでとう、新人。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "明日から地獄へようこそ。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "冗談じゃなく、本当に。", "bg": "夕方の練習場"}, {"who": "アンジェリーナ", "text": "明日の相手はレイブンクロー。主将のロジャー・デイビースがチームを引っぱってる。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "シーカーはチョウ・チャン。相手のシーカーにぴったり張りついて、スニッチの前に入るのがうまいって評判。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "ぼくも前に当たったことがある。気づいたら、いつも前にいるんだ。", "bg": "夜の談話室"}, {"who": "ロン", "text": "ハリーがそう言うなら、相当だな……。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "レイブンクローは頭で飛ぶ。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "パスの一本一本に、ちゃんと理由がある。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "だからこそ、こっちは迷わず攻める。スニッチが出る残り一分までに、点差をつけておけ。", "bg": "夜の談話室"}, {"who": "チョウ", "text": "（すれ違いざまに）新しく入った人だよね。噂は聞いてる。", "bg": "夕方の練習場"}, {"who": "チョウ", "text": "……明日、手加減はしないから。", "bg": "夕方の練習場"}], "win": [{"who": "ウッド", "text": "初戦、勝った。……だが、まだ一つ目だ。浮かれるな。", "bg": "夜の談話室"}, {"who": "アンジェリーナ", "text": "素直にほめればいいのに。{name}、いい動きだったわ。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "新人にしちゃ、上出来だ。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "上出来すぎて、ちょっと腹が立つくらいだ。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "次はハッフルパフだ。セドリック・ディゴリーが主将になってから、あそこは変わった。", "bg": "夜の談話室"}]}, {"intro": [{"who": "ウッド", "text": "雨だろうと練習はやる。試合の日の天気は選べない。", "bg": "雨の練習場"}, {"who": "アンジェリーナ", "text": "（ずぶぬれのまま）ボールが滑る。パスは短く、確実に。", "bg": "雨の練習場"}, {"who": "", "text": "雨の中、{name}のパスが三本続けて味方の手に収まる", "dir": 1, "bg": "雨の練習場"}, {"who": "ジニー", "text": "{name}、今の三本、全部通したじゃん。この雨で。", "bg": "雨の練習場"}, {"who": "ハリー", "text": "雨の日は、迷ったほうが負けだ。……{name}は迷ってない。", "bg": "雨の練習場"}, {"who": "セドリック", "text": "グリフィンドールの新しい選手だね。セドリック・ディゴリーだ。", "bg": "城の廊下"}, {"who": "セドリック", "text": "週末の試合、いい勝負にしよう。……ただ、勝つのはうちだ。", "bg": "城の廊下"}, {"who": "", "text": "セドリック、去る", "dir": 1, "bg": "城の廊下"}, {"who": "ハリー", "text": "……前に一度、あいつにスニッチを取られて負けたことがある。", "bg": "城の廊下"}, {"who": "ハリー", "text": "天候がひどい日だった。それでも、あいつは最後まで冷静だった。", "bg": "城の廊下"}, {"who": "フレッド", "text": "言い訳はしないのが、ハリーのいいところだ。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "そして、二度目はないってのもな。", "bg": "城の廊下"}], "win": [{"who": "ジニー", "text": "二連勝。……でも、次が本番だよ。", "bg": "朝の大食堂"}, {"who": "アンジェリーナ", "text": "スリザリン。寮杯の決勝。", "bg": "朝の大食堂"}, {"who": "", "text": "大食堂の向こうの席から", "dir": 1, "bg": "朝の大食堂"}, {"who": "ドラコ", "text": "二つ勝ったくらいで、ずいぶん楽しそうだな。", "bg": "朝の大食堂"}, {"who": "ドラコ", "text": "決勝で、どっちが上か教えてやる。……せいぜい箒から落ちないことだ。", "bg": "朝の大食堂"}, {"who": "フレッド", "text": "……決勝が楽しみになってきた。", "bg": "朝の大食堂"}, {"who": "ジョージ", "text": "ああ。ブラッジャーの行き先が、一つ決まった。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "相手にするな。答えは試合で返す。", "bg": "朝の大食堂"}]}, {"intro": [{"who": "アンジェリーナ", "text": "スリザリンの主将、マーカス・フリント。反則すれすれの当たりで有名よ。審判の見ていないところで平気でぶつけてくる。", "bg": "城の廊下"}, {"who": "フレッド", "text": "あいつと当たるときは、箒ごと持っていかれる覚悟がいる。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "ブラッジャーより、主将のほうが危ないチームだ。", "bg": "城の廊下"}, {"who": "ジニー", "text": "シーカーはマルフォイ。腕は悪くない。それに、父親がチーム全員に最新型の箒を贈ったって話。", "bg": "城の廊下"}, {"who": "フレッド", "text": "箒で勝てるなら、苦労はしないさ。", "bg": "城の廊下"}, {"who": "ハリー", "text": "……そうだ。最後に勝つのは、飛ぶほうだ。", "bg": "城の廊下"}, {"who": "ウッド", "text": "……{name}。少し、いいか。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "ぼくは今年で最後だ。この寮杯を取れなかったら、もう二度と……（遠い目）", "bg": "夜の談話室"}, {"who": "フレッド", "text": "主将、その顔で言われると怖い。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "寝る前に見たら、夢に出るやつだ。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "……とにかく！　お前は、いつも通り飛べばいい。それだけだ。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "一人で背負わないでよ、主将。チームでしょ。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "主将が取りこぼした分は……", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "……ぼくたちが倍にして返す。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "全員で取りに行こう。それでいい。", "bg": "夜の談話室"}, {"who": "", "text": "{name}、静かにうなずく", "dir": 1, "bg": "夜の談話室"}, {"who": "ウッド", "text": "……ああ。勝つぞ。", "bg": "夜の談話室"}], "win": [{"who": "ウッド", "text": "……寮杯だ。何年ぶりだと思ってる。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "（言葉に詰まる）", "bg": "夜の談話室"}, {"who": "アンジェリーナ", "text": "主将、泣くのは明日にして。みんな見てるわよ。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "{name}。最後のあの一本で、流れが決まった。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "主将、さっきから同じこと三回言ってるよ。", "bg": "夜の談話室"}, {"who": "", "text": "窓の外。スタンドの最上段で、見知らぬ大人がじっとこちらを見ていた", "dir": 1, "bg": "夜の談話室"}]}, {"intro": [{"who": "", "text": "冬休みの前日。一羽のフクロウが、重い封蝋のついた手紙を運んできた。", "bg": "手紙が届く冬の窓辺"}, {"who": "ジニー", "text": "その封蝋……魔法スポーツの協会のものじゃない？", "bg": "手紙が届く冬の窓辺"}, {"who": "", "text": "「イギリス代表・ワールドカップ強化選手 選考試合への招待」", "bg": "手紙が届く冬の窓辺"}, {"who": "ハリー", "text": "……代表の選考だ。", "bg": "手紙が届く冬の窓辺"}, {"who": "ジニー", "text": "宛名は……{name}。それから、うちの寮のチーム全員。", "bg": "手紙が届く冬の窓辺"}, {"who": "ハリー", "text": "決勝を、誰かが見てたんだ。", "bg": "手紙が届く冬の窓辺"}, {"who": "ハーグリーヴズ監督", "text": "イギリス代表監督、ハーグリーヴズだ。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "選考は一試合。お前たちの寮のチームで、いまの代表と戦ってもらう。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "代表にはルード・バグマンがいる。イギリス代表のエースビーターだ。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "（小声で）バグマン……代表のビーターで一番有名な選手だ。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "（小声で）打ったブラッジャーの重さが違うって評判だ。", "bg": "夕方の練習場"}, {"who": "バグマン", "text": "ハハッ！　寮の学生が相手か。悪いが、手加減ってのは昔から苦手でね。全力でいかせてもらうよ！", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "{name}。", "bg": "夕方の練習場"}, {"who": "", "text": "{name}、顔を上げる", "dir": 1, "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "寮杯の決勝、見ていた。ここに呼んだのは、まぐれじゃない。", "bg": "夕方の練習場"}], "win": [{"who": "ハーグリーヴズ監督", "text": "……合格だ、{name}。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "それから――お前たちの寮のチームからも、何人か代表に呼ぶ。", "bg": "夕方の練習場"}, {"who": "ジニー", "text": "……今の、聞いた？", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "聞いた。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "夢じゃないよな。", "bg": "夕方の練習場"}, {"who": "バグマン", "text": "ハハッ、負けた負けた！　いい目をしてるな、お前たち。ワールドカップでは俺が味方だ。背中は任せとけ！", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "ワールドカップのメンバーは、代表の選手とお前たちの寮の仲間から選んでいい。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "最強のチームを作れ。", "bg": "夕方の練習場"}]}, {"intro": [{"who": "", "text": "クィディッチ・ワールドカップ。世界中から集まったテントが、丘を埋め尽くしていた。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "……すごい人。どこを見ても旗だらけ。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "ここに、世界中の一番がいるんだ。", "bg": "大会のキャンプ場"}, {"who": "ロン", "text": "あと、世界中のお菓子の屋台もな。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "浮かれてる場合じゃないな。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "ああ。今回ばかりは。", "bg": "大会のキャンプ場"}, {"who": "アンジェリーナ", "text": "フランスは、チェイサーのエロディを中心に、パスで崩してくるチームよ。", "bg": "夜のスタジアム（外観）", "cond": "france"}, {"who": "アンジェリーナ", "text": "ドイツは、チェイサーのクラウスを中心に、体を張って押し込んでくるチームよ。", "bg": "夜のスタジアム（外観）", "cond": "germany"}, {"who": "バグマン", "text": "初めての国際試合か。俺も最初は、手の震えが止まらなかったよ。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "でもな、一度飛び出しちまえば、観客の声なんて聞こえなくなる。聞こえるのは、風の音とボールの音だけだ。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "いつも通り飛べ。それだけだ。", "bg": "夜のスタジアム（外観）"}], "win": [{"who": "実況", "text": "試合終了！　イギリス、一回戦突破！", "bg": "夜のスタジアム（内部）"}, {"who": "ジニー", "text": "……勝った。世界の舞台で、勝ったよ。", "bg": "夜のスタジアム（内部）"}, {"who": "ハーグリーヴズ監督", "text": "喜ぶのは一瞬でいい。準決勝の相手は、ブルガリアだ。", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "テントの空気が、一瞬で張りつめる", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "フレッド", "text": "……喜ぶ時間、短すぎない？", "bg": "夜のスタジアム（内部）"}, {"who": "ジョージ", "text": "三秒くらいだったな。", "bg": "夜のスタジアム（内部）"}]}, {"intro": [{"who": "ハリー", "text": "ビクトール・クラム。まだ学生なのに、ブルガリア代表のシーカーをやってる。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "世界最高のシーカーって呼ばれてる人でしょ。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "急降下で相手のシーカーをだまして、地面にたたきつける大技がある。……あれを見せられたら、普通は追えない。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "あの技に引っかかって、地面に激突したシーカーもいるって話だ。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "世界の舞台で、だぞ。", "bg": "大会のキャンプ場"}, {"who": "ロン", "text": "……それ、本当に人間？", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "（テントの入口で）だから、作戦を立てる。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "クラムがスニッチを見つけたら、まず止められない。勝つ方法は一つ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "取られる前に、五十点より大きくリードしておくことだ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "……ブルガリアの守りは固い。遠くからでは入らない。ゴールの目の前まで運べ。", "bg": "大会のキャンプ場"}, {"who": "", "text": "赤いマフラーを巻いたブルガリアのファンが、ロンの隣に腰を下ろす。少し離れた席では、同じマフラーの男たちがこちらを見ている", "dir": 1, "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "おや。あんた、イギリスのキーパーだね。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……ああ。", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "一つ教えてやろう。わが国の伝説のキーパーはな、試合の前にかぼちゃジュースを十杯飲んでいたんだ。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……十杯？", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "十杯飲むと、ボールが止まって見えるようになる。", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "……まあ、全部飲みきれたら、の話だがね。", "bg": "朝の大食堂"}, {"who": "", "text": "ファン、席を立つ。仲間の席に戻ると、何か短くささやき、男たちが肩を揺らして笑う", "dir": 1, "bg": "朝の大食堂"}, {"who": "ハリー", "text": "ロン、気にするな。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "（ジュースのピッチャーを引き寄せる）", "bg": "朝の大食堂"}, {"who": "ジニー", "text": "……ロン？", "bg": "朝の大食堂"}, {"who": "", "text": "一杯、二杯、三杯……", "dir": 1, "bg": "朝の大食堂"}, {"who": "", "text": "いつの間にか、ロンの前に満杯のピッチャーがもう一つ置かれている。誰が置いたのかは、わからない", "dir": 1, "bg": "朝の大食堂"}, {"who": "フレッド", "text": "おい、本気か。", "bg": "朝の大食堂"}, {"who": "ジョージ", "text": "止めるべきか？", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "……いや。止めるな。", "bg": "朝の大食堂"}, {"who": "", "text": "十杯目を飲み干し、ロンがゆっくりと顔を上げる。離れた席の男たちが、満足そうにうなずき合って出ていく", "dir": 1, "bg": "朝の大食堂"}, {"who": "ロン", "text": "……ちょっと、お腹が重い。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "でも、なんか……今日は、全部止められる気がする。", "bg": "朝の大食堂"}], "win": [{"who": "実況", "text": "試合終了！　スニッチはクラム！　しかし、点差はイギリスが守り切った！　イギリス、決勝進出！", "bg": "夜のスタジアム（内部）"}, {"who": "実況", "text": "そしてこの試合、ゴールを守り続けたのはロン・ウィーズリー！　ブルガリアの猛攻を、ことごとく止めてみせました！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "スタンドから、ロンの名前を呼ぶ声が広がっていく", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "観客席の一角で、赤いマフラーの男たちが、空になったピッチャーを見つめたまま黙って座っている", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "フレッド", "text": "ロン！", "bg": "夜のスタジアム（内部）"}, {"who": "ジョージ", "text": "担げ！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "双子がロンを肩に担ぎ上げる", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "お、おい！　……ああ、もう、いいや！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "ロン、こらえきれずに笑う", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ハリー", "text": "MVPだ、ロン。", "bg": "夜のスタジアム（内部）"}, {"who": "クラム", "text": "（ロンの前で立ち止まって）……いいキーパーだった。", "bg": "夜のスタジアム（内部）"}, {"who": "クラム", "text": "次は、負けない。", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "クラム、去る", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "……今の、聞いたか。", "bg": "夜のスタジアム（内部）"}, {"who": "ジニー", "text": "聞いた。……すごいよ、ロン。", "bg": "夜のスタジアム（内部）"}]}, {"intro": [{"who": "ハリー", "text": "アイルランド。前の大会の優勝国だ。", "bg": "大会のキャンプ場"}, {"who": "アンジェリーナ", "text": "チェイサーのトロイ、マレット、モラン。三人のパスが速すぎて、観客の目が追いつかないって言われてる。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "三人の連携は世界一だって評判。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "三人で一つの生き物、か。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "こっちは二人で一つだ。数で負けてるな。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "……でも、こっちは全員で一つだ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "最後だ。言うことは少ない。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "三人の誰かが持ったら、迷わずつぶせ。パスの出どころを止めろ。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "……そして最後は、お前が決めてこい、{name}。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "代表で、何度もこういう夜を越えてきた。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "最後に頼れるのは、仲間と、自分の腕だけだ。……行こうぜ！", "bg": "夜のスタジアム（外観）"}, {"who": "ハリー", "text": "城の小さなピッチから、ここまで来た。", "bg": "夜のスタジアム（外観）"}, {"who": "ロン", "text": "……ここで終わりにしたくない。", "bg": "夜のスタジアム（外観）"}, {"who": "ジニー", "text": "勝って、帰ろう。", "bg": "夜のスタジアム（外観）"}], "win": [{"who": "実況", "text": "試合終了！　ワールドカップ優勝は……イギリス！！", "bg": "優勝の紙吹雪"}, {"who": "", "text": "金と赤の紙吹雪", "dir": 1, "bg": "優勝の紙吹雪"}, {"who": "ジニー", "text": "……やった。本当に、やったんだ。", "bg": "優勝の紙吹雪"}, {"who": "フレッド", "text": "世界一だ。", "bg": "優勝の紙吹雪"}, {"who": "ジョージ", "text": "おい、世界一だぞ。", "bg": "優勝の紙吹雪"}, {"who": "ハリー", "text": "ああ。……全員で、取ったんだ。", "bg": "優勝の紙吹雪"}, {"who": "バグマン", "text": "……やったな。俺一人じゃ、ここまで来られなかった。最高のチームだ！", "bg": "優勝の紙吹雪"}, {"who": "ハーグリーヴズ監督", "text": "……最高のチームだった。{name}、来年も頼む。", "bg": "優勝の紙吹雪"}, {"who": "", "text": "秋。城に戻ると、いつもの毎日が待っていた。", "bg": "湖畔の古城"}, {"who": "ジニー", "text": "{name}、放課後、練習するよ。今年も寮杯、取るんだから。", "bg": "湖畔の古城"}, {"who": "ハリー", "text": "ウッドが、もう新しい練習メニューを考えてるらしい。", "bg": "湖畔の古城"}, {"who": "ロン", "text": "……朝六時からとか言わないよな。", "bg": "湖畔の古城"}, {"who": "", "text": "― おしまい ―", "bg": "湖畔の古城"}]}];
+const STORY_SCRIPT = [{"intro": [{"who": "", "text": "九月。湖の向こうの古い城に、新しい一年が始まった。", "bg": "湖畔の古城"}, {"who": "ロン", "text": "……今日だろ、クィディッチの入団テスト。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "ああ。ウッドが一人だけ新しい選手を取るって言ってた。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "一人だけかよ。去年、何十人も受けて全員落とされたって聞いたぞ。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "（向かいの席の{name}に気づいて）きみも受けるのか。", "bg": "朝の大食堂"}, {"who": "", "text": "{name}、うなずく", "dir": 1, "bg": "朝の大食堂"}, {"who": "ハリー", "text": "……そうか。ハリーだ。テストで会おう。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "ロンだ。……まあ、がんばれよ。ウッドのテストは、見てるだけで胃が痛くなる。", "bg": "朝の大食堂"}, {"who": "ウッド", "text": "いいか。グリフィンドールは、もう何年も寮杯から遠ざかっている。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "今年こそ取る。そのために、足りないピースを一つ埋める。", "bg": "夕方の練習場"}, {"who": "アンジェリーナ", "text": "中途半端な気持ちなら、今のうちに帰って。ウッドの練習は、本気で毎日だから。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "……{name}。お前に決めた。", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "明日の朝六時、ここに来い。遅れたら外す。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "おめでとう、新人。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "明日から地獄へようこそ。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "冗談じゃなく、本当に。", "bg": "夕方の練習場"}, {"who": "アンジェリーナ", "text": "明日の相手はレイブンクロー。主将のロジャー・デイビースがチームを引っぱってる。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "シーカーはチョウ・チャン。相手のシーカーにぴったり張りついて、スニッチの前に入るのがうまいって評判。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "ぼくも前に当たったことがある。気づいたら、いつも前にいるんだ。", "bg": "夜の談話室"}, {"who": "ロン", "text": "ハリーがそう言うなら、相当だな……。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "レイブンクローは頭で飛ぶ。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "パスの一本一本に、ちゃんと理由がある。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "だからこそ、こっちは迷わず攻める。スニッチが出る残り一分までに、点差をつけておけ。", "bg": "夜の談話室"}, {"who": "チョウ", "text": "（すれ違いざまに）新しく入った人だよね。噂は聞いてる。", "bg": "夕方の練習場"}, {"who": "チョウ", "text": "……明日、手加減はしないから。", "bg": "夕方の練習場"}], "win": [{"who": "ウッド", "text": "初戦、勝った。……だが、まだ一つ目だ。浮かれるな。", "bg": "夜の談話室"}, {"who": "アンジェリーナ", "text": "素直にほめればいいのに。{name}、いい動きだったわ。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "新人にしちゃ、上出来だ。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "上出来すぎて、ちょっと腹が立つくらいだ。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "次はハッフルパフだ。セドリック・ディゴリーが主将になってから、あそこは変わった。", "bg": "夜の談話室"}]}, {"intro": [{"who": "ウッド", "text": "雨だろうと練習はやる。試合の日の天気は選べない。", "bg": "雨の練習場"}, {"who": "アンジェリーナ", "text": "（ずぶぬれのまま）ボールが滑る。パスは短く、確実に。", "bg": "雨の練習場"}, {"who": "", "text": "雨の中、{name}のパスが三本続けて味方の手に収まる", "dir": 1, "bg": "雨の練習場"}, {"who": "ジニー", "text": "{name}、今の三本、全部通したじゃん。この雨で。", "bg": "雨の練習場"}, {"who": "ハリー", "text": "雨の日は、迷ったほうが負けだ。……{name}は迷ってない。", "bg": "雨の練習場"}, {"who": "セドリック", "text": "グリフィンドールの新しい選手だね。セドリック・ディゴリーだ。", "bg": "城の廊下"}, {"who": "セドリック", "text": "週末の試合、いい勝負にしよう。……ただ、勝つのはうちだ。", "bg": "城の廊下"}, {"who": "", "text": "セドリック、去る", "dir": 1, "bg": "城の廊下"}, {"who": "ハリー", "text": "……前に一度、あいつにスニッチを取られて負けたことがある。", "bg": "城の廊下"}, {"who": "ハリー", "text": "天候がひどい日だった。それでも、あいつは最後まで冷静だった。", "bg": "城の廊下"}, {"who": "フレッド", "text": "言い訳はしないのが、ハリーのいいところだ。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "そして、二度目はないってのもな。", "bg": "城の廊下"}], "win": [{"who": "ジニー", "text": "二連勝。……でも、次が本番だよ。", "bg": "朝の大食堂"}, {"who": "アンジェリーナ", "text": "スリザリン。寮杯の決勝。", "bg": "朝の大食堂"}, {"who": "", "text": "大食堂の向こうの席から", "dir": 1, "bg": "朝の大食堂"}, {"who": "ドラコ", "text": "二つ勝ったくらいで、ずいぶん楽しそうだな。", "bg": "朝の大食堂"}, {"who": "ドラコ", "text": "決勝で、どっちが上か教えてやる。……せいぜい箒から落ちないことだ。", "bg": "朝の大食堂"}, {"who": "フレッド", "text": "……決勝が楽しみになってきた。", "bg": "朝の大食堂"}, {"who": "ジョージ", "text": "ああ。ブラッジャーの行き先が、一つ決まった。", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "相手にするな。答えは試合で返す。", "bg": "朝の大食堂"}]}, {"intro": [{"who": "アンジェリーナ", "text": "スリザリンの主将、マーカス・フリント。反則すれすれの当たりで有名よ。審判の見ていないところで平気でぶつけてくる。", "bg": "城の廊下"}, {"who": "フレッド", "text": "あいつと当たるときは、箒ごと持っていかれる覚悟がいる。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "ブラッジャーより、主将のほうが危ないチームだ。", "bg": "城の廊下"}, {"who": "ジニー", "text": "シーカーはマルフォイ。腕は悪くない。それに、父親がチーム全員に最新型の箒を贈ったって話。", "bg": "城の廊下"}, {"who": "フレッド", "text": "箒で勝てるなら、苦労はしないさ。", "bg": "城の廊下"}, {"who": "ハリー", "text": "……そうだ。最後に勝つのは、飛ぶほうだ。", "bg": "城の廊下"}, {"who": "", "text": "窓の外。校門のあたりを、黒いマントの影がいくつも、音もなく漂っている", "dir": 1, "bg": "城の廊下"}, {"who": "ジニー", "text": "ディメンター……。魔法省が、学校の警備によこしたんだって。", "bg": "城の廊下"}, {"who": "ハリー", "text": "（窓から目をそらして）……あいつらが近くにいると、体の芯まで冷えるんだ。", "bg": "城の廊下"}, {"who": "フレッド", "text": "ダンブルドアが、敷地の中には一歩も入れないって約束させたらしい。", "bg": "城の廊下"}, {"who": "ジョージ", "text": "だから試合は大丈夫。……たぶんな。", "bg": "城の廊下"}, {"who": "ウッド", "text": "……{name}。少し、いいか。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "ぼくは今年で最後だ。この寮杯を取れなかったら、もう二度と……（遠い目）", "bg": "夜の談話室"}, {"who": "フレッド", "text": "主将、その顔で言われると怖い。", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "寝る前に見たら、夢に出るやつだ。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "……とにかく！　お前は、いつも通り飛べばいい。それだけだ。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "一人で背負わないでよ、主将。チームでしょ。", "bg": "夜の談話室"}, {"who": "フレッド", "text": "主将が取りこぼした分は……", "bg": "夜の談話室"}, {"who": "ジョージ", "text": "……ぼくたちが倍にして返す。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "全員で取りに行こう。それでいい。", "bg": "夜の談話室"}, {"who": "", "text": "{name}、静かにうなずく", "dir": 1, "bg": "夜の談話室"}, {"who": "ウッド", "text": "……ああ。勝つぞ。", "bg": "夜の談話室"}], "win": [{"who": "", "text": "試合のあと。グラウンドの上空には、まだ銀色の光の名残が漂っていた", "dir": 1, "bg": "夕方の練習場"}, {"who": "マクゴナガル", "text": "ディメンターがグラウンドに入るなど、あってはならないことです。魔法省には、校長から厳しく抗議していただきます。", "bg": "夕方の練習場"}, {"who": "マクゴナガル", "text": "妨害は、両チームに等しくありました。校長と話し合い、今回に限り、この試合の結果を正式なものと認めます。", "bg": "夕方の練習場"}, {"who": "ダンブルドア", "text": "あの冷たさの中でも、きみたちは最後まで飛ぶのをやめなかった。見事じゃった。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "……ってことは。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "寮杯、確定だ！", "bg": "夕方の練習場"}, {"who": "ウッド", "text": "……寮杯だ。何年ぶりだと思ってる。", "bg": "夜の談話室"}, {"who": "ウッド", "text": "（言葉に詰まる）", "bg": "夜の談話室"}, {"who": "アンジェリーナ", "text": "主将、泣くのは明日にして。みんな見てるわよ。", "bg": "夜の談話室"}, {"who": "ハリー", "text": "{name}。最後のあの一本で、流れが決まった。", "bg": "夜の談話室"}, {"who": "ジニー", "text": "主将、さっきから同じこと三回言ってるよ。", "bg": "夜の談話室"}, {"who": "", "text": "窓の外。スタンドの最上段で、見知らぬ大人がじっとこちらを見ていた", "dir": 1, "bg": "夜の談話室"}]}, {"intro": [{"who": "", "text": "冬休みの前日。一羽のフクロウが、重い封蝋のついた手紙を運んできた。", "bg": "手紙が届く冬の窓辺"}, {"who": "ジニー", "text": "その封蝋……魔法スポーツの協会のものじゃない？", "bg": "手紙が届く冬の窓辺"}, {"who": "", "text": "「イギリス代表・ワールドカップ強化選手 選考試合への招待」", "bg": "手紙が届く冬の窓辺"}, {"who": "ハリー", "text": "……代表の選考だ。", "bg": "手紙が届く冬の窓辺"}, {"who": "ジニー", "text": "宛名は……{name}。それから、うちの寮のチーム全員。", "bg": "手紙が届く冬の窓辺"}, {"who": "ハリー", "text": "決勝を、誰かが見てたんだ。", "bg": "手紙が届く冬の窓辺"}, {"who": "ハーグリーヴズ監督", "text": "イギリス代表監督、ハーグリーヴズだ。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "選考は一試合。お前たちの寮のチームで、いまの代表と戦ってもらう。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "代表にはルード・バグマンがいる。イギリス代表のエースビーターだ。", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "（小声で）バグマン……代表のビーターで一番有名な選手だ。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "（小声で）打ったブラッジャーの重さが違うって評判だ。", "bg": "夕方の練習場"}, {"who": "バグマン", "text": "ハハッ！　寮の学生が相手か。悪いが、手加減ってのは昔から苦手でね。全力でいかせてもらうよ！", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "{name}。", "bg": "夕方の練習場"}, {"who": "", "text": "{name}、顔を上げる", "dir": 1, "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "寮杯の決勝、見ていた。ここに呼んだのは、まぐれじゃない。", "bg": "夕方の練習場"}], "win": [{"who": "ハーグリーヴズ監督", "text": "……合格だ、{name}。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "それから――お前たちの寮のチームからも、何人か代表に呼ぶ。", "bg": "夕方の練習場"}, {"who": "ジニー", "text": "……今の、聞いた？", "bg": "夕方の練習場"}, {"who": "フレッド", "text": "聞いた。", "bg": "夕方の練習場"}, {"who": "ジョージ", "text": "夢じゃないよな。", "bg": "夕方の練習場"}, {"who": "バグマン", "text": "ハハッ、負けた負けた！　いい目をしてるな、お前たち。ワールドカップでは俺が味方だ。背中は任せとけ！", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "ワールドカップのメンバーは、代表の選手とお前たちの寮の仲間から選んでいい。", "bg": "夕方の練習場"}, {"who": "ハーグリーヴズ監督", "text": "最強のチームを作れ。", "bg": "夕方の練習場"}]}, {"intro": [{"who": "", "text": "クィディッチ・ワールドカップ。世界中から集まったテントが、丘を埋め尽くしていた。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "……すごい人。どこを見ても旗だらけ。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "ここに、世界中の一番がいるんだ。", "bg": "大会のキャンプ場"}, {"who": "ロン", "text": "あと、世界中のお菓子の屋台もな。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "浮かれてる場合じゃないな。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "ああ。今回ばかりは。", "bg": "大会のキャンプ場"}, {"who": "アンジェリーナ", "text": "フランスは、チェイサーのエロディを中心に、パスで崩してくるチームよ。", "bg": "夜のスタジアム（外観）", "cond": "france"}, {"who": "アンジェリーナ", "text": "ドイツは、チェイサーのクラウスを中心に、体を張って押し込んでくるチームよ。", "bg": "夜のスタジアム（外観）", "cond": "germany"}, {"who": "バグマン", "text": "初めての国際試合か。俺も最初は、手の震えが止まらなかったよ。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "でもな、一度飛び出しちまえば、観客の声なんて聞こえなくなる。聞こえるのは、風の音とボールの音だけだ。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "いつも通り飛べ。それだけだ。", "bg": "夜のスタジアム（外観）"}], "win": [{"who": "実況", "text": "試合終了！　イギリス、一回戦突破！", "bg": "夜のスタジアム（内部）"}, {"who": "ジニー", "text": "……勝った。世界の舞台で、勝ったよ。", "bg": "夜のスタジアム（内部）"}, {"who": "ハーグリーヴズ監督", "text": "喜ぶのは一瞬でいい。準決勝の相手は、ブルガリアだ。", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "テントの空気が、一瞬で張りつめる", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "フレッド", "text": "……喜ぶ時間、短すぎない？", "bg": "夜のスタジアム（内部）"}, {"who": "ジョージ", "text": "三秒くらいだったな。", "bg": "夜のスタジアム（内部）"}]}, {"intro": [{"who": "ハリー", "text": "ビクトール・クラム。まだ学生なのに、ブルガリア代表のシーカーをやってる。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "世界最高のシーカーって呼ばれてる人でしょ。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "急降下で相手のシーカーをだまして、地面にたたきつける大技がある。……あれを見せられたら、普通は追えない。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "あの技に引っかかって、地面に激突したシーカーもいるって話だ。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "世界の舞台で、だぞ。", "bg": "大会のキャンプ場"}, {"who": "ロン", "text": "……それ、本当に人間？", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "（テントの入口で）だから、作戦を立てる。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "クラムがスニッチを見つけたら、まず止められない。勝つ方法は一つ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "取られる前に、五十点より大きくリードしておくことだ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "……ブルガリアの守りは固い。遠くからでは入らない。ゴールの目の前まで運べ。", "bg": "大会のキャンプ場"}, {"who": "", "text": "赤いマフラーを巻いたブルガリアのファンが、ロンの隣に腰を下ろす。少し離れた席では、同じマフラーの男たちがこちらを見ている", "dir": 1, "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "おや。あんた、イギリスのキーパーだね。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……ああ。", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "一つ教えてやろう。わが国の伝説のキーパーはな、試合の前にかぼちゃジュースを十杯飲んでいたんだ。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "……十杯？", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "十杯飲むと、ボールが止まって見えるようになる。", "bg": "朝の大食堂"}, {"who": "ブルガリアのファン", "text": "……まあ、全部飲みきれたら、の話だがね。", "bg": "朝の大食堂"}, {"who": "", "text": "ファン、席を立つ。仲間の席に戻ると、何か短くささやき、男たちが肩を揺らして笑う", "dir": 1, "bg": "朝の大食堂"}, {"who": "ハリー", "text": "ロン、気にするな。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "（ジュースのピッチャーを引き寄せる）", "bg": "朝の大食堂"}, {"who": "ジニー", "text": "……ロン？", "bg": "朝の大食堂"}, {"who": "", "text": "一杯、二杯、三杯……", "dir": 1, "bg": "朝の大食堂"}, {"who": "", "text": "いつの間にか、ロンの前に満杯のピッチャーがもう一つ置かれている。誰が置いたのかは、わからない", "dir": 1, "bg": "朝の大食堂"}, {"who": "フレッド", "text": "おい、本気か。", "bg": "朝の大食堂"}, {"who": "ジョージ", "text": "止めるべきか？", "bg": "朝の大食堂"}, {"who": "ハリー", "text": "……いや。止めるな。", "bg": "朝の大食堂"}, {"who": "", "text": "十杯目を飲み干し、ロンがゆっくりと顔を上げる。離れた席の男たちが、満足そうにうなずき合って出ていく", "dir": 1, "bg": "朝の大食堂"}, {"who": "ロン", "text": "……ちょっと、お腹が重い。", "bg": "朝の大食堂"}, {"who": "ロン", "text": "でも、なんか……今日は、全部止められる気がする。", "bg": "朝の大食堂"}], "win": [{"who": "実況", "text": "試合終了！　スニッチはクラム！　しかし、点差はイギリスが守り切った！　イギリス、決勝進出！", "bg": "夜のスタジアム（内部）"}, {"who": "実況", "text": "そしてこの試合、ゴールを守り続けたのはロン・ウィーズリー！　ブルガリアの猛攻を、ことごとく止めてみせました！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "スタンドから、ロンの名前を呼ぶ声が広がっていく", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "観客席の一角で、赤いマフラーの男たちが、空になったピッチャーを見つめたまま黙って座っている", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "フレッド", "text": "ロン！", "bg": "夜のスタジアム（内部）"}, {"who": "ジョージ", "text": "担げ！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "双子がロンを肩に担ぎ上げる", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "お、おい！　……ああ、もう、いいや！", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "ロン、こらえきれずに笑う", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ハリー", "text": "MVPだ、ロン。", "bg": "夜のスタジアム（内部）"}, {"who": "クラム", "text": "（ロンの前で立ち止まって）……いいキーパーだった。", "bg": "夜のスタジアム（内部）"}, {"who": "クラム", "text": "次は、負けない。", "bg": "夜のスタジアム（内部）"}, {"who": "", "text": "クラム、去る", "dir": 1, "bg": "夜のスタジアム（内部）"}, {"who": "ロン", "text": "……今の、聞いたか。", "bg": "夜のスタジアム（内部）"}, {"who": "ジニー", "text": "聞いた。……すごいよ、ロン。", "bg": "夜のスタジアム（内部）"}]}, {"intro": [{"who": "ハリー", "text": "アイルランド。前の大会の優勝国だ。", "bg": "大会のキャンプ場"}, {"who": "アンジェリーナ", "text": "チェイサーのトロイ、マレット、モラン。三人のパスが速すぎて、観客の目が追いつかないって言われてる。", "bg": "大会のキャンプ場"}, {"who": "ジニー", "text": "三人の連携は世界一だって評判。", "bg": "大会のキャンプ場"}, {"who": "フレッド", "text": "三人で一つの生き物、か。", "bg": "大会のキャンプ場"}, {"who": "ジョージ", "text": "こっちは二人で一つだ。数で負けてるな。", "bg": "大会のキャンプ場"}, {"who": "ハリー", "text": "……でも、こっちは全員で一つだ。", "bg": "大会のキャンプ場"}, {"who": "ハーグリーヴズ監督", "text": "最後だ。言うことは少ない。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "三人の誰かが持ったら、迷わずつぶせ。パスの出どころを止めろ。", "bg": "夜のスタジアム（外観）"}, {"who": "ハーグリーヴズ監督", "text": "……そして最後は、お前が決めてこい、{name}。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "代表で、何度もこういう夜を越えてきた。", "bg": "夜のスタジアム（外観）"}, {"who": "バグマン", "text": "最後に頼れるのは、仲間と、自分の腕だけだ。……行こうぜ！", "bg": "夜のスタジアム（外観）"}, {"who": "ハリー", "text": "城の小さなピッチから、ここまで来た。", "bg": "夜のスタジアム（外観）"}, {"who": "ロン", "text": "……ここで終わりにしたくない。", "bg": "夜のスタジアム（外観）"}, {"who": "ジニー", "text": "勝って、帰ろう。", "bg": "夜のスタジアム（外観）"}], "win": [{"who": "実況", "text": "試合終了！　ワールドカップ優勝は……イギリス！！", "bg": "優勝の紙吹雪"}, {"who": "", "text": "金と赤の紙吹雪", "dir": 1, "bg": "優勝の紙吹雪"}, {"who": "ジニー", "text": "……やった。本当に、やったんだ。", "bg": "優勝の紙吹雪"}, {"who": "フレッド", "text": "世界一だ。", "bg": "優勝の紙吹雪"}, {"who": "ジョージ", "text": "おい、世界一だぞ。", "bg": "優勝の紙吹雪"}, {"who": "ハリー", "text": "ああ。……全員で、取ったんだ。", "bg": "優勝の紙吹雪"}, {"who": "バグマン", "text": "……やったな。俺一人じゃ、ここまで来られなかった。最高のチームだ！", "bg": "優勝の紙吹雪"}, {"who": "ハーグリーヴズ監督", "text": "……最高のチームだった。{name}、来年も頼む。", "bg": "優勝の紙吹雪"}, {"who": "", "text": "秋。城に戻ると、いつもの毎日が待っていた。", "bg": "湖畔の古城"}, {"who": "ジニー", "text": "{name}、放課後、練習するよ。今年も寮杯、取るんだから。", "bg": "湖畔の古城"}, {"who": "ハリー", "text": "ウッドが、もう新しい練習メニューを考えてるらしい。", "bg": "湖畔の古城"}, {"who": "ロン", "text": "……朝六時からとか言わないよな。", "bg": "湖畔の古城"}, {"who": "", "text": "― おしまい ―", "bg": "湖畔の古城"}]}];
 
 // ---- 台本（story_script.md から変換）と表示の設定 ----
 // 背景の一枚絵：画像ができたら BG_IMG にファイル名を入れるだけで差し替わる。なければ3Dの景色をぼかして使う
@@ -4904,7 +5058,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15d';
+const APP_VERSION = '2026-11-15e';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
@@ -4940,7 +5094,7 @@ function loop(ts){
   let gdt = dt;
   if (game.slowT > 0 && game.state==='play'){ const u = 1 - game.slowT/SLOW_DUR; gdt = dt*(0.4 + 0.6*u*u); game.slowT -= dt; }
   if (net.guest && inMatch) guestUpdate(gdt);
-  else if (game.state==='play' || demo || (net.host && game.state==='paused' && game.prevState==='play')) step(gdt);
+  else if ((game.state==='play' && !game.cardHold) || demo || (net.host && game.state==='paused' && game.prevState==='play')) step(gdt);
   else if (game.state==='countdown' || (net.host && game.state==='paused' && game.prevState==='countdown')){
     if (!game.missionWait) game.cd -= dt;
     const c = game.missionWait ? lastCd : Math.ceil(game.cd);
