@@ -790,8 +790,8 @@ const PW_OVERRIDE = {troy:1.128, mullet:1.125, moran:1.125, connolly:1.125, quig
 for (const id in PW_OVERRIDE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].pwx = PW_OVERRIDE[id];
 const KEEPER_REACH = {ryan:2.0};
 // チームの持ち味（ボットのみ）：broom=全員の箒、drain=スタミナの減り（倍率）、regen=回復（倍率）、pass=天才的なパス回し、tackle=鋭いタックル
-const TEAM_TRAIT = {ireland:{broom:'blaze', drain:0.6, regen:1.5, pass:1, tackle:1}};
-const TT = e => (e && !e.human && e.char && TEAM_TRAIT[e.char.team]) || null;   // キーパーの守備範囲の上乗せ（m）：アイルランドの守護神
+const TEAM_TRAIT = {ireland:{broom:'blaze', drain:0.6, regen:1.5, pass:1, tackle:1}, legends:{broom:'blaze', drain:0.45, regen:1.7, pass:1, tackle:1}};
+const TT = e => (e && !e.human && e.char && (game.boss && e.team===1 ? TEAM_TRAIT.legends : TEAM_TRAIT[e.char.team])) || null;   // キーパーの守備範囲の上乗せ（m）：アイルランドの守護神
 const BIG_BUILD = ['flint','crabbe','goyle','volkov','vulchanov','bagman','lukas','connolly'];
 for (const id in HAIR_STYLE) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].hs = HAIR_STYLE[id];
 for (const id of BIG_BUILD) if (CHAR_BY_ID[id]) CHAR_BY_ID[id].big = true;
@@ -2823,7 +2823,8 @@ function playerBludger(e=player){
 // ボットのブースト（箒の性能どおりにスタミナを使う）
 // ---- 点差を見た判断 ----
 const lead = t => game.score[t] - game.score[1-t];
-const snitchWorth = t => lead(t) + CFG.snitchPoints > 0;          // 取れば勝ちになる（引き分け以下なら取らない）
+const snitchWorth = t => lead(t) + CFG.snitchPoints > 0;
+const krumMission = () => !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission==='krum');   // ストーリーのブルガリア戦          // 取れば勝ちになる（引き分け以下なら取らない）
 const lateGame = () => game.time < 60;
 const defBuff = t => (t===1 && game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].rivalDef) || 0;   // ストーリーの相手チームの守備強化
 function botSpd(e, base, urgent, dt){
@@ -2856,7 +2857,7 @@ function chaserAI(e, dt){
   const sign = e.team===0 ? 1 : -1, hx = attackX(e.team);
   const mate = mateChaser(e);
   const h = ball.holder;
-  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && (e.sk==='krum' || snitchWorth(e.team))){   // 元シーカーはスニッチ戦に参加
+  if (snitch.active && (e.sk==='seeker' || e.sk==='krum') && h!==e && ((e.sk==='krum' && krumMission()) || snitchWorth(e.team))){   // 元シーカーはスニッチ戦に参加
     const k = e.sk==='krum', sd = e.pos.distanceTo(snitch.pos);
     steer(e, snitch.pos.clone().addScaledVector(snitch.vel, k ? Math.min(1.2, sd/35) : 0.3), Math.min(botSpd(e, CFG.botSnitchSpeed*(k ? 1.3 : 0.95), k || sd < 25, dt), CFG.snitchFlee*(k ? 0.93 : 0.88)), dt, k ? 5 : 2.5);
     return;
@@ -3272,11 +3273,11 @@ function spawnSnitch(){
 function updateSnitch(dt){
   if (!snitch.active) return;
   snitch.age = (snitch.age || 0) + dt;
-  const krumOnly = !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].mission==='krum');
+  const krumOnly = krumMission();
   if (krumOnly && (game.time < 1.5 || snitch.age > 9.5)){ const k = ents.find(x=>x.sk==='krum'); if (k){ k.stun = 0; k.pos.copy(snitch.pos); catchSnitch(k); return; } }   // 出現から10秒以内（時間切れ直前でも）必ずクラムが取る
   { const w = [snitchWorth(0), snitchWorth(1)];
     if (!game.snWorth) game.snWorth = [true, true];
-    for (const t of [0,1]) if (game.snWorth[t] && !w[t] && !ents.some(x=>x.team===t && x.sk==='krum' && !x.human)) toastAll(`${TEAM_NAME[t]}はスニッチを取っても勝てない！ 点を取りに行く`, 2.2, '#ffe08a');
+    for (const t of [0,1]) if (game.snWorth[t] && !w[t] && !(krumOnly && ents.some(x=>x.team===t && x.sk==='krum' && !x.human))) toastAll(`${TEAM_NAME[t]}はスニッチを取っても勝てない！ 点を取りに行く`, 2.2, '#ffe08a');
     game.snWorth = w; }
   let near = null, nd = 1e9;
   for (const e of ents){ if (e.role==='K' || e.stun>0) continue; const d = e.pos.distanceTo(snitch.pos); if (d<nd){ nd = d; near = e; } }
@@ -3312,7 +3313,7 @@ function updateSnitch(dt){
       continue;
     }
     if (game.practice && !e.isPlayer) continue;   // 練習のスニッチはプレイヤーだけが取れる
-    if (!e.human && e.sk!=='krum' && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない（クラムは別）
+    if (!e.human && !(e.sk==='krum' && krumMission()) && !snitchWorth(e.team)) continue;   // 負けすぎているボットはわざと取らない（ブルガリア戦のクラムは別）
     if (snitch.age > 4 && e.pos.distanceTo(snitch.pos) < (e.human ? 2.3 + 1.7*tire : e.sk==='krum' ? 1.8 : 1.0)){ catchSnitch(e); return; }   // 出現直後の4秒は捕まえられない
   }
 }
@@ -4768,6 +4769,7 @@ function startBoss(){
   game.state = 'countdown'; game.story = null; game.boss = true;
   setHouses(settings.bossTeam, 'legends'); setStage('wc');
   buildTeams(game.playerRole || settings.role || 'C', [bossLineup(), bossRival()], null);
+  for (const e of ents) if (e.team===1){ e.pw = 1.18; e.broom = 'blaze'; }   // 最強選抜はURの中でも別格
   resetGame();
   D = DIFF.world;   // resetGame が通常モードの難易度に戻すので、ここで最強にする
   camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
@@ -4902,7 +4904,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15c';
+const APP_VERSION = '2026-11-15d';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
