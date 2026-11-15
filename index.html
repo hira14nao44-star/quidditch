@@ -3132,9 +3132,16 @@ const QUIPS = {
   hanna:   {goal:['決めたわ！'], chatter:['ドイツの守りは崩させないわよ。']},
 };
 const QUIP_MENTIONS = {'ジョージ':'george', 'フレッド':'fred', 'トロイ':'troy', 'マレット':'mullet', 'モラン':'moran'};
-const QUIP_CHANCE = {goal:1, teamGoal:0.75, conceded:0.75, tackleWin:0.8, tackleFail:0.55, save:0.9, bludger:0.6, hit:0.55, snitch:1, catch:1, chatter:1};
+const QUIP_CHANCE = {demHit:1, goal:1, teamGoal:0.75, conceded:0.75, tackleWin:0.8, tackleFail:0.55, save:0.9, bludger:0.6, hit:0.55, snitch:1, catch:1, chatter:1};
 const quipState = {t:-99, last:null, lastLine:'', by:{}, used:{}};
-const quipLines = e => e && e.char && !e.human ? QUIPS[e.char.id] || (e.char.id==='ronss' ? QUIPS.ron : null) : null;
+function quipLines(e){
+  if (!(e && e.char && !e.human)) return null;
+  const base = QUIPS[e.char.id] || (e.char.id==='ronss' ? QUIPS.ron : null), m = typeof demQuipMode === 'function' ? demQuipMode() : null;
+  const X = m && DEM_QUIPS[e.char.id==='ronss' ? 'ron' : e.char.id];
+  if (!X) return base;
+  if (m==='relief') return X.relief ? Object.assign({}, base, {chatter:X.relief}) : base;
+  return Object.assign({}, base, X);   // ディメンターがいる間はこの試合だけのセリフ
+}
 function pickLine(e, kind){
   const L = quipLines(e); let arr = L && L[kind]; if (!arr || !arr.length) return null;
   // 仲間の名前を呼ぶセリフは、その仲間が出ているときだけ
@@ -3626,10 +3633,11 @@ function placeLock(tgt, label, dim, id='lock'){
   lock.querySelector('span').textContent = label;
 }
 let hudLastSec = -1;
-// ---------- 寮杯決勝：開始1分でディメンター乱入 → 3分40秒でダンブルドアの守護霊 ----------
-const DEM = {list:[], on:false, done:false, pat:null, fx:0, hit:0};
-const DEM_IN = 60, DEM_OUT = 220;
+// ---------- 寮杯決勝：0:45から空が暗くなり、1:00でディメンター乱入 → 2:40でダンブルドアの守護霊 ----------
+const DEM = {list:[], on:false, done:false, pat:null, fx:0, hit:0, darkK:0, spawnT:0, carded:false};
+const DEM_DARK = 45, DEM_IN = 60, DEM_OUT = 160;   // 試合開始からの秒数（スニッチは180秒で出る）
 const demEvent = () => !!(game.story && CHAPTERS[game.story.ch] && CHAPTERS[game.story.ch].event==='dementor');
+const demElapsed = () => CFG.matchTime - game.time;
 let demGlowC = null;
 function demGlow(){
   if (demGlowC) return demGlowC;
@@ -3638,37 +3646,61 @@ function demGlow(){
   gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.22,'rgba(225,242,255,.9)'); gr.addColorStop(0.55,'rgba(160,210,255,.3)'); gr.addColorStop(1,'rgba(160,210,255,0)');
   g.fillStyle = gr; g.fillRect(0,0,128,128); demGlowC = new THREE.CanvasTexture(c); return demGlowC;
 }
+// 空と光を暗くする（k=0 で元どおり）
+const DK = {bg:new THREE.Color(0x121826), top:new THREE.Color(0x060a14), hor:new THREE.Color(0x222a3c), sun:new THREE.Color(0x8a9cc8), hemi:new THREE.Color(0x515c78)};
+function applyDark(k){
+  const L = STAGE_LIGHT[stage];
+  scene.background.setHex(L.bg).lerp(DK.bg, k); scene.fog.color.copy(scene.background);
+  scene.fog.near = L.fogNear*(1 - 0.55*k); scene.fog.far = L.fogFar*(1 - 0.55*k);
+  skyUniforms.top.value.setHex(L.top).lerp(DK.top, k); skyUniforms.hor.value.setHex(L.hor).lerp(DK.hor, k);
+  sun.color.setHex(L.sunCol).lerp(DK.sun, k); sun.intensity = L.sunI*(1 - 0.6*k);
+  hemi.color.setHex(L.hemiSky).lerp(DK.hemi, k); hemi.intensity = L.hemiI*(1 - 0.45*k);
+  DEM.darkK = k;
+}
 function makeDementor(){
-  const g = new THREE.Group(), m = new THREE.MeshLambertMaterial({color:0x14161e, transparent:true, opacity:0.96, side:THREE.DoubleSide});
+  const g = new THREE.Group(), m = new THREE.MeshLambertMaterial({color:0x15171f, transparent:true, opacity:0.95, side:THREE.DoubleSide});
   const fm = new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:1});
-  const cloak = new THREE.Mesh(new THREE.ConeGeometry(1.3, 4.4, 12, 4, true), m); cloak.position.y = -1.3; g.add(cloak);
-  for (let i=0;i<10;i++){ const a = i/10*Math.PI*2, h = rand(1.2, 2.6), st = new THREE.Mesh(new THREE.PlaneGeometry(0.55, h), m); st.position.set(Math.cos(a)*1.25, -3.5 - h*0.4, Math.sin(a)*1.25); st.rotation.y = -a + Math.PI/2; g.add(st); }   // ぼろぼろの裾
-  const hood = new THREE.Mesh(new THREE.SphereGeometry(0.78, 12, 10, 0, Math.PI*2, 0, Math.PI*0.72), m); hood.position.y = 1.05; g.add(hood);
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.3, 10, 1, true), m); tip.position.set(0, 2.05, -0.15); tip.rotation.x = -0.25; g.add(tip);
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), fm); face.position.set(0, 0.85, 0.34); g.add(face);
-  for (const sx of [-1,1]){ const arm = new THREE.Mesh(new THREE.ConeGeometry(0.28, 2.3, 6, 1, true), m); arm.position.set(sx*0.95, 0, 0.7); arm.rotation.set(1.25, 0, sx*0.35); g.add(arm); }
-  g.scale.setScalar(1.6);
-  return {g, mats:[m, fm], pos:new V3(), vel:new V3(), cd:0, tgt:null, ph:Math.random()*9, flee:-1, fleeAt:0};
+  const cg = new THREE.ConeGeometry(0.9, 3.0, 14, 6, true); cg.translate(0, -0.9, 0);
+  const cloak = new THREE.Mesh(cg, m); g.add(cloak);
+  const base = Float32Array.from(cg.attributes.position.array);
+  const hood = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10, 0, Math.PI*2, 0, Math.PI*0.72), m); hood.position.y = 0.75; g.add(hood);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.85, 10, 1, true), m); tip.position.set(0, 1.4, -0.12); tip.rotation.x = -0.35; g.add(tip);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), fm); face.position.set(0, 0.6, 0.22); g.add(face);
+  const arms = [];
+  for (const sx of [-1,1]){ const arm = new THREE.Mesh(new THREE.ConeGeometry(0.17, 1.5, 6, 1, true), m); arm.position.set(sx*0.6, 0.1, 0.4); arm.rotation.set(1.25, 0, sx*0.3); g.add(arm); arms.push(arm); }
+  // ぼろぼろの裾（上を支点に風でなびく）
+  const strips = [];
+  for (let i=0;i<12;i++){
+    const a = i/12*Math.PI*2, h = rand(0.9, 1.9), pv = new THREE.Group();
+    const sg = new THREE.PlaneGeometry(0.34, h, 1, 4); sg.translate(0, -h/2, 0);
+    const st = new THREE.Mesh(sg, m); st.rotation.y = -a + Math.PI/2; pv.add(st);
+    pv.position.set(Math.cos(a)*0.85, -2.35, Math.sin(a)*0.85); g.add(pv); strips.push({pv, a, k:rand(0,6)});
+  }
+  return {g, mats:[m, fm], cg, base, arms, strips, pos:new V3(), vel:new V3(), cd:0, tgt:null, ph:Math.random()*9, flee:-1, fleeAt:0};
 }
 function demReset(){
   for (const d of DEM.list){ scene.remove(d.g); disposeTree(d.g); }
   if (DEM.pat){ scene.remove(DEM.pat.s); DEM.pat.s.material.dispose(); }
-  DEM.list = []; DEM.on = false; DEM.done = false; DEM.pat = null; DEM.fx = 0; DEM.hit = 0;
+  if (DEM.darkK > 0) applyDark(0);
+  DEM.list = []; DEM.on = false; DEM.done = false; DEM.pat = null; DEM.fx = 0; DEM.hit = 0; DEM.carded = false;
   game.cardHold = false; $('eventCard').hidden = true; $('dementorFx').style.opacity = 0; $('bigCenter').classList.remove('on');
 }
 function demStart(){
-  DEM.on = true;
+  DEM.on = true; DEM.spawnT = 0; DEM.carded = false;
   for (let i=0;i<4;i++){
-    const d = makeDementor(), a = i/4*Math.PI*2;
-    d.pos.set(Math.cos(a)*W.A*0.45, 65 + rand(0,15), Math.sin(a)*W.B*0.45); d.g.position.copy(d.pos); d.cd = 2.5 + i*0.7;
+    const d = makeDementor(), a = i/4*Math.PI*2 + 0.4;
+    d.pos.set(Math.cos(a)*W.A*0.4, 48 + rand(0,8), Math.sin(a)*W.B*0.4); d.g.position.copy(d.pos); d.cd = 3 + i*0.8;
     scene.add(d.g); DEM.list.push(d);
   }
-  game.shake = 0.4; musicStinger('snitch');
+  game.shake = 0.3;
+}
+function demCard(){   // 姿が見えたところでカードを出して止める
+  DEM.carded = true; musicStinger('snitch');
   for (const k in keys) keys[k] = false;
   if (player){ player.charging = false; player.charge = 0; }
-  game.cardHold = true; $('eventCard').hidden = false;   // 読んで押したら再開
+  game.cardHold = true; $('eventCard').hidden = false;
 }
-function demGo(){ if (!game.cardHold) return; game.cardHold = false; $('eventCard').hidden = true; uiClick(); }
+function demGo(){ if (!game.cardHold) return; game.cardHold = false; $('eventCard').hidden = true; uiClick(); quipState.t = -99; }   // 再開したらすぐ誰かが反応する
 function demCatch(e, d){
   if (e.isPlayer) e.vel.set(0,0,0);
   e.stun = 3.0; e.stunKind = 'dementor'; e.immune = 4.5;
@@ -3677,6 +3709,7 @@ function demCatch(e, d){
   emit(e.pos, 30, {colors:[0x5a6a8a,0x9fb3d9,0x2a3348], speed:6, life:1.0, size:0.5, drag:2});
   notify(e, 'ディメンターに捕まった！ スタン！', 1.6, '#9fc4ff', {shake:0.4});
   if (e.isPlayer) DEM.hit = 1;
+  sayEvent('demHit', e);
   d.cd = 8; d.tgt = null;
 }
 function patronus(){
@@ -3690,11 +3723,13 @@ function patronus(){
   $('banner').classList.remove('on'); bannerT = 0;   // 真ん中の文字と重ねない
   if (player) emit(player.pos.clone().add(new V3(0, 5, 0)), 90, {colors:[0xffffff,0xdff2ff,0xa8d8ff], speed:16, life:1.6, size:0.9, drag:1.6, local:true});
   if (bloomPass) DEM.bloom0 = bloomPass.strength;
+  quipState.t = now - 3.8;   // 少しして、ほっとした声
 }
 function updateDementors(dt){
   if (!demEvent() || DEM.done) return;
-  const el = CFG.matchTime - game.time;
+  const el = demElapsed();
   if (!DEM.on){ if (el >= DEM_IN) demStart(); return; }
+  if (!DEM.carded){ DEM.spawnT += dt; if (DEM.spawnT > 2.2){ demCard(); return; } }
   if (!DEM.pat && el >= DEM_OUT) patronus();
   for (const d of DEM.list){
     d.ph += dt;
@@ -3705,15 +3740,32 @@ function updateDementors(dt){
       d.tgt = pl && Math.random() < 0.45 ? pl : cand[Math.floor(Math.random()*cand.length)] || null;
     }
     const hunt = d.tgt && d.cd <= 0;
-    const goal = hunt ? d.tgt.pos.clone() : new V3(Math.cos(d.ph*0.3)*W.A*0.5, 16 + Math.sin(d.ph*0.7)*5, Math.sin(d.ph*0.23)*W.B*0.5);
-    const to = goal.sub(d.pos), l = to.length(), spd = hunt ? 12 : 8;
+    const goal = hunt ? d.tgt.pos.clone() : new V3(Math.cos(d.ph*0.3)*W.A*0.5, 14 + Math.sin(d.ph*0.7)*5, Math.sin(d.ph*0.23)*W.B*0.5);
+    const to = goal.sub(d.pos), l = to.length(), spd = hunt ? 12 : DEM.spawnT < 2.5 ? 14 : 8;
     d.vel.lerp(to.multiplyScalar(spd/Math.max(l, 0.001)), Math.min(1, dt*1.5));
     d.pos.addScaledVector(d.vel, dt);
-    if (d.cd <= 0) for (const e of ents){ if (e.stun > 0 || e.immune > 0) continue; if (e.pos.distanceTo(d.pos) < 3.4){ demCatch(e, d); break; } }
+    if (d.cd <= 0) for (const e of ents){ if (e.stun > 0 || e.immune > 0) continue; if (e.pos.distanceTo(d.pos) < 2.6){ demCatch(e, d); break; } }
   }
 }
-// 見た目（毎フレーム）：ゆらゆら、冷たい霧、画面の暗さ、守護霊の飛行
+// マントと裾を風でなびかせる
+function demCloth(d, t){
+  const sp = Math.min(1.2, d.vel.length()*0.07), P = d.cg.attributes.position, A = P.array, B = d.base;
+  for (let i=0;i<A.length;i+=3){
+    const x = B[i], y = B[i+1], z = B[i+2], dep = clamp((0.6 - y)/3.0, 0, 1), ang = Math.atan2(z, x);
+    A[i]   = x + Math.sin(t*5.2 + y*2.4 + ang*2)*0.13*dep;
+    A[i+2] = z + Math.cos(t*4.4 + y*2.0 + ang*3)*0.13*dep - (0.25 + sp)*dep*dep;
+  }
+  P.needsUpdate = true;
+  for (const s of d.strips) s.pv.rotation.x = 0.35 + sp*0.6 + Math.sin(t*6.5 + s.k)*0.28;
+  for (const a of d.arms) a.rotation.z = Math.sign(a.position.x)*(0.3 + Math.sin(t*3 + a.position.x)*0.12);
+}
+// 見た目（毎フレーム）：暗い空、なびくマント、冷たい霧、画面の暗さ、守護霊の飛行
 function updateDementorFx(dt){
+  { // 空の暗さ：0:45から暗くなり、守護霊で戻る
+    const inM = demEvent() && ['play','paused','countdown','end'].includes(game.state), el = inM ? demElapsed() : 0;
+    const k = !inM ? 0 : el < DEM_DARK ? 0 : el < DEM_IN - 2 ? (el - DEM_DARK)/(DEM_IN - 2 - DEM_DARK) : !DEM.pat && !DEM.done ? 1 : Math.max(0, 1 - (DEM.pat ? DEM.pat.t : 9)/5);
+    if (Math.abs(k - DEM.darkK) > 0.003 || (k===0 && DEM.darkK > 0)) applyDark(k);
+  }
   const run = game.state==='play' && !game.cardHold;
   let near = 0;
   for (let i=DEM.list.length-1; i>=0; i--){
@@ -3722,16 +3774,19 @@ function updateDementorFx(dt){
       if (d.flee < 0) d.flee = 0;
       d.flee += dt;
       const away = d.pos.clone().sub(DEM.pat.s.position).setY(0); if (away.lengthSq() < 1) away.set(1,0,0);
-      d.pos.addScaledVector(away.normalize(), (8 + d.flee*16)*dt); d.pos.y += (6 + d.flee*22)*dt;
-      const o = Math.max(0, 1 - d.flee/2.4); d.mats[0].opacity = 0.96*o; d.mats[1].opacity = o;
+      d.vel.copy(away.normalize().multiplyScalar(8 + d.flee*16)); d.vel.y = 6 + d.flee*22;
+      d.pos.addScaledVector(d.vel, dt);
+      const o = Math.max(0, 1 - d.flee/2.4); d.mats[0].opacity = 0.95*o; d.mats[1].opacity = o;
       if (d.flee > 2.4){ scene.remove(d.g); disposeTree(d.g); DEM.list.splice(i, 1); continue; }
     }
-    d.g.position.copy(d.pos); d.g.position.y += Math.sin(d.ph*1.7)*0.45;
+    const t = performance.now()/1000 + d.ph;
+    d.g.position.copy(d.pos); d.g.position.y += Math.sin(t*1.7)*0.35;
     if (d.vel.lengthSq() > 0.5) d.g.rotation.y = Math.atan2(d.vel.x, d.vel.z);
-    d.g.rotation.z = Math.sin(d.ph*2.1)*0.08;
+    d.g.rotation.x = Math.min(0.35, d.vel.length()*0.02);   // 進む方向へ少し前のめり
+    demCloth(d, t);
     if (d.flee < 0){
-      if (player) near = Math.max(near, 1 - player.pos.distanceTo(d.pos)/28);
-      if (run && Math.random() < dt*1.5) emit(d.pos.clone().add(new V3(rand(-1,1), -5, rand(-1,1))), 1, {colors:[0x55627d,0x3a4258], speed:1, life:1.2, size:0.6, drag:1, local:true});
+      if (player) near = Math.max(near, 1 - player.pos.distanceTo(d.pos)/26);
+      if (run && Math.random() < dt*1.5) emit(d.pos.clone().add(new V3(rand(-0.6,0.6), -3, rand(-0.6,0.6))), 1, {colors:[0x55627d,0x3a4258], speed:1, life:1.2, size:0.5, drag:1, local:true});
     }
   }
   if (DEM.pat && run){
@@ -3742,7 +3797,7 @@ function updateDementorFx(dt){
     emit(P.s.position, 7, {colors:[0xffffff,0xd8efff,0x9fd4ff], speed:5, life:1.4, size:0.8, drag:1.4, local:true});
     if (bloomPass) bloomPass.strength = (DEM.bloom0 || 0.6) + Math.max(0, 1.6 - P.t*0.4);
     if (P.t > 4.5) P.s.material.opacity = Math.max(0, 1 - (P.t - 4.5)/1.5);
-    if (P.t > 6){ scene.remove(P.s); P.s.material.dispose(); DEM.pat = null; DEM.done = true; DEM.on = false; if (bloomPass) bloomPass.strength = DEM.bloom0 || bloomPass.strength; for (const d of DEM.list){ scene.remove(d.g); disposeTree(d.g); } DEM.list = []; }
+    if (P.t > 6){ scene.remove(P.s); P.s.material.dispose(); DEM.pat = null; DEM.done = true; DEM.on = false; if (bloomPass) bloomPass.strength = DEM.bloom0 || bloomPass.strength; for (const d of DEM.list){ scene.remove(d.g); disposeTree(d.g); } DEM.list = []; applyDark(0); }
   }
   DEM.hit = Math.max(0, DEM.hit - dt*0.3);
   const caught = player && player.stun > 0 && player.stunKind==='dementor';
@@ -3751,6 +3806,34 @@ function updateDementorFx(dt){
   DEM.fx += (target - DEM.fx)*Math.min(1, dt*(caught ? 6 : 2.5));
   $('dementorFx').style.opacity = DEM.fx.toFixed(3);
 }
+// この試合だけのセリフ：dem=暗くなってから守護霊まで、relief=守護霊のあと
+function demQuipMode(){
+  if (!demEvent()) return null;
+  const el = demElapsed();
+  if (DEM.pat || (DEM.done && el < DEM_OUT + 25)) return 'relief';
+  if (DEM.on || el >= DEM_DARK + 4) return 'dem';
+  return null;
+}
+const DEM_QUIPS = {
+  harry:   {chatter:['寒い……でも、手は動く。','あいつらに近づくな！ 回り込もう！','怖くても、飛ぶのはやめない。','ボールだけ見ろ！ 影は見なくていい！'], goal:['入った……！ まだ戦える！','こんな寒さに負けるか！'], teamGoal:['いいぞ！ この中でも決められる！'],
+            demHit:['……っ、声が……聞こえる……','体が……動かない……'], relief:['銀色の……ダンブルドアだ！','助かった……さあ、続きだ！']},
+  ron:     {chatter:['な、なんでここにいるんだよ！ 入れないって話だろ！','寒い寒い寒い……リングから離れたくない……','来るな来るな……ボールは来ていいけど！'], save:['止めた！ ……手、凍えてるけど！','こ、怖くても止める！'],
+            demHit:['うわあっ……さ、寒い……！'], relief:['……ああ、あったかい。生き返った……']},
+  ginny:   {chatter:['何なの、あれ……！ でも試合は止まってない！','怖がってる暇はないよ、点を取ろう！','あいつらの下は通らないで！'], goal:['こんな中でも決めたよ！','どう、まだ飛べるでしょ！'], demHit:['……っ、寒い……！'], relief:['見て、銀色の光……！ よし、反撃だよ！']},
+  fred:    {chatter:['おいおい、招待状を出した覚えはないぞ。','ジョージ、あいつらにもブラッジャー効くと思うか？','冗談でも言ってないと、凍えそうだ。'], bludger:['……震えてても、狙いは外さないさ。'], demHit:['……っ、笑えない寒さだ……'], relief:['さすがダンブルドア。拍手しとくか！']},
+  george:  {chatter:['効かないだろうな、たぶん。','フレッド、今日のジョークは三割増しで頼む。','ブラッジャーより厄介な客が来たな。'], bludger:['寒くても、腕はなまってないぞ。'], demHit:['……ぐっ、なんだこれ……'], relief:['寒さも晴れた。さあ、仕事に戻るか！']},
+  wood:    {chatter:['ひるむな！ 試合はまだ続いてる！','あいつらから離れて飛べ！ 陣形は崩すな！','寮杯がかかってるんだ、ここで止まるな！'], teamGoal:['それだ！ こんな中でもやれるぞ！'], save:['……止めた！ 寒さなんか関係ない！'], relief:['よし、仕切り直しだ！ 一気にいくぞ！']},
+  angelina:{chatter:['落ち着いて！ 近づかれる前に離れるのよ！','怖いのは向こうも同じ。今がチャンスよ！'], goal:['決めたわ。……震えは止まらないけど。'], relief:['光が……！ さあ、取り返しましょう！']},
+  katie:   {chatter:['寒っ……でも、手は止めないわ！'], relief:['あったかい……！ もう大丈夫ね！']},
+  alicia:  {chatter:['ゴール前、空いてる！ ……あいつらがいない方よ！'], relief:['よかった……さあ、続けましょ！']},
+  draco:   {chatter:['な、なんだあれは……！ 聞いてないぞ！','ち、父上に言いつけてやる……！','こ、こんなもの、怖くなんか……ない！'], goal:['見たか！ ……震えてなんかいない！'], demHit:['ひっ……！ 来るな、来るなぁ！'], relief:['……ふ、ふん。最初から平気だったさ。']},
+  flint:   {chatter:['ちっ、邪魔な連中だ……どけ！','あんなもんにビビるな、ぶつかっていけ！'], tackleWin:['寒さなんか関係ねえ、どけ！'], demHit:['ぐっ……離れろ……！'], relief:['……ふん、続きだ。叩きつぶしてやる。']},
+  crabbe:  {chatter:['う、うう……寒い……'], relief:['……あったかくなった。']},
+  goyle:   {chatter:['ど、どこに逃げれば……'], relief:['……もう、いない？']},
+  pucey:   {chatter:['くそっ、視界が悪い……！'], relief:['よし、見える！']},
+  montague:{chatter:['冗談じゃない、こんな試合……！'], relief:['……やっと消えたか。']},
+  bletchley:{chatter:['リングの前に来るなよ……頼むから……'], save:['と、止めたぞ……！'], relief:['……助かった。']},
+};
 function missionGo(){
   if (!game.missionWait) return;
   game.missionWait = false; game.missionCardT = 0; game.cd = 3; lastCd = 4; uiClick();
@@ -5058,7 +5141,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15e';
+const APP_VERSION = '2026-11-15f';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
