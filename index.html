@@ -136,6 +136,7 @@ body.incut canvas{filter:blur(1.6px) saturate(.82) sepia(.18) contrast(.96)}
 #picker .pkItem b{flex:1}#picker .pkItem .rar{font-size:11px}
 #picker .pkInfo{flex:1;min-width:0}#picker .pkInfo .cinfo{height:100%;box-sizing:border-box}
 @media (max-width:640px){#picker .pkBox{flex-direction:column}#picker .pkList{flex:none;max-height:200px}}
+.mbtn.boss{background:linear-gradient(135deg,#5a3a8a,#2a1a40);border-color:#ffd54a;color:#ffe9a8;box-shadow:0 0 16px rgba(185,138,255,.45)}
 .vsHead{display:flex;align-items:center;justify-content:center;gap:26px;margin:10px 0 2px;padding:14px;border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.02),rgba(255,255,255,.06))}
 .vsTeam{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:150px}.vsTeam b{font-size:18px}
 .vsMark{font-size:38px;font-weight:900;font-style:italic;color:#ffcf4a;text-shadow:0 0 18px rgba(255,190,60,.55),0 3px 0 #8a5a00;letter-spacing:2px}
@@ -364,6 +365,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
     <div class="menuBtns">
       <button class="mbtn primary" id="mStory">ストーリー</button>
       <button class="mbtn primary" id="mPlay">ひとりで遊ぶ</button>
+      <button class="mbtn primary boss" id="mBoss" hidden>最強に挑む</button>
       <button class="mbtn primary" id="mOnline">みんなで遊ぶ（オンライン）</button>
       <button class="mbtn" id="mProfile">あなたの選手</button>
       <button class="mbtn" id="mHow">遊び方</button>
@@ -405,6 +407,29 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   </div>
 </div>
 <!-- ストーリー：出場準備 -->
+<div class="overlay" id="boss" hidden>
+  <div class="panel">
+    <p class="ptitle">最強に挑む</p>
+    <div class="vsHead" id="bossVsHead"></div>
+    <p class="sub">相手は全員UR・最強の難易度・W杯会場。ストーリーとは関係なく何度でも遊べます。</p>
+    <p class="ptitle" style="font-size:20px;margin-top:14px">相手の編成</p>
+    <div class="rcards" id="bossRival"></div>
+    <div class="cinfoWrap" id="bossRivalInfo"></div>
+    <p class="ptitle" style="font-size:20px;margin-top:18px">自分のチーム</p>
+    <div class="srow"><select id="bossTeam" aria-label="自分のチーム"></select></div>
+    <p class="sub" id="bossNote" style="margin-top:4px"></p>
+    <p class="ptitle" style="font-size:20px;margin-top:14px">ポジション</p>
+    <div class="srow"><button class="btn ghost small" data-brole="C" type="button">チェイサー</button><button class="btn ghost small" data-brole="B" type="button">ビーター</button></div>
+    <p class="ptitle" style="font-size:20px;margin-top:14px">メンバー <button class="btn ghost small" id="bossBest" type="button">いちばん強い編成</button></p>
+    <div class="lineup" id="bossLineup"></div>
+    <div class="cinfoWrap" id="bossInfo"></div>
+    <div class="srow" style="margin-top:14px"><span>箒</span><select id="bossBroom" aria-label="箒"></select></div>
+    <div class="btns">
+      <button class="btn" id="bossGo">試合開始</button>
+      <button class="btn ghost" id="bossBack" style="margin-left:auto">メニューへ</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="storyPrep" hidden>
   <div class="panel">
     <p class="ptitle" id="prepTitle">出場準備</p>
@@ -737,13 +762,15 @@ const CHARS = {
   ],
 };
 const CHAR_BY_ID = {};
+const BOSS_BAN = ['krum', 'bagman', 'ronx'];   // 「最強に挑む」の相手にいるので味方には選べない
 for (const t in CHARS) CHARS[t] = CHARS[t].map(([id,name,role,rar,sk,hair])=>(CHAR_BY_ID[id] = {id, name, role, rar, sk, hair:HAIR[hair], team:t}));
 // ストーリーで代表選考に勝ったあとのイギリス：グリフィンドールの仲間＋イギリス代表（覚醒ロンは準決勝専用なので除く）
 for (const [id, name, rar, sk] of [['ronss','ロン・ウィーズリー（成長）','SSR',''], ['ronx','ロン・ウィーズリー（覚醒）','UR','ron']])
   CHAR_BY_ID[id] = {id, name, role:'K', rar, sk, hair:HAIR.red, team:'englandwc'};
+CHAR_BY_ID.james = {id:'james', name:'ジェームズ・ポッター', role:'C', rar:'UR', sk:'james', hair:HAIR.black, team:'legends'};
 CHARS.englandwc = CHARS.gryffindor.concat(CHARS.england, [CHAR_BY_ID.ronss, CHAR_BY_ID.ronx]);
 const HAIR_STYLE = {
-  harry:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', ronss:'short', wood:'short', ron:'short', mclaggen:'curly',
+  harry:'messy', james:'messy', ginny:'long', angelina:'pony', katie:'pony', alicia:'long', fred:'short', george:'short', ronx:'short', ronss:'short', wood:'short', ron:'short', mclaggen:'curly',
   flint:'short', draco:'slick', pucey:'short', montague:'buzz', crabbe:'buzz', goyle:'buzz', bletchley:'short',
   cho:'long', davies:'messy', stretton:'curly', inglebee:'short', samuels:'buzz', page:'short',
   cedric:'short', zacharias:'slick', cadwallader:'short', rickett:'short', oflaherty:'pony', fleet:'buzz',
@@ -774,7 +801,7 @@ const AVATARS = [
 const AV_BY_ID = Object.fromEntries(AVATARS.map(a=>[a.id, a]));
 const avatarLook = id => { const a = AV_BY_ID[id] || AVATARS[0]; return {hair:a.hair, hs:a.hs, skin:a.skin, sex:a.sex}; };
 const RARITY = {R:{pw:1.0, col:'#d08b52'}, SR:{pw:1.04, col:'#cfd6e2'}, SSR:{pw:1.09, col:'#f4c34a'}, 'SSR+':{pw:1.12, col:'#ffd54a'}, UR:{pw:1.13, col:'#b98aff'}};
-const SKILL_TEXT = {seeker:'スニッチ戦に強い', krum:'スニッチを最短距離で奪う', ron:'至近距離以外のシュートを全部止める', bagman:'ブラッジャーが速く、強く追尾する'};
+const SKILL_TEXT = {james:'シュートがキーパーの手をすり抜けやすい', seeker:'スニッチ戦に強い', krum:'スニッチを最短距離で奪う', ron:'至近距離以外のシュートを全部止める', bagman:'ブラッジャーが速く、強く追尾する'};
 const charsOf = (team, role) => (CHARS[team] || []).filter(c=>c.role===role);
 // 自分以外の枠（役職ごと）にメンバーを割り当てる。pref = {C:[id..], B:[id..], K:[id..]}（足りない分はランダム）
 function pickLineup(team, need, pref, exclude){ return poolLineup(CHARS[team] || [], need, pref, exclude); }
@@ -823,6 +850,7 @@ const PROFILE = {
   oflaherty:'ハッフルパフのビーター。原作では名前が出てくる程度の選手。',
   fleet:'ハッフルパフのキーパー。原作では名前が出てくる程度の選手で、粘り強い守りを見せる。',
   bagman:'イギリス代表で名をはせたビーターの、若き現役時代の姿。豪快なフルスイングで放つブラッジャーは重く、しつこく相手を追い回す。陽気で自信家、チームを盛り上げるムードメーカーでもある。',
+  james:'ハリーの父。ホグワーツ時代のグリフィンドールで名をはせたチェイサーで、型破りな飛び方とシュートでキーパーを翻弄した伝説の選手。',
   krum:'ブルガリア代表のシーカーで、世界最高と呼ばれる若き天才。地上ではぎこちないのに、箒に乗ると別人のように鋭く飛ぶ。急降下でだます大技「ウロンスキー・フェイント」の使い手。',
   dimitrov:'ブルガリア代表のチェイサー。クラムの影に隠れがちだが、ワールドカップを勝ち上がってきた実力者。荒っぽいプレーも辞さない。',
   ivanova:'ブルガリア代表のチェイサー。ワールドカップ決勝の舞台に立った実力者。',
@@ -857,7 +885,7 @@ function emblemSvg(key, size=56){
 }
 function charInfoHtml(c){
   if (!c) return '';
-  const T = ALL_TEAMS()[c.team] || {};
+  const T = ALL_TEAMS()[c.team] || PRACTICE_TEAMS[c.team] || {};
   const desc = PROFILE[c.id] || 'このゲームのオリジナル選手。';
   return `<div class="cinfo"><div class="ch"><b style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</b> <span class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</span><span class="ctag">${T.name || ''}・${ROLE_NAME[c.role]}</span></div>
     ${c.sk ? `<div class="csk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>` : ''}<p>${desc}</p></div>`;
@@ -1725,6 +1753,7 @@ function setStage(name){
 const PRACTICE_TEAMS = {
   teamA: {name:'Aチーム', letter:'A', motto:'', col:0xd9822b, dark:0x6b3a0c, css:'#ffb070', deep:'#9a5a1a', acc:'#ffe2b0'},
   teamB: {name:'Bチーム', letter:'B', motto:'', col:0x2a9d8f, dark:0x0e4a43, css:'#6fe0d0', deep:'#1a6e64', acc:'#d8fff9'},
+  legends: {name:'最強選抜', letter:'L', motto:'全員UR', col:0x4a2a7a, dark:0x160c26, css:'#d2b0ff', deep:'#5a3a8a', acc:'#ffd54a'},   // 「最強に挑む」の相手
 };
 function setHouses(h0, h1){
   [h0, h1].forEach((k,i)=>{ const H = HOUSES[k] || NATIONS[k] || ENGLAND[k] || PRACTICE_TEAMS[k]; TEAM_COL[i] = H.col; TEAM_DARK[i] = H.dark; TEAM_CSS[i] = H.css; TEAM_DEEP_CSS[i] = H.deep; TEAM_NAME[i] = H.name; TEAM_LETTER[i] = H.letter; });
@@ -2116,7 +2145,7 @@ snitch.trail = new Trail(20, 0.18, 0xffd54a, 0.9);
 
 const game = {fw:[], state:'menu', time:CFG.matchTime, score:[0,0], cd:0, snitchSpawned:false, prevState:null, shake:0, cheer:0, playerRole:settings.role||'C',
   stats:{goals:0, tackles:0, steals:0, cuts:0, bhits:0}};
-const quiet = () => ['menu','select','howto','settings','online','lobby','story','cut','storyPrep','profile'].includes(game.state);
+const quiet = () => ['boss','menu','select','howto','settings','online','lobby','story','cut','storyPrep','profile'].includes(game.state);
 
 // =====================================================================
 //  効果音
@@ -2298,7 +2327,7 @@ function musicTick(dt){
   let want;
   if (st==='cut') want = cut.kind==='win' ? 'victory' : (cut.kind==='intro' && cut.i >= cut.preI) ? 'prebattle' : 'story';   // ストーリーの場面ごと
   else if (st==='story') want = 'story';
-  else if (st==='storyPrep') want = 'prebattle';
+  else if (st==='storyPrep' || st==='boss') want = 'prebattle';
   else if (quiet()) want = 'menu';
   else if (st==='end'){ MU.endT += dt; want = MU.endT > 4.5 ? 'menu' : null; }
   else want = (game.snitchSpawned || game.time<=CFG.snitchAt+2) ? 'tension' : 'match';
@@ -3002,7 +3031,7 @@ function updateBall(dt){
     if (hostile){
       if (ball.rolled.has(e)) continue;
       ball.rolled.add(e);
-      const p = e.role==='K' ? (e.sk==='ron' ? (ronFarShot(e, spd) ? 1 : 0.3) : Math.min(0.97, D.save*(1 + (e.pw-1)*2.5) + defBuff(e.team))) : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1)*e.pw + defBuff(e.team)*0.5;
+      const p = e.role==='K' ? (e.sk==='ron' ? (ronFarShot(e, spd) ? 1 : 0.3) : Math.min(0.97, D.save*(1 + (e.pw-1)*2.5) + defBuff(e.team)) * (ball.lastThrower.sk==='james' ? 0.55 : 1)) : e.human ? 0.65 : D.intercept*(ball.homing > 0 ? 0.5 : 1)*e.pw + defBuff(e.team)*0.5;
       if (Math.random() > p) continue;
     }
     if (d < bd){ bd = d; best = e; }
@@ -3981,7 +4010,7 @@ function guestEnd(d){
 //  画面遷移・入力
 // =====================================================================
 let lastCd = 4, pausedAt = 0;
-const OVERLAYS = ['menu','select','howto','settings','pause','end','online','lobby','story','storyPrep','profile'];
+const OVERLAYS = ['boss','menu','select','howto','settings','pause','end','online','lobby','story','storyPrep','profile'];
 function showOverlay(id){
   hideTip(); closePicker();
   for (const o of OVERLAYS) $(o).hidden = o!==id;
@@ -4000,9 +4029,9 @@ function startDemo(){
 function openMenu(){
   if (net.active) netReset();
   if (document.pointerLockElement) document.exitPointerLock();
-  game.story = null; game.practice = null; $('practiceBar').hidden = true; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null; document.body.classList.remove('incut');
+  game.story = null; game.boss = false; game.practice = null; $('practiceBar').hidden = true; D = DIFF[settings.diff] || DIFF.normal; $('cut').hidden = true; cut.lines = null; document.body.classList.remove('incut');
   if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
-  game.state = 'menu'; showOverlay('menu');
+  game.state = 'menu'; refreshBossBtn(); showOverlay('menu');
 }
 function openSub(id){ game.state = id; showOverlay(id); }
 function renderHouseCards(){
@@ -4093,7 +4122,7 @@ function selectRole(r){
   document.querySelectorAll('.pcard[data-role]').forEach(c=>c.classList.toggle('sel', c.dataset.role===r));
 }
 function startMatch(){
-  game.state = 'countdown'; game.story = null; D = DIFF[settings.diff] || DIFF.normal;
+  game.state = 'countdown'; game.story = null; game.boss = false; D = DIFF[settings.diff] || DIFF.normal;
   const isW = settings.diff==='world', myTeam = isW ? settings.wcTeam : settings.house;
   const rc = rivalChoice(), rivalKey = rc !== 'random' ? rc : randomRivalFor(myTeam);
   setHouses(myTeam, rivalKey);
@@ -4163,6 +4192,7 @@ function showResult(reason){
     $('endMenuBtn').textContent = 'ストーリーへ';
     if (!won) $('endReason').textContent = reason + '　ヒント：' + CHAPTERS[ch].hint;
   }
+  if (game.boss){ $('againBtn').textContent = a > b ? 'もう一度' : '再挑戦'; $('changeBtn').textContent = '編成を変える'; }
   setTimeout(()=>{ if (game.state==='end'){ showOverlay('end'); if (document.pointerLockElement) document.exitPointerLock(); } }, 1100);
 }
 function lockPointer(){
@@ -4197,9 +4227,9 @@ document.querySelectorAll('.pcard[data-role]').forEach(c=>{
   c.ondblclick = ()=>{ selectRole(c.dataset.role); startMatch(); };
 });
 $('goBtn').onclick = startMatch;
-$('againBtn').onclick = ()=>{ if (game.story){ const ch = game.story.ch; cut.ch = ch; storyScene(ch); openPrep(ch); return; } if (net.active){ if (net.host) hostToLobby(); else backToLobby(); } else startMatch(); };
-$('changeBtn').onclick = ()=>{ if (game.story){ storyAfterWin(game.story.ch); return; } startDemo(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
-$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else if (game.practice){ const P = game.practice; cut.ch = P.ch; cut.lines = P.lines; cut.i = P.i; cut.done = P.done; cut.kind = P.kind; cut.preI = P.preI; startPractice(); } else if (game.story) startStoryMatch(game.story.ch); else startMatch(); };
+$('againBtn').onclick = ()=>{ if (game.boss){ startBoss(); return; } if (game.story){ const ch = game.story.ch; cut.ch = ch; storyScene(ch); openPrep(ch); return; } if (net.active){ if (net.host) hostToLobby(); else backToLobby(); } else startMatch(); };
+$('changeBtn').onclick = ()=>{ if (game.boss){ openBoss(); return; } if (game.story){ storyAfterWin(game.story.ch); return; } startDemo(); selectRole(game.playerRole); renderHouseCards(); renderBroomCards(); openSub('select'); };
+$('restartBtn').onclick = ()=>{ if (net.active){ resume(); toast('オンライン中はやり直せません', 1.0); } else if (game.practice){ const P = game.practice; cut.ch = P.ch; cut.lines = P.lines; cut.i = P.i; cut.done = P.done; cut.kind = P.kind; cut.preI = P.preI; startPractice(); } else if (game.boss) startBoss(); else if (game.story) startStoryMatch(game.story.ch); else startMatch(); };
 $('resumeBtn').onclick = resume;
 $('toMenuBtn').onclick = ()=>{ if (game.practice){ resume(); endPractice(); } else openMenu(); };
 $('endMenuBtn').onclick = ()=>{ if (game.story){ game.story = null; startDemo(); openStory(); } else openMenu(); };
@@ -4587,7 +4617,7 @@ function playChapter(i){
 }
 function startStoryMatch(i){
   const C = CHAPTERS[i], rv = chRival(C);
-  game.state = 'countdown'; game.story = {ch:i};
+  game.state = 'countdown'; game.story = {ch:i}; game.boss = false;
   D = DIFF[C.diff] || DIFF.normal;
   setHouses(C.own, rv); setStage(C.stage);
   const [own, mc] = chOwnLineup(i);
@@ -4660,6 +4690,82 @@ function storyAfterWin(i){
   playCut(CHAPTERS[i].win, last ? 'ワールドカップ優勝！' : `第${i+1}章 クリア！`, ()=>{ startDemo(); openStory(); }, CHAPTERS[i]);
 }
 $('mStory').onclick = ()=>{ uiClick(); needProfile(openStory); };
+// ---------- 最強に挑む（全章クリア後） ----------
+const BOSS_LINEUP = {C:['james','krum'], B:['bagman'], K:['ronx']};
+const bossRival = () => ({C:BOSS_LINEUP.C.map(id=>CHAR_BY_ID[id]), B:BOSS_LINEUP.B.map(id=>CHAR_BY_ID[id]), K:BOSS_LINEUP.K.map(id=>CHAR_BY_ID[id])});
+const bossTeams = () => Object.keys(ALL_TEAMS()).filter(k=>k!=='englandwc');
+const bossPool = team => (CHARS[team] || []).filter(c=>!BOSS_BAN.includes(c.id));
+const charPw = c => c.pwx || RARITY[c.rar].pw;
+function refreshBossBtn(){ $('mBoss').hidden = !(story.done >= CHAPTERS.length); }
+function bossLineup(){
+  const team = settings.bossTeam, pool = bossPool(team);
+  if (!settings.bossLineup || typeof settings.bossLineup !== 'object') settings.bossLineup = {};
+  let pref = settings.bossLineup[team];
+  if (!pref){ pref = {}; for (const r of ['C','B','K']) pref[r] = pool.filter(c=>c.role===r).sort((a,b)=>charPw(b)-charPw(a)).map(c=>c.id); }
+  const lu = poolLineup(pool, needFor(game.playerRole || settings.role || 'C'), pref);
+  settings.bossLineup[team] = {C:lu.C.map(c=>c.id), B:lu.B.map(c=>c.id), K:lu.K.map(c=>c.id)};
+  return lu;
+}
+function openBoss(){
+  if (net.active) netReset();
+  if (document.pointerLockElement) document.exitPointerLock();
+  game.story = null; game.boss = false;
+  if (['countdown','play','paused','end','cut'].includes(game.state) || stage !== 'hog') startDemo();
+  if (!bossTeams().includes(settings.bossTeam)) settings.bossTeam = 'ireland';
+  game.playerRole = game.playerRole || settings.role || 'C';
+  game.state = 'boss'; renderBoss(); showOverlay('boss');
+}
+function renderBoss(){
+  const T = ALL_TEAMS(), team = settings.bossTeam, role = game.playerRole || settings.role || 'C', L = PRACTICE_TEAMS.legends;
+  $('bossVsHead').innerHTML = `<div class="vsTeam">${emblemSvg(team, 62)}<b style="color:${T[team].css}">${T[team].name}</b></div><div class="vsMark">VS</div><div class="vsTeam">${emblemSvg('legends', 62)}<b style="color:${L.css}">${L.name}</b></div>`;
+  { const rl = bossRival(), list = [...rl.C, ...rl.B, ...rl.K];
+    $('bossRival').innerHTML = list.map(c=>`<div class="rcard rUR" data-cid="${c.id}" tabindex="0">
+      <div class="rtop">${svgIcon(c.role, '#fff')}<span>${ROLE_NAME[c.role]}</span><b class="rar" style="color:${RARITY[c.rar].col}">${c.rar}</b></div>
+      <div class="rname" style="color:${RARITY[c.rar].col}">${escHtml(c.name)}</div>
+      <div class="rsk" style="color:${RARITY[c.rar].col}">★ ${SKILL_TEXT[c.sk]}</div>
+    </div>`).join('');
+    wireInfo($('bossRival')); }
+  $('bossTeam').innerHTML = bossTeams().map(k=>`<option value="${k}"${k===team ? ' selected' : ''}>${T[k].name}${k==='ireland' ? '（おすすめ）' : ''}</option>`).join('');
+  $('bossNote').innerHTML = team==='ireland'
+    ? '<span style="color:var(--gold)">おすすめ：</span>味方にはURがいないので、全員SSR+のアイルランドがいちばん戦えます。'
+    : '味方にはURがいないので、全員SSR+の<b style="color:var(--gold)">アイルランドがおすすめ</b>です。クラム・バグマン・覚醒ロンは相手にいるので選べません。';
+  document.querySelectorAll('[data-brole]').forEach(btn=>{ btn.classList.toggle('sel', btn.dataset.brole===role); btn.onclick = ()=>{ uiClick(); selectRole(btn.dataset.brole); renderBoss(); }; });
+  const lu = bossLineup(), ids = settings.bossLineup[team], need = needFor(role), pool = bossPool(team);
+  let html = meSlotHtml(role);
+  for (const r of ['C','B','K']) for (let k=0;k<need[r];k++){
+    const cur = lu[r][k];
+    const opts = pool.filter(c=>c.role===r).map(c=>`<option value="${c.id}"${cur && cur.id===c.id ? ' selected' : ''}>${escHtml(c.name)}（${c.rar}）</option>`).join('');
+    const sk = cur && cur.sk ? `<span style="color:${RARITY[cur.rar].col}">★ ${SKILL_TEXT[cur.sk]}</span>` : '';
+    html += `<div class="lslot" data-cid="${cur ? cur.id : ''}"><span class="lr">${svgIcon(r, '#ffcf4a')}${ROLE_NAME[r]}${cur ? ` <b class="rar" style="color:${RARITY[cur.rar].col}">${cur.rar}</b>` : ''}</span><select data-bsr="${r}" data-bsk="${k}" aria-label="${ROLE_NAME[r]}">${opts}</select><span class="lsk">${sk}</span></div>`;
+  }
+  $('bossLineup').innerHTML = html;
+  $('bossLineup').querySelector('[data-edit-me]').onclick = ()=>{ uiClick(); openProfile(openBoss); };
+  $('bossLineup').querySelectorAll('select[data-bsr]').forEach(el=>{ el.onchange = ()=>{
+    const r = el.dataset.bsr, k = +el.dataset.bsk, arr = ids[r], old = arr[k], j = arr.indexOf(el.value);
+    if (j >= 0 && j !== k) arr[j] = old;
+    arr[k] = el.value; saveSettings(); uiClick(); $('bossInfo').dataset.id = el.value; renderBoss();
+  }; });
+  wireInfo($('bossLineup'));
+  $('bossBroom').innerHTML = Object.entries(BROOMS).map(([k,b])=>`<option value="${k}"${settings.broom===k?' selected':''}>${b.name}（${b.rate}）</option>`).join('');
+  saveSettings();
+}
+function startBoss(){
+  game.state = 'countdown'; game.story = null; game.boss = true;
+  setHouses(settings.bossTeam, 'legends'); setStage('wc');
+  buildTeams(game.playerRole || settings.role || 'C', [bossLineup(), bossRival()], null);
+  resetGame();
+  D = DIFF.world;   // resetGame が通常モードの難易度に戻すので、ここで最強にする
+  camera.position.copy(player.pos).add(new V3(player.team===0?-8:8, 3, 0));
+  game.cd = 3; lastCd = 4;
+  showOverlay(null); audio(); lockPointer();
+}
+$('mBoss').onclick = ()=>{ uiClick(); needProfile(openBoss); };
+$('bossTeam').onchange = ev=>{ settings.bossTeam = ev.target.value; saveSettings(); uiClick(); renderBoss(); };
+$('bossBest').onclick = ()=>{ uiClick(); if (settings.bossLineup) delete settings.bossLineup[settings.bossTeam]; renderBoss(); };
+$('bossBroom').onchange = ev=>{ settings.broom = ev.target.value; saveSettings(); };
+$('bossGo').onclick = ()=>{ uiClick(); startBoss(); };
+$('bossBack').onclick = ()=>{ uiClick(); openMenu(); };
+refreshBossBtn();
 // ---------- あなたの選手 ----------
 function meSlotHtml(role){
   const a = AV_BY_ID[settings.avatar] || AVATARS[0], th = avatarThumbs()[a.id];
@@ -4728,7 +4834,7 @@ function startPractice(){
   const i = cut.ch, C = CHAPTERS[i];
   game.practice = {ch:i, lines:cut.lines, i:cut.i, done:cut.done, kind:cut.kind, preI:cut.preI};
   cut.choice = false; $('cutChoice').hidden = true; $('cut').hidden = true; document.body.classList.remove('incut'); cut.lines = null; cut.done = null;
-  game.story = null; game.state = 'countdown';
+  game.story = null; game.boss = false; game.state = 'countdown';
   // 練習は A・B チームの名前なしの選手だけ
   setHouses('teamA', 'teamB'); setStage(C.stage);
   const mob = () => ({C:[], B:[], K:[]});
@@ -4781,7 +4887,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15a';
+const APP_VERSION = '2026-11-15b';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
