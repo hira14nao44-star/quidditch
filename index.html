@@ -3647,14 +3647,14 @@ function demGlow(){
   g.fillStyle = gr; g.fillRect(0,0,128,128); demGlowC = new THREE.CanvasTexture(c); return demGlowC;
 }
 // 空と光を暗くする（k=0 で元どおり）
-const DK = {bg:new THREE.Color(0x262e3e), top:new THREE.Color(0x0f1626), hor:new THREE.Color(0x353f52), sun:new THREE.Color(0x98a6c8), hemi:new THREE.Color(0x667089)};
+const DK = {bg:new THREE.Color(0x1d2433), top:new THREE.Color(0x0a101e), hor:new THREE.Color(0x2a3345), sun:new THREE.Color(0x8e9cc0), hemi:new THREE.Color(0x5c6680)};
 function applyDark(k){
   const L = STAGE_LIGHT[stage];
   scene.background.setHex(L.bg).lerp(DK.bg, k); scene.fog.color.copy(scene.background);
-  scene.fog.near = L.fogNear*(1 - 0.5*k); scene.fog.far = L.fogFar*(1 - 0.5*k);
+  scene.fog.near = L.fogNear*(1 - 0.55*k); scene.fog.far = L.fogFar*(1 - 0.55*k);
   skyUniforms.top.value.setHex(L.top).lerp(DK.top, k); skyUniforms.hor.value.setHex(L.hor).lerp(DK.hor, k);
-  sun.color.setHex(L.sunCol).lerp(DK.sun, k); sun.intensity = L.sunI*(1 - 0.5*k);
-  hemi.color.setHex(L.hemiSky).lerp(DK.hemi, k); hemi.intensity = L.hemiI*(1 - 0.36*k);
+  sun.color.setHex(L.sunCol).lerp(DK.sun, k); sun.intensity = L.sunI*(1 - 0.58*k);
+  hemi.color.setHex(L.hemiSky).lerp(DK.hemi, k); hemi.intensity = L.hemiI*(1 - 0.43*k);
   DEM.darkK = k;
 }
 // ぼろ布のテクスチャ（下のほうがギザギザに裂けている）と、黒い煙
@@ -5237,7 +5237,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-15i';
+const APP_VERSION = '2026-11-16a';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
