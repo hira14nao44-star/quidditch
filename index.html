@@ -4779,7 +4779,7 @@ function loadStoryImages(){
     }).catch(()=>{});
   }
 }
-setTimeout(loadStoryImages, 1500);
+loadStoryImages();
 const PLACE_NAME = {'湖畔の古城':'城', '朝の大食堂':'大食堂', '夜の談話室':'グリフィンドール談話室', '夕方の練習場':'練習場', '雨の練習場':'練習場（雨）', '城の廊下':'城の廊下',
   '手紙が届く冬の窓辺':'冬の朝', '大会のキャンプ場':'W杯 キャンプ場', '夜のスタジアム（外観）':'W杯 スタジアム', '夜のスタジアム（内部）':'W杯 スタジアム', '優勝の紙吹雪':'W杯 決勝のあと'};
 const BG_CAM = {'湖畔の古城':'castle', '朝の大食堂':'castle', '夜の談話室':'sky', '夕方の練習場':'pitch', '雨の練習場':'pitch', '城の廊下':'castle',
@@ -4793,6 +4793,7 @@ const SIL = {cho:{f:1, hair:'long', build:'slim'}, davies:{hair:'short', build:'
   mullet:{f:1, hair:'mid', build:'slim'}, moran:{f:1, hair:'long', build:'slim'}, elodie:{f:1, hair:'long', build:'slim'}, klaus:{hair:'short', build:'big'}};
 const SIL_WORD = {'チョウ':'cho', 'デイビース':'davies', 'セドリック':'cedric', 'フリント':'flint', 'マルフォイ':'draco', 'ドラコ':'draco', 'バグマン':'bagman',
   'クラム':'krum', 'トロイ':'troy', 'マレット':'mullet', 'モラン':'moran', 'エロディ':'elodie', 'クラウス':'klaus'};
+for (const id in SIL){ const im = new Image(); im.src = 'img/sil/' + id + '.png'; }   // シルエットは最初から読み込んでおく
 function silhouetteSvg(p){
   const w = p.build==='big' ? 1.1 : p.build==='slim' ? 0.9 : p.build==='tall' ? 0.95 : 1, sh = p.f ? 0.9 : 1, tall = p.build==='tall' ? 1.08 : 1, hunch = p.hunch ? 10 : 0;
   const hairPath = p.hair==='long' ? 'M88 58 C70 60 62 92 66 128 C74 120 84 104 92 92 Z' : p.hair==='mid' ? 'M88 58 C74 62 70 84 74 100 C80 94 86 86 92 82 Z' : '';
@@ -4892,8 +4893,8 @@ function cutNext(first){
   $('cutWho').innerHTML = cutSpeakerHtml(n.who); $('cutWho').style.visibility = n.who ? 'visible' : 'hidden';
   $('cutTxt').classList.toggle('dir', !!n.dir);
   { const img = BG_IMG[n.bg]; $('cutBg').style.backgroundImage = img ? `url("${img}")` : ''; $('cutBg').classList.toggle('on', !!img); }
-  { const sid = cutSilFor(n, C); if (sid !== cut.sil){ cut.sil = sid; const img = sid && SIL_IMG[sid]; $('cutSil').classList.toggle('big', !!img);
-      $('cutSil').innerHTML = !sid ? '' : img ? `<img class="silImg" src="${img}" alt=""><div class="silName">？？？</div>` : '<div class="silName">？？？</div>' + silhouetteSvg(SIL[sid]); $('cutSil').classList.toggle('on', !!sid); } }
+  { const sid = cutSilFor(n, C); if (sid !== cut.sil){ cut.sil = sid; const img = sid && (SIL_IMG[sid] || 'img/sil/' + sid + '.png'); $('cutSil').classList.toggle('big', !!img);
+      $('cutSil').innerHTML = !sid ? '' : `<img class="silImg" src="${img}" alt="" onerror="this.style.visibility='hidden'"><div class="silName">？？？</div>`; $('cutSil').classList.toggle('on', !!sid); } }
   $('cutTxt').textContent = '';
   if (!first) uiClick();
 }
@@ -5237,7 +5238,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-16a';
+const APP_VERSION = '2026-11-16b';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
