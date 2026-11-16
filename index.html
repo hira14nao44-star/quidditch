@@ -42,9 +42,10 @@ canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 #patFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 40%,#fff 0%,rgba(225,242,255,.92) 32%,rgba(160,210,255,0) 78%)}
 #patFlash.on{animation:patf 1.8s ease-out}
 @keyframes patf{0%{opacity:0}8%{opacity:1}100%{opacity:0}}
-#bigCenter{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;white-space:nowrap}
+#bigCenter{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;white-space:nowrap}
 #bigCenter.on{animation:bigc 4.6s ease forwards}
-#bigCenter b{display:block;font-size:clamp(24px,3.7vw,50px);font-weight:800;color:#f2f9ff;letter-spacing:.06em;text-shadow:0 0 14px #bfe4ff,0 0 36px #6ab4ff,0 0 70px #3a7fe0,0 4px 12px rgba(0,0,0,.6)}
+#bigCenter i{display:block;font-style:normal;font-size:clamp(18px,2.2vw,30px);font-weight:800;color:#e8f4ff;letter-spacing:.12em;margin-bottom:4px;text-shadow:0 0 12px #9fd0ff,0 0 28px #4a90e0,0 3px 10px rgba(0,0,0,.6)}
+#bigCenter b{display:block;font-size:clamp(22px,3.2vw,46px);font-weight:800;color:#f2f9ff;letter-spacing:.06em;text-shadow:0 0 14px #bfe4ff,0 0 36px #6ab4ff,0 0 70px #3a7fe0,0 4px 12px rgba(0,0,0,.6)}
 #bigCenter span{display:block;margin-top:10px;font-size:21px;font-weight:700;color:#e4f3ff;text-shadow:0 2px 10px rgba(0,0,0,.85)}
 @keyframes bigc{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}22%{transform:translate(-50%,-50%) scale(1)}82%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.04)}}
 #eventCard{position:absolute;top:56%;left:50%;transform:translate(-50%,-50%);width:min(540px,90vw);text-align:center;background:linear-gradient(180deg,rgba(16,24,44,.97),rgba(5,7,15,.97));border:2px solid #8fb8ff;border-radius:18px;padding:22px 26px;box-shadow:0 0 50px rgba(110,150,255,.45);animation:mcard .6s ease}
@@ -345,7 +346,7 @@ select{background:var(--chip);color:var(--ink);border:1px solid var(--line);bord
   <div id="missionBar" hidden></div>
   <div id="practiceBar" hidden></div>
   <div id="quip"></div>
-  <div id="bigCenter"><b>ダンブルドア「エクスペクト・パトローナム！」</b></div>
+  <div id="bigCenter"><i>ダンブルドア</i><b>「エクスペクト・パトローナム！」</b></div>
   <div id="eventCard" hidden>
     <div class="mk">緊急事態</div>
     <div class="mt">ディメンターが現れた！</div>
@@ -3155,6 +3156,7 @@ function pickLine(e, kind){
 function sayEvent(kind, actor, opts={}){
   if (net.guest) return;
   if (game.state !== 'play') return;
+  if (now < quipHold) return;   // 守護霊の文字が出ているあいだは話さない（重なるので）
   const force = kind==='snitch' || kind==='catch';
   if (!force && (now - quipState.t < 2.5 || Math.random() > (QUIP_CHANCE[kind] || 0.4))) return;
   const tries = [];
@@ -3171,7 +3173,7 @@ function sayEvent(kind, actor, opts={}){
   showQuip(who.id, line);
   if (net.host) netFx({t:'quip', id:who.id, x:line});
 }
-let quipT = 0;
+let quipT = 0, quipHold = 0;
 function showQuip(id, line){
   const e = ents.find(x=>x.id===id); if (!e || !e.char) return;
   const c = e.char, el = $('quip');
@@ -3731,7 +3733,7 @@ function demRemove(d){
   scene.remove(d.g); disposeTree(d.g);
   for (const q of d.smoke){ scene.remove(q.s); q.s.material.dispose(); }
 }
-function demReset(){
+function demReset(){ quipHold = 0;
   for (const d of DEM.list) demRemove(d);
   if (DEM.pat){ scene.remove(DEM.pat.s); DEM.pat.s.material.dispose(); }
   if (DEM.darkK > 0) applyDark(0);
@@ -3776,7 +3778,7 @@ function patronus(){
   $('banner').classList.remove('on'); bannerT = 0;   // 真ん中の文字と重ねない
   if (player) emit(player.pos.clone().add(new V3(0, 5, 0)), 90, {colors:[0xffffff,0xdff2ff,0xa8d8ff], speed:16, life:1.6, size:0.9, drag:1.6, local:true});
   if (bloomPass) DEM.bloom0 = bloomPass.strength;
-  quipState.t = now - 3.8; quipState.by = {};   // 少しして、ほっとした声
+  quipState.t = now - 1.5; quipState.by = {}; quipHold = now + 4.4; quipT = 0; $('quip').classList.remove('on');   // 文字が消えてから、ほっとした声
 }
 function updateDementors(dt){
   if (!demEvent() || DEM.done) return;
@@ -5238,7 +5240,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-16b';
+const APP_VERSION = '2026-11-16d';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
