@@ -235,8 +235,13 @@ body.incut canvas{filter:blur(1.6px) saturate(.82) sepia(.18) contrast(.96)}
 /* ---------- メニュー類 ---------- */
 .overlay{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;background:rgba(4,10,22,.72);backdrop-filter:blur(3px);overflow:auto;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));box-sizing:border-box}
 .overlay[hidden]{display:none}
-.overlay.menu{background:linear-gradient(90deg,rgba(4,10,22,.9) 0%,rgba(4,10,22,.55) 40%,rgba(4,10,22,0) 75%);backdrop-filter:none;align-items:center;justify-content:flex-start}
-.menuBox{margin-left:max(0px,6vw);display:flex;flex-direction:column;gap:6px;max-width:640px}
+.overlay.menu{background:linear-gradient(90deg,rgba(4,10,22,.9) 0%,rgba(4,10,22,.55) 40%,rgba(4,10,22,0) 75%);backdrop-filter:none;align-items:flex-start;justify-content:flex-start;padding-top:max(16px,2.5vh);padding-bottom:max(16px,2.5vh)}
+/* 画面の高さが低いときは、メニュー全体を縮めて上下にはみ出さないように */
+#menu .logo.big{font-size:clamp(40px,min(8vw,11vh),84px)}
+#menu .menuBtns{gap:clamp(6px,1.3vh,10px);margin-top:clamp(12px,3.4vh,28px)}
+#menu .mbtn{padding:clamp(8px,1.75vh,13px) 22px;font-size:clamp(16px,2.8vh,20px)}
+#menu .foot{margin-top:clamp(8px,2.4vh,18px)}
+.menuBox{margin-left:max(0px,6vw);margin-top:auto;margin-bottom:auto;display:flex;flex-direction:column;gap:6px;max-width:640px}
 .logo.big{white-space:nowrap}
 .logo{font-size:44px;font-weight:800;letter-spacing:.04em;margin:0;line-height:1.1;background:linear-gradient(90deg,var(--blue),#fff 45%,var(--red));-webkit-background-clip:text;background-clip:text;color:transparent}
 .logo.big{font-size:clamp(46px,8vw,84px);filter:drop-shadow(0 6px 22px rgba(0,0,0,.5))}
@@ -5240,7 +5245,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-16d';
+const APP_VERSION = '2026-11-16e';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
