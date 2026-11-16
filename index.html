@@ -3900,7 +3900,7 @@ function demQuipMode(){
   return null;
 }
 const DEM_RELIEF = {
-  harry:   {chatter:['……あったかい。','もう大丈夫だ！'], goal:['体が軽い！']},
+  harry:   {chatter:['……消えた……？','もう大丈夫だ！'], goal:['体が軽い！']},
   ron:     {chatter:['生き返った……','よーし、守るぞ！'], save:['止めた！']},
   ginny:   {chatter:['空が明るくなった！','反撃だよ！']},
   fred:    {chatter:['さすがダンブルドア。'], bludger:['調子が戻ってきた！']},
@@ -3911,7 +3911,7 @@ const DEM_RELIEF = {
   alicia:  {chatter:['よかった……続けましょ！']},
   draco:   {chatter:['ふ、ふん。平気だったさ。']},
   flint:   {chatter:['邪魔者は消えた。']},
-  crabbe:  {chatter:['……あったかい。']},
+  crabbe:  {chatter:['……いなくなった？']},
   goyle:   {chatter:['……よかった。']},
   pucey:   {chatter:['よし、見える！']},
   montague:{chatter:['……やっと消えたか。']},
@@ -5243,7 +5243,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-16g';
+const APP_VERSION = '2026-11-16h';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
