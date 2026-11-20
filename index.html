@@ -4530,12 +4530,14 @@ function showResult(reason){
   $('changeBtn').textContent = 'ポジション変更';
   $('changeBtn').style.display = net.active ? 'none' : '';
   $('endMenuBtn').textContent = net.active ? '部屋を出る' : 'メニューへ';
+  $('againBtn').style.display = ''; $('endMenuBtn').style.display = '';
   if (game.story){
     const ch = game.story.ch, won = a > b;
     if (won && story.done <= ch){ story.done = ch + 1; saveStory(); }
     $('againBtn').textContent = won ? 'もう一度' : '再挑戦';
     $('changeBtn').textContent = '次へ'; $('changeBtn').style.display = won ? '' : 'none';
     $('endMenuBtn').textContent = 'ストーリーへ';
+    if (won){ $('againBtn').style.display = 'none'; $('endMenuBtn').style.display = 'none'; }   // 勝ったら「次へ」だけ（押し間違えでお話を飛ばさないように）
     if (!won) $('endReason').textContent = reason + '　ヒント：' + CHAPTERS[ch].hint;
   }
   if (game.boss){ $('againBtn').textContent = a > b ? 'もう一度' : '再挑戦'; $('changeBtn').textContent = '編成を変える'; if (game.bossFrom==='story') $('endMenuBtn').textContent = 'ストーリーへ'; }
@@ -5243,7 +5245,7 @@ function markAces(){
 }
 
 // 新しい版が公開されていたら知らせる（ブラウザが古いページを覚えていることがあるため）
-const APP_VERSION = '2026-11-16h';
+const APP_VERSION = '2026-11-20a';
 setTimeout(async ()=>{
   if (!/^https?:/.test(location.protocol)) return;
   try {
